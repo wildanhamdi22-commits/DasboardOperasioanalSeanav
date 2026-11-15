@@ -1,24 +1,25 @@
 {% extends "portal/base.html" %}
 {% load portal_extras %}
-{% block title %}Inventaris Alat{% endblock %}
-{% block crumb %}Inventaris Alat{% endblock %}
+{% block title %}Daftar Alat Rental{% endblock %}
+{% block crumb %}Rental · Daftar Alat{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Inventaris Alat</h1><p>Pool inventaris rental bersama PT Oseana Prawira Persada dan PT Seanav Maritim Indonesia.</p></div>
+  <div><h1>Daftar Alat Rental</h1><p>Armada alat sewa PT Oseana Prawira Persada dan PT Seanav Maritim Indonesia, dikelompokkan dalam kategori Geodetic, Geophysic, dan Metocean.</p></div>
   <div class="page-actions">
     {% if include_archived %}<a class="btn btn-outline" href="{% url 'inventory' %}?{% if search %}q={{ search|urlencode }}&amp;{% endif %}{% if category %}kategori={{ category|urlencode }}{% endif %}">Sembunyikan arsip</a>{% else %}<a class="btn btn-outline" href="?arsip=1{% if search %}&amp;q={{ search|urlencode }}{% endif %}{% if category %}&amp;kategori={{ category|urlencode }}{% endif %}">Lihat arsip &amp; terjual</a>{% endif %}
-    <a class="btn btn-primary" href="{% url 'inventory_add' %}">+ Tambah unit</a>
+    <a class="btn btn-primary" href="{% url 'inventory_add' %}">+ Tambah alat</a>
   </div>
 </div>
 {% endblock %}
 {% block content %}
+<div class="tabs kind-tabs">
+  <a href="?{% if search %}q={{ search|urlencode }}{% endif %}{% if include_archived %}&amp;arsip=1{% endif %}" class="{% if not category %}on{% endif %}">Semua kategori</a>{% for item in categories %}<a href="?kategori={{ item|urlencode }}{% if search %}&amp;q={{ search|urlencode }}{% endif %}{% if include_archived %}&amp;arsip=1{% endif %}" class="{% if category == item %}on{% endif %}">{{ item }}</a>{% endfor %}{% if uncategorized %}<a href="?kategori=__lain" class="{% if category == '__lain' %}on{% endif %} warn-tab">Perlu kategori <span class="badge red">{{ uncategorized }}</span></a>{% endif %}
+</div>
+{% if uncategorized and category != '__lain' %}<div class="flash warning">{{ uncategorized }} alat lama belum masuk kategori Geodetic, Geophysic, atau Metocean. <a class="link" href="?kategori=__lain">Tampilkan &amp; edit kategorinya →</a></div>{% endif %}
 <form class="toolbar" method="get" action="">
   {% if include_archived %}<input type="hidden" name="arsip" value="1">{% endif %}
   <label class="grow">Cari<input type="search" name="q" value="{{ search }}" placeholder="Model, serial number, OMSN, kode, lokasi…" aria-label="Cari inventaris"></label>
-  <label>Kategori<select name="kategori" aria-label="Filter kategori" onchange="this.form.submit()">
-    <option value="">Semua kategori</option>
-    {% for item in categories %}<option value="{{ item }}" {% if category == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
-  </select></label>
+  {% if category %}<input type="hidden" name="kategori" value="{{ category }}">{% endif %}
   <button class="btn btn-primary" type="submit">Cari</button>
   {% if search or category %}<a class="btn btn-ghost" href="{% url 'inventory' %}{% if include_archived %}?arsip=1{% endif %}">Reset</a>{% endif %}
 </form>
@@ -34,7 +35,7 @@
           <tr>
             <td>{% if unit.photo_url %}<a href="{{ unit.photo_url }}" target="_blank" rel="noopener"><img class="thumb" src="{{ unit.photo_url }}" alt="Foto {{ unit.model }}" loading="lazy"></a>{% else %}<span class="thumb-empty">—</span>{% endif %}</td>
             <td style="min-width:220px">
-              <b>{{ unit.display_name }}</b><small>{{ unit.category }}</small>
+              <b>{{ unit.display_name }}</b><small>{% if unit.category in categories %}<span class="cat cat-{{ unit.category }}">{{ unit.category }}</span>{% else %}<span class="cat cat-none" title="Edit untuk memilih Geodetic, Geophysic, atau Metocean">Perlu kategori · {{ unit.category }}</span>{% endif %}</small>
               {% if unit.accessories %}
                 <details class="mini"><summary>Kelengkapan ({{ unit.accessories|length }})</summary><ul>{% for accessory in unit.accessories %}<li>{{ accessory }}</li>{% endfor %}</ul></details>
               {% else %}<small>Kelengkapan belum dicatat</small>{% endif %}
@@ -52,6 +53,7 @@
                 {% elif unit.status == "TERSEDIA" %}
                   <form method="post" action="{% url 'inventory_archive' unit.id 'arsipkan' %}" data-confirm="Arsipkan unit ini? Riwayat transaksi tetap disimpan.">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Arsipkan</button></form>
                 {% else %}<span class="muted small" title="Unit hanya bisa diarsipkan saat berstatus tersedia">Arsip saat tersedia</span>{% endif %}
+                {% if unit.status == "TERSEDIA" or unit.status == "DIARSIPKAN" %}<a class="btn btn-danger-outline btn-sm" href="{% url 'inventory_delete' unit.id %}">Hapus</a>{% endif %}
               </div>
             </td>
           </tr>

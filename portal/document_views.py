@@ -11,8 +11,9 @@ from django.shortcuts import redirect
 from django.utils import timezone
 
 from .doc_builder import (
-    BRANDS, build_delivery_order, build_invoice, build_quotation, default_terms,
+    BRANDS, build_delivery_order, build_generic, build_invoice, build_quotation, default_terms,
 )
+from .modules import QC_CHECKLIST, RETURN_CHECKLIST, as_json
 from .pdf import PdfConversionError, docx_to_pdf
 from .views import business_permission_required
 
@@ -193,7 +194,7 @@ def invoice_document(request, invoice_id):
                        COALESCE(kl.telepon, ''),
                        COALESCE((SELECT kk.nama FROM kontak_klien kk WHERE kk.klien_id = kl.id
                                  ORDER BY kk.utama DESC, kk.id LIMIT 1), ''),
-                       q.jenis
+                       q.jenis, i.termin_ke, i.persen_termin, COALESCE(i.keterangan_termin, ''), q.subtotal
                 FROM invoice i
                 JOIN quotation q ON q.id = i.quotation_id
                 JOIN perusahaan co ON co.id = i.perusahaan_id
@@ -220,6 +221,12 @@ def invoice_document(request, invoice_id):
         project_lines.append(f"Period: {_d(start)} – {_d(end)} ({days} day{'s' if days != 1 else ''})")
     project_lines += _lines(inv[11])[:2]
     payment_terms = _lines(inv[10]) or ["As stated in the quotation / Purchase Order."]
+    if inv[21]:
+        items = [{"name": f"Termin {inv[21]} — {inv[23] or 'Progress payment'}",
+                  "details": [f"{Decimal(inv[22]).normalize():f}% of contract value IDR {Decimal(inv[24]):,.0f} (excl. tax)".replace(",", ".")
+                              if inv[24] else f"{Decimal(inv[22]).normalize():f}% of contract value",
+                              f"Survey services as per quotation {inv[13]}"],
+                  "qty": 1, "unit": "lot", "days": None, "price": inv[5]}]
     data = {
         "kind": kind, "number": inv[0], "date": _d(inv[1]), "due_date": _d(inv[2]),
         "quotation": inv[13], "po": inv[3] or "-",
@@ -331,69 +338,313 @@ def rental_delivery_order(request, rental_id):
     return _respond(request, build_delivery_order(company, data), data["number"], "rental_list")
 
 
+
+
+def _company_of(cursor, sql, params):
+    cursor.execute(sql, params)
+    row = cursor.fetchone()
+    return row
+
+
 @business_permission_required("SERAH_TERIMA", "LIHAT")
-def sale_delivery_order(request, quotation_id):
+def rental_return_note(request, handover_id):
     try:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT pp.id, pp.nomor_pesanan, co.kode, kl.nama_perusahaan, COALESCE(kl.alamat, ''),
-                       q.nomor, COALESCE((SELECT i.po_no FROM invoice i WHERE i.quotation_id = q.id
-                                          ORDER BY i.id LIMIT 1), '-'),
-                       COALESCE(bd.nama, ''), COALESCE(bd.email, ''),
-                       st.tanggal, COALESCE(st.diterima_oleh, ''), COALESCE(pic.nama, ''),
-                       COALESCE(st.catatan, ''), st.id
+                SELECT s.id, s.tanggal, COALESCE(s.penerima_nama, ''), COALESCE(pg.nama, ''), COALESCE(s.catatan, ''),
+                       s.checklist, r.nomor_rental, co.kode, kl.nama_perusahaan, COALESCE(q.nomor, '-'),
+                       r.tanggal_mulai_rencana, r.tanggal_selesai_rencana
+                FROM serah_terima_rental s
+                JOIN rental r ON r.id = s.rental_id
+                JOIN perusahaan co ON co.id = r.perusahaan_id
+                JOIN klien kl ON kl.id = r.klien_id
+                LEFT JOIN quotation q ON q.id = r.quotation_id
+                LEFT JOIN pengguna pg ON pg.id = s.pic_internal_id
+                WHERE s.id = %s AND s.jenis = 'KEMBALI'
+                """,
+                [handover_id],
+            )
+            h = cursor.fetchone()
+            if not h:
+                raise Http404("Catatan pengembalian tidak ditemukan.")
+            cursor.execute(
+                """
+                SELECT TRIM(concat_ws(' ', m.merek, m.nama_model)), COALESCE(u.nomor_seri, '-'), si.jumlah,
+                       COALESCE(si.kondisi, '-'), u.id
+                FROM serah_terima_rental_item si
+                LEFT JOIN unit_alat u ON u.id = si.unit_alat_id
+                LEFT JOIN model_alat m ON m.id = u.model_alat_id
+                WHERE si.serah_terima_id = %s ORDER BY si.id
+                """,
+                [handover_id],
+            )
+            rows = []
+            for i, (name, serial, qty, cond, unit_id) in enumerate(cursor.fetchall(), 1):
+                acc = _accessories_for_unit(cursor, unit_id)
+                rows.append({"cells": [str(i), [name, *([f"Incl. {acc}"] if acc else [])], serial,
+                                       f"{Decimal(qty).normalize():f} unit", CONDITION_EN.get(cond, cond.title())]})
+    except DatabaseError:
+        messages.error(request, "Data pengembalian belum dapat dibaca.")
+        return redirect("rental_returns")
+    checklist = as_json(h[5]) or {}
+    labels = {"lengkap": "Units & accessories complete as per delivery order",
+              "fisik": "No new physical damage", "fungsi": "Powers on and functions normally",
+              "bersih": "Returned clean and dry"}
+    number = f"RN/{h[6]}/{h[0]}"
+    data = {
+        "title": "RETURN NOTE", "subtitle": "Rental equipment return", "number": number, "footer_title": "Return Note",
+        "meta": [("Note No.", number), ("Date", _d(h[1])), ("Rental", h[6]), ("Quotation", h[9])],
+        "parties": [("Returned by", [h[8], h[2] or "-"]), ("Rental period", [f"{_d(h[10])} – {_d(h[11])}"]),
+                    ("Received by (warehouse)", [h[3] or "-"])],
+        "sections": [
+            {"table": {"columns": ["No", "Item & accessories", "Serial no.", "Qty", "Condition"],
+                       "widths": [10, None, 38, 22, 30], "rows": rows, "center": (0, 3, 4)}},
+            {"heading": "Return inspection"},
+            {"table": {"columns": ["No", "Check item", "Result"], "widths": [10, None, 30],
+                       "rows": [{"cells": [str(i), labels.get(k, k), "✓ OK" if checklist.get(k) else "✗ Not OK"]}
+                                for i, (k, _) in enumerate(RETURN_CHECKLIST, 1)] if checklist else
+                               [{"cells": ["–", "Inspection checklist not recorded", "–"]}],
+                       "center": (0, 2)}},
+            {"box": {"title": "Remarks", "lines": [(h[4] or "No remarks.", {"size": 8.5})]}},
+        ],
+        "signatures": [("Returned by (client)", h[2], "Name, date & signature"),
+                       ("Received by (warehouse)", h[3], "Date :")],
+    }
+    return _respond(request, build_generic(_brand_code(h[7]), data), number, "rental_returns")
+
+
+@business_permission_required("SERAH_TERIMA", "LIHAT")
+def sale_delivery_order(request, order_id):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT pp.id, pp.nomor_pesanan, co.kode, kl.nama_perusahaan, COALESCE(pp.alamat_kirim, kl.alamat, ''),
+                       COALESCE(q.nomor, '-'), COALESCE((SELECT i.po_no FROM invoice i WHERE i.quotation_id = q.id
+                                                         ORDER BY i.id LIMIT 1), '-'),
+                       COALESCE(bd.nama, ''), COALESCE(bd.email, ''), pp.tanggal_kirim, COALESCE(pp.penerima, ''),
+                       COALESCE(pp.pengirim, ''), COALESCE(pp.catatan, ''), COALESCE(cr.nama, '')
                 FROM pesanan_penjualan pp
-                JOIN quotation q ON q.id = pp.quotation_id
                 JOIN perusahaan co ON co.id = pp.perusahaan_id
                 JOIN klien kl ON kl.id = pp.klien_id
+                LEFT JOIN quotation q ON q.id = pp.quotation_id
                 LEFT JOIN pengguna bd ON bd.id = q.pic_pengguna_id
-                LEFT JOIN LATERAL (
-                    SELECT * FROM serah_terima_penjualan s WHERE s.pesanan_id = pp.id ORDER BY s.tanggal LIMIT 1
-                ) st ON TRUE
-                LEFT JOIN pengguna pic ON pic.id = st.diserahkan_oleh
-                WHERE pp.quotation_id = %s
+                LEFT JOIN pengguna cr ON cr.id = pp.dibuat_oleh
+                WHERE pp.id = %s
                 """,
-                [quotation_id],
+                [order_id],
             )
             o = cursor.fetchone()
             if not o:
-                messages.error(request, "Barang untuk quotation ini belum dicatat terkirim.")
-                return redirect("quotation_list")
+                raise Http404("Pesanan tidak ditemukan.")
             cursor.execute(
                 """
-                SELECT ppi.deskripsi_snapshot, COALESCE(u.nomor_seri, '-'), sti.kuantitas,
-                       COALESCE(qi.satuan, 'unit'), COALESCE(u.kondisi, 'BAIK'), u.id
-                FROM serah_terima_penjualan_item sti
-                JOIN pesanan_penjualan_item ppi ON ppi.id = sti.pesanan_item_id
-                LEFT JOIN quotation_item qi ON qi.id = ppi.quotation_item_id
-                LEFT JOIN unit_alat u ON u.id = sti.unit_alat_id
-                WHERE sti.serah_terima_id = %s
-                ORDER BY sti.id
+                SELECT i.id, i.deskripsi_snapshot, i.kuantitas, COALESCE(qi.satuan, 'unit'),
+                       COALESCE(p.garansi, '')
+                FROM pesanan_penjualan_item i
+                LEFT JOIN quotation_item qi ON qi.id = i.quotation_item_id
+                LEFT JOIN produk_jual p ON p.id = i.produk_jual_id
+                WHERE i.pesanan_id = %s ORDER BY i.id
                 """,
-                [o[13]],
+                [order_id],
             )
+            order_items = cursor.fetchall()
             items = []
-            for name, serial, qty, unit, condition, unit_id in cursor.fetchall():
-                accessories = _accessories_for_unit(cursor, unit_id)
-                items.append({"name": name, "details": [f"Incl. {accessories}"] if accessories else [],
-                              "serial": serial, "qty": qty, "unit": unit,
-                              "condition": CONDITION_EN.get(condition, condition.title())})
+            for item_id, name, qty, unit, warranty in order_items:
+                cursor.execute(
+                    "SELECT nomor_seri, status_qc FROM unit_penjualan WHERE pesanan_item_id = %s ORDER BY id", [item_id])
+                units = cursor.fetchall()
+                details = [f"Warranty: {warranty}"] if warranty else []
+                if units:
+                    for serial, qc in units:
+                        items.append({"name": name, "details": details + ["QC passed before delivery"
+                                                                           if qc in ("LULUS", "CATATAN") else ""],
+                                      "serial": serial, "qty": 1, "unit": unit, "condition": "New"})
+                else:
+                    items.append({"name": name, "details": details, "serial": "-", "qty": qty, "unit": unit,
+                                  "condition": "New"})
     except DatabaseError:
-        messages.error(request, "Data pengiriman belum dapat dibaca dari database.")
-        return redirect("quotation_list")
-
+        messages.error(request, "Data pengiriman belum dapat dibaca.")
+        return redirect("sales_deliveries")
     company = _brand_code(o[2])
     number = "DO/" + (o[1][3:] if o[1].startswith("SO/") else o[1])
     data = {
         "number": number, "date": _d(o[9].date() if o[9] else date.today()),
-        "reference": f"{o[5]} · {o[1]}", "po": o[6], "purpose": "Product delivery",
+        "reference": f"{o[5]}", "po": o[6], "purpose": "Product delivery",
         "client": {"name": o[3], "attn": o[10] or "-"},
         "site_lines": _lines(o[4])[:2],
-        "ship_via": f"Delivered {_d(o[9])}" if o[9] else "-",
-        "ship_lines": _lines(o[12])[:2],
+        "ship_via": o[11] or "Company delivery",
+        "ship_lines": [f"Shipped {_d(o[9])}"] if o[9] else [],
         "rep": {"name": o[7] or "Sales", "email": o[8] or "-", "phone": ""},
-        "prepared_by": o[11], "delivered_by": "",
+        "prepared_by": o[13], "delivered_by": o[11],
         "items": items,
     }
-    return _respond(request, build_delivery_order(company, data), number, "quotation_list")
+    return _respond(request, build_delivery_order(company, data), number, "sales_deliveries")
+
+
+QC_SECTIONS_EN = {"A": "Identity & documents", "B": "Physical condition", "C": "Completeness",
+                  "D": "Function test", "E": "Software & licence", "F": "Photo documentation"}
+QC_RESULT_EN = {"LULUS": "PASSED", "CATATAN": "PASSED WITH REMARKS", "GAGAL": "FAILED"}
+QC_POINTS_EN = {
+    "sn_cocok": "Serial number on unit matches packing list / manufacturer invoice",
+    "garansi": "Warranty card available", "sertifikat": "Calibration / factory test certificate available",
+    "manual": "Manual / user guide available", "kemasan": "Factory packaging & seals intact",
+    "cacat": "No defects, cracks or scratches", "konektor": "Connectors & cables in good condition",
+    "aksesori": "Accessories complete as per packing list", "jumlah": "Quantity matches order",
+    "power": "Unit powers on normally", "selftest": "Self-test / diagnostics passed",
+    "uji_fungsi": "Functional test passed (position fix / data / sensor reading)",
+    "baterai": "Battery charged & charging normally", "lisensi": "Software licence / activation installed",
+    "foto": "Photos of unit, serial plate, accessories & packaging taken",
+}
+
+
+@business_permission_required("SERAH_TERIMA", "LIHAT")
+def sales_qc_report(request, unit_id):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT up.nomor_seri, COALESCE(up.sn_packing_list, ''), i.deskripsi_snapshot, pp.nomor_pesanan,
+                       co.kode, kl.nama_perusahaan, qc.id, qc.hasil, qc.diperiksa_pada, COALESCE(qc.firmware, ''),
+                       COALESCE(qc.catatan, ''), qc.checklist, COALESCE(pg.nama, ''), up.tanggal_datang,
+                       COALESCE(pp.pemasok, '')
+                FROM unit_penjualan up
+                JOIN pesanan_penjualan_item i ON i.id = up.pesanan_item_id
+                JOIN pesanan_penjualan pp ON pp.id = i.pesanan_id
+                JOIN perusahaan co ON co.id = pp.perusahaan_id
+                JOIN klien kl ON kl.id = pp.klien_id
+                JOIN LATERAL (SELECT * FROM qc_penjualan q WHERE q.unit_penjualan_id = up.id
+                              ORDER BY q.diperiksa_pada DESC LIMIT 1) qc ON TRUE
+                LEFT JOIN pengguna pg ON pg.id = qc.pemeriksa_id
+                WHERE up.id = %s
+                """,
+                [unit_id],
+            )
+            r = cursor.fetchone()
+    except DatabaseError:
+        r = None
+    if not r:
+        messages.error(request, "Unit ini belum memiliki hasil QC.")
+        return redirect("sales_qc_list")
+    checklist = as_json(r[11]) or {}
+    sections = []
+    for title, points in QC_CHECKLIST:
+        sections.append({"table": {"columns": [QC_SECTIONS_EN.get(title[:1], title), "Result"],
+                                   "widths": [None, 30],
+                                   "rows": [{"cells": [QC_POINTS_EN.get(k, label), "✓ OK" if checklist.get(k) else "✗"]}
+                                            for k, label in points],
+                                   "center": (1,)}})
+    number = f"QC/{r[3][3:] if r[3].startswith('SO/') else r[3]}/{r[6]}"
+    data = {
+        "title": "QC REPORT", "subtitle": "Pre-delivery inspection", "number": number, "footer_title": "QC Report",
+        "meta": [("Report No.", number), ("Inspection date", _d(r[8])), ("Order", r[3]), ("Result", QC_RESULT_EN.get(r[7], r[7]))],
+        "parties": [("Customer", [r[5]]), ("Product", [r[2], f"S/N {r[0]}", f"Firmware {r[9] or '-'}"]),
+                    ("Arrival", [_d(r[13]), r[14] or "-", f"Packing list S/N {r[1] or '-'}"])],
+        "sections": sections + [{"box": {"title": f"Result: {QC_RESULT_EN.get(r[7], r[7])}",
+                                         "lines": [(r[10] or "All inspection points passed.", {"size": 8.5})]}}],
+        "signatures": [("Inspected by", r[12], "QC / Technical"), ("Approved by", "", "Date :")],
+    }
+    return _respond(request, build_generic(_brand_code(r[4]), data), number, "sales_qc_list")
+
+
+@business_permission_required("PROYEK", "LIHAT")
+def survey_report_document(request, report_id):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT l.tanggal, l.aktivitas, COALESCE(l.cuaca, ''), l.jam_kerja, l.jam_standby, l.progres,
+                       COALESCE(l.kendala, ''), COALESCE(pg.nama, ''), pr.kode_proyek, pr.nama, co.kode,
+                       kl.nama_perusahaan, COALESCE(pr.lokasi_teks, ''), COALESCE(pr.kapal, ''), COALESCE(pr.kru, ''),
+                       pr.id, (SELECT COUNT(*) FROM laporan_harian x WHERE x.proyek_id = pr.id AND x.tanggal <= l.tanggal)
+                FROM laporan_harian l
+                JOIN proyek pr ON pr.id = l.proyek_id
+                JOIN perusahaan co ON co.id = pr.perusahaan_id
+                JOIN klien kl ON kl.id = pr.klien_id
+                LEFT JOIN pengguna pg ON pg.id = l.dibuat_oleh
+                WHERE l.id = %s
+                """,
+                [report_id],
+            )
+            r = cursor.fetchone()
+            if not r:
+                raise Http404("Laporan tidak ditemukan.")
+    except DatabaseError:
+        messages.error(request, "Laporan harian belum dapat dibaca.")
+        return redirect("survey_reports")
+    number = f"DPR/{r[8]}/{r[16]:03d}"
+    activities = [{"cells": [str(i), line]} for i, line in enumerate(_lines(r[1]) or ["-"], 1)]
+    data = {
+        "title": "DAILY PROGRESS REPORT", "subtitle": "Survey services", "number": number, "footer_title": "Daily Report",
+        "meta": [("Report No.", number), ("Date", _d(r[0])), ("Day", f"#{r[16]}"),
+                 ("Progress", f"{Decimal(r[5]).normalize():f}%" if r[5] is not None else "-")],
+        "parties": [("Project", [r[9], r[8], r[12] or "-"]), ("Client", [r[11]]),
+                    ("Conditions", [r[2] or "-", f"Vessel: {r[13] or '-'}"])],
+        "sections": [
+            {"heading": "Activities"},
+            {"table": {"columns": ["No", "Description"], "widths": [10, None], "rows": activities, "center": (0,)}},
+            {"table": {"columns": ["Working hours", "Standby hours", "Total"], "widths": [None, 59, 59],
+                       "rows": [{"cells": [f"{Decimal(r[3]).normalize():f} h", f"{Decimal(r[4]).normalize():f} h",
+                                           f"{Decimal(r[3] + r[4]).normalize():f} h"]}], "center": (0, 1, 2)}},
+            {"box": {"title": "Issues / remarks", "lines": [(r[6] or "No issues reported.", {"size": 8.5})]}},
+            {"box": {"title": "Personnel on site", "lines": [(x, {"size": 8.5}) for x in (_lines(r[14]) or ["-"])]}},
+        ],
+        "signatures": [("Prepared by (party chief)", r[7], "Date :"), ("Acknowledged by (client)", "", "Name, date & signature")],
+    }
+    return _respond(request, build_generic(_brand_code(r[10]), data), number, "survey_reports")
+
+
+@business_permission_required("PROYEK", "LIHAT")
+def survey_bast_document(request, project_id):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT pr.kode_proyek, pr.nama, co.kode, kl.nama_perusahaan, COALESCE(kl.alamat, ''),
+                       COALESCE(pr.lokasi_teks, ''), pr.tanggal_mulai_aktual, pr.tanggal_selesai_aktual,
+                       pr.tanggal_mulai_rencana, pr.tanggal_selesai_rencana, pr.bast_tanggal,
+                       COALESCE(pr.bast_penerima, ''), COALESCE(q.nomor, '-'), COALESCE(pg.nama, '')
+                FROM proyek pr
+                JOIN perusahaan co ON co.id = pr.perusahaan_id
+                JOIN klien kl ON kl.id = pr.klien_id
+                LEFT JOIN quotation q ON q.id = pr.quotation_id
+                LEFT JOIN pengguna pg ON pg.id = pr.pic_internal_id
+                WHERE pr.id = %s
+                """,
+                [project_id],
+            )
+            r = cursor.fetchone()
+            if not r:
+                raise Http404("Proyek tidak ditemukan.")
+            cursor.execute(
+                "SELECT judul, versi, diunggah_pada FROM deliverable_proyek WHERE proyek_id = %s ORDER BY diunggah_pada",
+                [project_id],
+            )
+            deliverables = cursor.fetchall()
+    except DatabaseError:
+        messages.error(request, "Data proyek belum dapat dibaca.")
+        return redirect("survey_deliverables")
+    number = f"BAST/{r[0]}"
+    start, end = r[6] or r[8], r[7] or r[9]
+    rows = [{"cells": [str(i), d[0], d[1].title(), _d(timezone.localtime(d[2]).date())]} for i, d in enumerate(deliverables, 1)] or         [{"cells": ["–", "Deliverables as per scope of work", "Final", "-"]}]
+    data = {
+        "title": "HANDOVER CERTIFICATE", "subtitle": "Berita acara serah terima pekerjaan", "number": number,
+        "footer_title": "BAST",
+        "meta": [("BAST No.", number), ("Date", _d(r[10]) if r[10] else "-"), ("Project", r[0]), ("Quotation", r[12])],
+        "parties": [("Client", [r[3], *_lines(r[4])[:2]]), ("Project", [r[1], r[5] or "-"]),
+                    ("Execution period", [f"{_d(start)} – {_d(end)}"])],
+        "sections": [
+            {"text": "We hereby confirm that the survey work described below has been completed and the following "
+                     "deliverables have been handed over to and accepted by the Client."},
+            {"table": {"columns": ["No", "Deliverable", "Version", "Date"], "widths": [10, None, 26, 36],
+                       "rows": rows, "center": (0, 2, 3)}},
+            {"box": {"title": "Acceptance", "lines": [("With the signing of this certificate, the work is declared complete "
+                                                       "and the final payment may be invoiced in accordance with the agreed terms.",
+                                                       {"size": 8.5})]}},
+        ],
+        "signatures": [(f"For {BRANDS[_brand_code(r[2])].legal_name}", r[13] or "", "Project manager"),
+                       ("Accepted by (client)", r[11], "Name, date & company stamp")],
+        "signature_height": 24,
+    }
+    return _respond(request, build_generic(_brand_code(r[2]), data), number, "survey_deliverables")

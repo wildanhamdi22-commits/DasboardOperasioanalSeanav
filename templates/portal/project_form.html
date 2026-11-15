@@ -1,10 +1,10 @@
 {% extends "portal/base.html" %}
 {% block title %}{% if is_edit %}Edit Proyek{% else %}Tambah Proyek{% endif %}{% endblock %}
-{% block crumb %}Rekap Proyek{% endblock %}
+{% block crumb %}Jasa Survey · Proyek Survey{% endblock %}
 {% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>{% if is_edit %}Edit proyek{% else %}Tambah proyek{% endif %}</h1><p>{% if is_edit %}Perbarui informasi proyek, titik lokasi, dan unit rental yang ditugaskan.{% else %}Catat proyek baru, tandai lokasi pada peta, dan hubungkan unit rental di area proyek.{% endif %}</p></div>
+  <div><h1>{% if is_edit %}Edit proyek{% else %}Tambah proyek{% endif %}</h1><p>{% if is_edit %}Perbarui informasi proyek, titik lokasi, dan unit rental yang ditugaskan.{% else %}Catat proyek survei, tandai lokasi pada peta, dan hubungkan alat dari Daftar Alat Rental yang dipakai di lapangan.{% endif %}</p></div>
   <div class="page-actions"><a class="btn btn-outline" href="{% url 'project_list' %}">← Kembali</a></div>
 </div>
 {% endblock %}
@@ -13,6 +13,7 @@
 {% if form %}
 <form method="post">
   {% csrf_token %}
+  {% if linked_quote %}<input type="hidden" name="quotation_id" value="{{ linked_quote.0 }}"><div class="flash info">Proyek dibuat dari quotation <b class="mono">{{ linked_quote.1 }}</b> · {{ linked_quote.3 }}. Data klien dan jadwal sudah terisi otomatis.</div>{% endif %}
   {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
   <section class="panel">
     <div class="ph"><div class="ph-l"><span class="qi t-sand"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></span><div><h2>Informasi proyek</h2></div></div></div>

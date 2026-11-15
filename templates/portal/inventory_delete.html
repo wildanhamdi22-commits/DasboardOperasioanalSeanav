@@ -1,0 +1,25 @@
+{% extends "portal/base.html" %}
+{% block title %}Hapus Alat{% endblock %}
+{% block crumb %}Rental · Daftar Alat{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Hapus alat</h1><p>Alat yang belum pernah dipakai dihapus permanen. Alat yang sudah punya riwayat hanya diarsipkan agar dokumen lama tetap utuh.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'inventory' %}">← Kembali</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:760px">
+  <div class="ph"><div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></span>
+    <div><h2>{{ unit.1 }}</h2><p>S/N <span class="mono">{{ unit.2 }}</span> · <span class="cat cat-{{ unit.3 }}">{{ unit.3 }}</span> · status {{ unit.4|lower }}</p></div></div></div>
+  {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+  {% if can_delete %}
+    <div class="flash warning">Alat ini belum pernah dipakai di rental, proyek, atau penjualan, sehingga akan <b>dihapus permanen</b> beserta data kelengkapannya. Tindakan ini tidak dapat dibatalkan.</div>
+  {% else %}
+    <div class="flash info">Alat ini {% if usage %}sudah memiliki {{ usage|join:", " }}{% else %}sedang berstatus {{ unit.4|lower }}{% endif %}. Untuk menjaga arsip dokumen, alat akan <b>diarsipkan</b> (hilang dari daftar aktif, riwayat tetap tersimpan).</div>
+  {% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="field full"><label for="reason">Alasan</label><textarea id="reason" name="reason" rows="3" required placeholder="Contoh: salah input data / unit dijual / unit hilang">{{ request.POST.reason }}</textarea></div>
+    <div class="form-actions"><button class="btn {% if can_delete %}btn-danger{% else %}btn-primary{% endif %}" type="submit">{% if can_delete %}Hapus permanen{% else %}Arsipkan alat{% endif %}</button><a class="btn btn-ghost" href="{% url 'inventory' %}">Batal</a></div>
+  </form>
+</section>
+{% endblock %}

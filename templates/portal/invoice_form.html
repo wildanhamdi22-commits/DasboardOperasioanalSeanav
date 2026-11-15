@@ -1,11 +1,11 @@
 {% extends "portal/base.html" %}
 {% load portal_extras %}
 {% block title %}Buat Invoice{% endblock %}
-{% block crumb %}Invoice{% endblock %}
+{% block crumb %}{{ mod.label }} · Invoice{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Buat invoice</h1><p>{% if quote %}Dari quotation <b class="mono">{{ quote.2 }}</b> · {{ quote.3 }} · {{ quote.11 }}{% else %}Invoice dari quotation yang disetujui klien.{% endif %}</p></div>
-  <div class="page-actions"><a class="btn btn-outline" href="{% url 'quotation_list' %}">← Kembali</a></div>
+  <div><h1>Buat invoice {{ mod.label|lower }}{% if is_survey %} · termin {{ termin_no }}{% endif %}</h1><p>{% if quote %}Dari quotation <b class="mono">{{ quote.2 }}</b> · {{ quote.3 }} · {{ quote.11 }}{% else %}Invoice dari quotation yang disetujui klien.{% endif %}</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url mod.quotations %}">← Kembali</a></div>
 </div>
 {% endblock %}
 {% block content %}
@@ -22,9 +22,10 @@
     {% if quote %}<div class="sum-box">
       <div><span>Subtotal</span><b>{{ quote.5|rupiah }}</b></div>
       {% if quote.8 %}<div><span>{{ quote.6 }} {{ quote.7|floatformat:0 }}%</span><b>{{ quote.8|rupiah }}</b></div>{% endif %}
-      <div class="grand"><span>Total invoice</span><span>{{ quote.9|rupiah }}</span></div>
+      <div class="grand"><span>{% if is_survey %}Nilai kontrak{% else %}Total invoice{% endif %}</span><span>{{ quote.9|rupiah }}</span></div>
+      {% if is_survey %}<div><span>Sudah ditagih</span><b>{{ termin_done|floatformat:"-2" }}%</b></div><p class="small muted" style="margin:6px 0 0">Nilai termin = nilai kontrak × persentase termin.</p>{% endif %}
     </div>{% endif %}
-    <div class="form-actions"><button class="btn btn-primary" type="submit">Simpan draft invoice</button><a class="btn btn-ghost" href="{% url 'quotation_list' %}">Batal</a></div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Simpan draft invoice</button><a class="btn btn-ghost" href="{% url mod.quotations %}">Batal</a></div>
   </form>
 </section>
 {% endblock %}

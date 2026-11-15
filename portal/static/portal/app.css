@@ -532,3 +532,101 @@ html.dark .st{filter:brightness(1.1) saturate(.9)}
 .sb-brand .logo-duo{height:36px}
 .sb-brand b{font-size:14px;line-height:1.2}
 .sb-brand small{font-size:11px}
+
+/* Kategori alat */
+.cat{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.02em}
+.cat-Geodetic{background:#e6eef8;color:var(--navy-2)}
+.cat-Geophysic{background:#f8eee3;color:var(--sand)}
+.cat-Metocean{background:#e2f5f9;color:#0f86a3}
+.cat-none{background:#fdecec;color:var(--red)}
+.tabs .warn-tab{color:var(--red)}
+.tabs .warn-tab .badge{margin-left:4px}
+.preset-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}
+.chip-btn{border:1px dashed var(--line);background:var(--surface);color:var(--navy-2);font:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;cursor:pointer}
+.chip-btn:hover{border-style:solid;border-color:var(--navy-2)}
+.return-check{margin-top:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2,#f7f9fc)}
+.return-check h3,.qc-sec h3{margin:0 0 10px;font-size:13.5px}
+.check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}
+.check-item{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.4;cursor:pointer}
+.check-item input{margin-top:2px;width:16px;height:16px;accent-color:var(--navy-2)}
+@media (max-width:720px){.check-grid{grid-template-columns:1fr}}
+
+/* ===== Modul Rental / Penjualan / Survey ===== */
+.flash.info{background:#eaf3fb;border-color:#c9def3;color:#17406b}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+@media (max-width:1100px){.grid-2,.grid-3{grid-template-columns:1fr}}
+.upload-box{padding:14px 16px;border:1px dashed var(--line);border-radius:12px;background:var(--surface-2);margin-bottom:14px}
+.file-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.file-list li{display:flex;gap:12px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.file-list small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.file-ic{flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:9px;background:#fdecec;color:var(--red);font-size:10.5px;font-weight:800;text-decoration:none;overflow:hidden}
+.file-ic.img img{width:100%;height:100%;object-fit:cover}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;margin:0 0 6px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.sub-h{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+.plain-list{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:13px}
+.plain-list small{display:block;color:var(--muted);font-size:11.5px}
+.timeline{list-style:none;margin:0;padding:0 0 0 14px;border-left:2px solid var(--line);display:grid;gap:12px;font-size:13px}
+.timeline li{position:relative}
+.timeline li:before{content:"";position:absolute;left:-20px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--navy-2);box-shadow:0 0 0 3px var(--surface)}
+.timeline li.in:before{background:#1f9d63}.timeline li.out:before{background:var(--red)}
+.timeline small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.thumbs img{width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.steps{display:flex;gap:0;margin:0 0 18px;padding:0;list-style:none;counter-reset:step;overflow-x:auto}
+.steps li{flex:1;min-width:120px;position:relative;padding:10px 12px 10px 40px;font-size:12.5px;color:var(--muted);border-bottom:3px solid var(--line)}
+.steps li:before{counter-increment:step;content:counter(step);position:absolute;left:10px;top:9px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line);font-weight:700;font-size:11.5px;color:var(--muted)}
+.steps li b{display:block;color:var(--ink);font-size:13px}
+.steps li.done{border-bottom-color:#1f9d63}.steps li.done:before{content:"✓";background:#1f9d63;border-color:#1f9d63;color:#fff}
+.steps li.now{border-bottom-color:var(--navy-2)}.steps li.now:before{background:var(--navy-2);border-color:var(--navy-2);color:#fff}
+.qc-sec{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--surface)}
+.result-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.result-pick label{display:flex;gap:9px;align-items:center;padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;font-weight:600;font-size:13px}
+.result-pick label:has(input:checked){border-color:var(--navy-2);box-shadow:0 0 0 3px rgba(23,54,93,.08)}
+.result-pick .ok{color:#1f9d63}.result-pick .warn{color:#b7791f}.result-pick .bad{color:var(--red)}
+@media (max-width:720px){.result-pick{grid-template-columns:1fr}}
+.progress{height:8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.progress span{display:block;height:100%;background:linear-gradient(90deg,var(--navy-2),#16a3c4)}
+.mod-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:18px}
+@media (max-width:1100px){.mod-kpis{grid-template-columns:1fr}}
+.mod-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow-sm,0 1px 2px rgba(10,30,60,.04))}
+.mod-card header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mod-card header h3{margin:0;font-size:15px}
+.mod-card header a{font-size:12.5px;font-weight:600}
+.mod-card .mk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mod-card .mk div{padding:10px 12px;border-radius:12px;background:var(--surface-2)}
+.mod-card .mk b{display:block;font-size:20px;letter-spacing:-.02em}
+.mod-card .mk span{font-size:11.5px;color:var(--muted)}
+.mod-card .bar{height:4px;border-radius:999px;margin:-4px 0 12px}
+.clickable{cursor:pointer}
+.st-QC_BELUM,.st-BARU{background:var(--surface-2);color:var(--muted)}
+.st-QC_LULUS,.st-SIAP_KIRIM{background:#e3f6ec;color:#17784b}
+.st-QC_CATATAN,.st-INDENT{background:#fff4dc;color:#a46a00}
+.st-QC_GAGAL{background:#fdecec;color:var(--red)}
+.st-DATANG{background:#e6eef8;color:var(--navy-2)}
+.st-DIKIRIM,.st-PROSES{background:#e2f5f9;color:#0f86a3}
+.text-red{color:var(--red)}.text-green{color:#1f9d63}
+table.data.compact td,table.data.compact th{padding:7px 9px;font-size:12.5px}
+.st-MOBILISASI{background:#fff4dc;color:#a46a00}
+.st-PENGOLAHAN_DATA{background:#efe9fb;color:#5b3fa8}
+.v-DRAFT{background:var(--surface-2);color:var(--muted)}.v-FINAL{background:#e3f6ec;color:#17784b}
+
+/* Sidebar: grup modul yang bisa dibuka-tutup */
+.sb-group{margin:0}
+.sb-group>summary{list-style:none;cursor:pointer;position:relative}
+.sb-group>summary::-webkit-details-marker{display:none}
+.sb-group>summary .chev{width:14px;height:14px;margin-left:auto;flex:none;color:var(--muted);transition:transform .2s}
+.sb-group[open]>summary .chev{transform:rotate(90deg)}
+.sb-subs{display:grid;gap:1px;margin:2px 0 8px 31px;padding-left:12px;border-left:1.5px solid var(--line)}
+.sb-sub{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none}
+.sb-sub:hover{background:var(--surface-2);color:var(--ink)}
+.sb-sub.on{background:var(--navy-soft,#e9eef7);color:var(--navy-2)}
+.sb-sub.on:before{content:"";position:absolute;margin-left:-23.5px;width:3px;height:18px;border-radius:2px;background:var(--navy-2)}
+.sb-sub .badge{font-size:10.5px}
+html.dark .sb-sub.on{background:#17304f;color:#dbe7f7}
+.grid-2.wide-left{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr)}
+@media (max-width:1100px){.grid-2.wide-left{grid-template-columns:1fr}}
+table.data.compact td.mono{white-space:nowrap}
+table.data.compact .row-actions{flex-wrap:wrap;gap:4px}
+.check-item input{flex:none}

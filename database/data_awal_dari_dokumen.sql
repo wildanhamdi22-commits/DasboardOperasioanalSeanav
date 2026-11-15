@@ -11,34 +11,11 @@ WHERE NOT EXISTS (SELECT 1 FROM lokasi WHERE nama = 'Gudang Jakarta');
 
 -- Kategori alat
 INSERT INTO kategori_alat (nama, deskripsi) VALUES
-    ('Multibeam Echosounder', 'Pemetaan batimetri multibeam'),
-    ('Sonar & FMD', 'Sonar inspeksi dan flooded member detection'),
-    ('Tide Gauge', 'Pengukur pasang surut'),
-    ('Magnetometer', 'Marine magnetometer untuk geofisika & UXO'),
-    ('Drone & LiDAR', 'UAV dan sensor LiDAR'),
-    ('GNSS', 'Receiver GNSS / RTK'),
-    ('ROV', 'Remotely operated vehicle')
+    ('Geodetic', 'Peralatan geodesi & positioning'),
+    ('Geophysic', 'Peralatan geofisika'),
+    ('Metocean', 'Peralatan meteorologi & oseanografi')
 ON CONFLICT (nama) DO NOTHING;
-
--- Model alat (merek & model dari dokumen; spesifikasi dari quotation SNV/26061/IX/2026)
-INSERT INTO model_alat (kategori_alat_id, merek, nama_model, deskripsi, spesifikasi)
-SELECT k.id, v.merek, v.model, v.deskripsi, v.spek::jsonb
-FROM (VALUES
-    ('Multibeam Echosounder', 'R2Sonic', '2020', 'Multibeam echosounder, lengkap kabel & interface unit',
-     '{"frekuensi":"200–450 kHz (700 kHz opsional)","kedalaman":"200 m+","soundings_per_ping":"hingga 1.024","sektor_swath":"10°–130°","ping_rate":"hingga 60 Hz","resolusi_deteksi":"3 mm"}'),
-    ('Multibeam Echosounder', 'Norbit', 'iWBMS X', 'Wideband multibeam terintegrasi GNSS/INS', '{}'),
-    ('Sonar & FMD', 'Impact Subsea', 'ISA500', 'Flooded member detection (FMD)',
-     '{"frekuensi":"500 kHz","rentang":"0,1–30 m","depth_rating":"6.000 m","resolusi":"1 mm","beam_angle":"6° conical"}'),
-    ('Tide Gauge', 'Valeport', 'TideMaster', 'Tide gauge sensor pressure / radar', '{}'),
-    ('Magnetometer', 'Geometrics', 'G-882', 'Marine cesium magnetometer', '{}'),
-    ('Drone & LiDAR', 'DJI', 'Matrice 400', 'Drone platform untuk survei LiDAR', '{}'),
-    ('Drone & LiDAR', 'DJI', 'Zenmuse L3', 'Sensor LiDAR untuk Matrice 400', '{}'),
-    ('GNSS', 'DJI', 'D-RTK 2', 'Mobile base station RTK', '{}'),
-    ('GNSS', 'Trimble', 'R8s', 'GNSS receiver RTK / static', '{}'),
-    ('ROV', 'Saab Seaeye', 'Falcon', 'ROV inspeksi bawah air', '{}')
-) AS v(kategori, merek, model, deskripsi, spek)
-JOIN kategori_alat k ON k.nama = v.kategori
-ON CONFLICT (kategori_alat_id, merek, nama_model) DO NOTHING;
+-- Daftar alat diinput sendiri melalui menu Rental > Daftar Alat dan Penjualan > Katalog.
 
 -- Klien (dari nama file dan isi quotation/invoice)
 INSERT INTO klien (nama_perusahaan, alamat)

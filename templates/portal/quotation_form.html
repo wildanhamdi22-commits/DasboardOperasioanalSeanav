@@ -1,10 +1,10 @@
 {% extends "portal/base.html" %}
-{% block title %}Buat Quotation{% endblock %}
-{% block crumb %}Quotation{% endblock %}
+{% block title %}Buat Quotation {{ mod.label }}{% endblock %}
+{% block crumb %}{{ mod.label }} · Quotation{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Buat quotation</h1><p>Rental alat, penjualan produk, atau jasa survey. Penawaran disimpan sebagai draft; unit inventaris belum dicadangkan pada tahap ini.</p></div>
-  <div class="page-actions"><a class="btn btn-outline" href="{% url 'quotation_list' %}">← Kembali</a></div>
+  <div><h1>Buat quotation {{ mod.label|lower }}</h1><p>{{ mod.quotation_hint }} Penawaran disimpan sebagai draft.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url mod.quotations %}">← Kembali</a></div>
 </div>
 {% endblock %}
 {% block content %}
@@ -15,23 +15,17 @@
   {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
   <section class="panel">
     <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span><div><h2>Informasi penawaran</h2><p>Perusahaan penawar, klien, dan jadwal</p></div></div></div>
-    <div class="field full" style="margin-bottom:14px">
-      <label>{{ form.kind.label }}</label>
-      <div class="kind-picker" id="kind-picker">
-        {% for radio in form.kind %}
-          <label for="{{ radio.id_for_label }}">{{ radio.tag }}<span><b>{{ radio.choice_label }}</b><small>{% if radio.data.value == "RENTAL" %}Tarif per unit per hari{% elif radio.data.value == "PENJUALAN" %}Harga per unit, tanpa durasi{% else %}Harga paket / per hari survey{% endif %}</small></span></label>
-        {% endfor %}
-      </div>
-      {% for error in form.kind.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
-    </div>
+    <input type="hidden" name="kind" value="{{ kind }}" id="quote-kind">
     <div class="form-grid">
       {% for field in form %}
         {% if field.name != 'apply_tax' and field.name != 'kind' %}
+          {% if field.name != 'rental_start' or kind != 'PENJUALAN' %}
           <div class="field {% if field.name == 'notes' or field.name == 'client_address' %}full{% endif %}">
-            {{ field.label_tag }}{{ field }}
-            {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+            {% if field.name == 'rental_start' %}<label for="{{ field.id_for_label }}">{% if kind == 'RENTAL' %}Rencana mulai rental{% else %}Rencana mulai pekerjaan{% endif %}:</label>{% else %}{{ field.label_tag }}{% endif %}{{ field }}
+            {% if field.help_text and field.name != 'rental_start' %}<span class="help">{{ field.help_text }}</span>{% elif field.name == 'rental_start' and kind == 'JASA_SURVEY' %}<span class="help">Opsional — dipakai untuk jadwal item per hari.</span>{% endif %}
             {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
           </div>
+          {% endif %}
         {% endif %}
       {% endfor %}
       <div class="inline-check full">
@@ -43,7 +37,10 @@
 
   <section class="panel mt" id="quote-item-formset">
     <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><div><h2>Item quotation</h2><p id="items-hint">Satu alat satu baris. Total baris dan total quotation dihitung otomatis.</p></div></div></div>
-    {% if catalog_error %}<div class="flash warning">Belum dapat membaca katalog alat. Muat ulang halaman atau periksa koneksi database.</div>{% elif not equipment_catalog %}<div class="flash warning">Belum ada model alat aktif di inventaris. Item tetap bisa diisi manual.</div>{% endif %}
+    {% if catalog_error %}<div class="flash warning">Belum dapat membaca katalog. Muat ulang halaman atau periksa koneksi database.</div>
+    {% elif kind == "RENTAL" and not equipment_catalog %}<div class="flash warning">Belum ada alat di Daftar Alat Rental. Item tetap bisa diisi manual, atau <a class="link" href="{% url 'inventory_add' %}">tambah alat</a> dulu.</div>
+    {% elif kind == "PENJUALAN" and not equipment_catalog %}<div class="flash warning">Katalog produk masih kosong. Item tetap bisa diisi manual, atau <a class="link" href="{% url 'sales_catalog_create' %}">tambah produk ke katalog</a>.</div>{% endif %}
+    {% if kind == "JASA_SURVEY" %}<div class="preset-row"><span class="small muted">Item umum:</span>{% for label, unit in survey_presets %}<button type="button" class="chip-btn" data-preset="{{ label }}" data-unit="{{ unit }}">+ {{ label }}</button>{% endfor %}</div>{% endif %}
     {{ item_formset.management_form }}
     {% if item_formset.non_form_errors %}<div class="flash error">{{ item_formset.non_form_errors|join:" " }}</div>{% endif %}
     <div class="table-wrap">
@@ -78,7 +75,7 @@
       <tr class="item-row">
         <td class="row-number mono"></td>
         <td>
-          <label class="sr-only" for="id_items-__prefix__-equipment_id">Nama alat</label><select class="equipment-select" name="items-__prefix__-equipment_id" id="id_items-__prefix__-equipment_id"><option value="">Pilih alat inventaris atau isi manual</option></select>
+          <label class="sr-only" for="id_items-__prefix__-equipment_id">Nama alat</label><select class="equipment-select" name="items-__prefix__-equipment_id" id="id_items-__prefix__-equipment_id"><option value="">{% if kind == "PENJUALAN" %}Pilih produk dari katalog atau isi manual{% else %}Pilih alat atau isi manual{% endif %}</option></select>
           <label class="sr-only" for="id_items-__prefix__-description">Deskripsi manual</label><div style="margin-top:6px"><input class="description-input" type="text" name="items-__prefix__-description" maxlength="500" id="id_items-__prefix__-description" placeholder="Deskripsi manual (opsional jika pilih alat)"></div>
         </td>
         <td><label class="sr-only" for="id_items-__prefix__-quantity">Jumlah unit</label><input type="number" name="items-__prefix__-quantity" min="0.01" step="0.01" id="id_items-__prefix__-quantity"></td>
@@ -91,7 +88,7 @@
   </section>
   <div class="form-actions" style="border:0">
     <button class="btn btn-primary btn-lg" type="submit">Simpan draft quotation</button>
-    <a class="btn btn-ghost" href="{% url 'quotation_list' %}">Batal</a>
+    <a class="btn btn-ghost" href="{% url mod.quotations %}">Batal</a>
   </div>
 </form>
 {% endif %}
@@ -133,8 +130,9 @@
           if (equipment) {
             description.value = equipment.name;
             description.readOnly = true;
-            unit.value = "unit";
+            unit.value = equipment.unit || "unit";
             if (!quantity.value) quantity.value = "1";
+            if (equipment.price && !price.value) price.value = Math.round(Number(equipment.price));
           } else if (selector) {
             description.readOnly = false;
             price.readOnly = false;
@@ -148,34 +146,47 @@
         document.getElementById("quote-tax-amount").textContent = formatMoney(taxAmount);
         document.getElementById("quote-grand-total").textContent = formatMoney(subtotal + taxAmount);
       };
-      const kindPicker = document.getElementById("kind-picker");
-      const currentKind = () => (kindPicker.querySelector("input:checked") || {}).value || "RENTAL";
+      const currentKind = () => document.getElementById("quote-kind").value || "RENTAL";
       const applyKind = () => {
         const kind = currentKind();
         document.querySelectorAll(".col-days").forEach((el) => { el.hidden = kind === "PENJUALAN"; });
+        if (kind === "JASA_SURVEY") document.querySelectorAll('select[name$="-equipment_id"]').forEach((el) => { el.hidden = true; });
         document.getElementById("price-head").textContent = kind === "RENTAL" ? "Tarif / hari (Rp)" : kind === "PENJUALAN" ? "Harga / unit (Rp)" : "Harga (Rp)";
         document.getElementById("items-hint").textContent = kind === "RENTAL"
           ? "Satu alat satu baris: jumlah unit × hari × tarif per hari."
-          : kind === "PENJUALAN" ? "Satu produk satu baris: jumlah unit × harga per unit. Pilih dari inventaris atau isi manual."
-          : "Isi item jasa survey. Kolom hari opsional — kosongkan untuk harga paket/lump sum.";
+          : kind === "PENJUALAN" ? "Satu produk satu baris: jumlah unit × harga per unit. Pilih dari katalog (harga terisi otomatis) atau isi manual."
+          : "Isi item pekerjaan survei. Kolom hari opsional — kosongkan untuk harga paket / lump sum.";
         updateTotals();
       };
-      kindPicker.addEventListener("change", applyKind);
       rows.addEventListener("input", updateTotals);
       taxToggle.addEventListener("change", updateTotals);
       rows.addEventListener("change", (event) => {
         if (event.target.matches('select[name$="-equipment_id"]')) updateTotals();
       });
-      document.getElementById("add-item").addEventListener("click", () => {
+      const addRow = () => {
         const index = Number(total.value);
         rows.insertAdjacentHTML("beforeend", template.innerHTML.replaceAll("__prefix__", index));
         const newRow = rows.lastElementChild;
         newRow.querySelector(".row-number").textContent = index + 1;
         newRow.querySelectorAll(".col-days").forEach((el) => { el.hidden = currentKind() === "PENJUALAN"; });
         addEquipmentOptions(newRow.querySelector('select[name$="-equipment_id"]'));
+        if (currentKind() === "JASA_SURVEY") newRow.querySelector('select[name$="-equipment_id"]').hidden = true;
         total.value = index + 1;
         updateTotals();
-      });
+        return newRow;
+      };
+      document.getElementById("add-item").addEventListener("click", addRow);
+      document.querySelectorAll("[data-preset]").forEach((chip) => chip.addEventListener("click", () => {
+        let target = [...rows.querySelectorAll(".item-row:not([hidden])")].find((row) =>
+          !row.querySelector('input[name$="-description"]').value);
+        if (!target) target = addRow();
+        target.querySelector('input[name$="-description"]').value = chip.dataset.preset;
+        target.querySelector('input[name$="-unit"]').value = chip.dataset.unit;
+        const qty = target.querySelector('input[name$="-quantity"]');
+        if (!qty.value) qty.value = "1";
+        target.querySelector('input[name$="-unit_price"]').focus();
+        updateTotals();
+      }));
       rows.addEventListener("click", (event) => {
         if (!event.target.classList.contains("remove-item")) return;
         const row = event.target.closest(".item-row");

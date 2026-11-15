@@ -1,0 +1,44 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Pengembalian Alat{% endblock %}
+{% block crumb %}Rental · Pengembalian Alat{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Pengembalian alat</h1><p>Alat yang masih berada di klien, dan riwayat pengecekan saat alat kembali.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'rental_list' %}">Catatan rental</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel flush">
+  <div class="ph panel-pad" style="margin:0"><div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></span><div><h2>Menunggu dikembalikan</h2><p>Rental berjalan dengan unit yang masih di klien</p></div></div></div>
+  {% if outstanding %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Rental</th><th>Klien</th><th>Unit di klien</th><th>Batas kembali</th><th>Aksi</th></tr></thead>
+    <tbody>{% for r in outstanding %}<tr>
+      <td><b class="mono">{{ r.number }}</b><small>{{ r.company }}</small></td>
+      <td>{{ r.client }}</td>
+      <td><b>{{ r.units_out }} unit</b><small>{{ r.units|default:"-"|truncatechars:110 }}</small></td>
+      <td>{{ r.due|date:"d M Y" }}{% if r.overdue %}<small><span class="st st-DITOLAK_KLIEN">Lewat batas</span></small>{% endif %}</td>
+      <td><div class="row-actions">{% if r.units_out %}<a class="btn btn-red btn-sm" href="{% url 'rental_handover' %}?kind=KEMBALI&amp;rental_id={{ r.id }}">Proses pengembalian</a>{% endif %}<a class="btn btn-outline btn-sm" href="{% url 'rental_archive' r.id %}">Arsip</a></div></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="panel-pad"><div class="empty">Tidak ada alat yang sedang di klien.</div></div>{% endif %}
+</section>
+
+<section class="panel flush mt">
+  <div class="ph panel-pad" style="margin:0"><div class="ph-l"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span><div><h2>Riwayat pengembalian</h2><p>Checklist, kondisi, dan foto setiap alat yang kembali</p></div></div></div>
+  {% if history %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Tanggal</th><th>Rental</th><th>Unit & kondisi</th><th>Checklist</th><th>Foto</th><th>Dokumen</th></tr></thead>
+    <tbody>{% for h in history %}<tr>
+      <td>{{ h.date|date:"d M Y" }}<small>{{ h.date|date:"H:i" }} · PIC {{ h.pic|default:"-" }}</small></td>
+      <td><b class="mono">{{ h.number }}</b><small>{{ h.client }}{% if h.returned_by %} · oleh {{ h.returned_by }}{% endif %}</small></td>
+      <td>{{ h.units|default:"-" }}{% if h.notes %}<small>{{ h.notes }}</small>{% endif %}</td>
+      <td>{% if h.total_checks %}<span class="st {% if h.checked == h.total_checks %}st-SELESAI{% else %}st-TERKIRIM{% endif %}">{{ h.checked }}/{{ h.total_checks }} OK</span>{% else %}<span class="muted small">—</span>{% endif %}</td>
+      <td>{% if h.photos %}<div class="thumbs">{% for p in h.photos|slice:":3" %}<a href="{{ p.url }}" target="_blank" rel="noopener"><img src="{{ p.url }}" alt="Foto"></a>{% endfor %}</div>{% else %}<span class="muted small">—</span>{% endif %}</td>
+      <td><a class="btn btn-outline btn-sm" href="{% url 'rental_return_note' h.id %}{% if pdf_available %}?format=pdf{% endif %}">Berita acara</a></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="panel-pad"><div class="empty">Belum ada alat yang dikembalikan.</div></div>{% endif %}
+</section>
+{% endblock %}

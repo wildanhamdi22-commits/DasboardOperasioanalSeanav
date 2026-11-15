@@ -1,0 +1,20 @@
+{% extends "portal/base.html" %}
+{% block title %}DO Penjualan{% endblock %}
+{% block crumb %}Penjualan · DO Penjualan{% endblock %}
+{% block page_head %}
+<div class="page-head"><div><h1>Delivery Order penjualan</h1><p>Pesanan yang siap dikirim dan arsip DO bertanda tangan pembeli.</p></div></div>
+{% endblock %}
+{% block content %}
+<section class="panel flush">
+  {% if rows %}<div class="table-wrap"><table class="data"><thead><tr><th>Pesanan</th><th>Klien</th><th>Status</th><th>Pengiriman</th><th>Arsip DO</th><th>Aksi</th></tr></thead><tbody>
+    {% for r in rows %}<tr>
+      <td><b class="mono">{{ r.number }}</b><small>{{ r.company }} · {{ r.units }} unit</small></td>
+      <td>{{ r.client }}<small>{{ r.address|truncatechars:70 }}</small></td>
+      <td><span class="st st-{{ r.status }}">{{ r.status_label }}</span></td>
+      <td>{% if r.shipped_at %}{{ r.shipped_at|date:"d M Y H:i" }}<small>Penerima {{ r.receiver }}</small>{% else %}<span class="muted small">Belum dikirim</span>{% endif %}</td>
+      <td>{% if r.status == "DIKIRIM" %}{% if r.signed %}<span class="st st-SELESAI">{{ r.signed }} tersimpan</span>{% else %}<span class="st st-DITOLAK_KLIEN">Belum diunggah</span>{% endif %}{% else %}—{% endif %}</td>
+      <td><div class="row-actions">{% if r.status == "DIKIRIM" %}<a class="btn btn-outline btn-sm" href="{% url 'sale_delivery_order' r.id %}{% if pdf_available %}?format=pdf{% endif %}">Unduh DO</a>{% endif %}<a class="btn btn-primary btn-sm" href="{% url 'sales_order_detail' r.id %}">{% if r.status == "SIAP_KIRIM" %}Kirim{% else %}Buka{% endif %}</a></div></td>
+    </tr>{% endfor %}
+  </tbody></table></div>{% else %}<div class="panel-pad"><div class="empty">Belum ada pesanan yang siap kirim atau terkirim.</div></div>{% endif %}
+</section>
+{% endblock %}

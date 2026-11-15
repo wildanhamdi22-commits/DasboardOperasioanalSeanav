@@ -1,0 +1,19 @@
+{% extends "portal/base.html" %}
+{% block title %}Deliverable & BAST{% endblock %}
+{% block crumb %}Jasa Survey · Deliverable & BAST{% endblock %}
+{% block page_head %}
+<div class="page-head"><div><h1>Deliverable & BAST</h1><p>Laporan, data, dan peta hasil survei per proyek, serta status Berita Acara Serah Terima.</p></div></div>
+{% endblock %}
+{% block content %}
+<section class="panel flush">
+  {% if rows %}<div class="table-wrap"><table class="data"><thead><tr><th>Proyek</th><th>Status</th><th>Deliverable</th><th>BAST</th><th></th></tr></thead><tbody>
+    {% for r in rows %}<tr>
+      <td><b class="mono">{{ r.code }}</b><small>{{ r.name|truncatechars:60 }} · {{ r.client }}</small></td>
+      <td><span class="st st-{{ r.status }}">{{ r.status|title }}</span></td>
+      <td><span class="kind v-FINAL">{{ r.finals }} final</span> <span class="kind v-DRAFT">{{ r.drafts }} draft</span>{% if r.last %}<small>Terakhir {{ r.last|date:"d M Y" }}</small>{% endif %}</td>
+      <td>{% if r.bast_date %}<span class="st st-SELESAI">{{ r.bast_date|date:"d M Y" }}</span><small>{{ r.bast_receiver }}{% if r.bast_signed %} · bertanda tangan ✓{% endif %}</small>{% else %}<span class="muted small">Belum</span>{% endif %}</td>
+      <td><a class="btn btn-primary btn-sm" href="{% url 'survey_project_detail' r.id %}">Buka</a></td>
+    </tr>{% endfor %}
+  </tbody></table></div>{% else %}<div class="panel-pad"><div class="empty">Belum ada proyek survei.</div></div>{% endif %}
+</section>
+{% endblock %}

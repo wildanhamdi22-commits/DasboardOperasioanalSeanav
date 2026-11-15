@@ -1,0 +1,23 @@
+{% extends "portal/base.html" %}
+{% block title %}Laporan Harian{% endblock %}
+{% block crumb %}Jasa Survey · Laporan Harian{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Laporan harian (DPR)</h1><p>Daily progress report semua proyek survei. Laporan baru ditulis dari halaman proyek.</p></div>
+  {% if active %}<div class="page-actions"><form method="get" action="" onsubmit="location.href='/survey/proyek/'+this.p.value+'/';return false;" style="display:flex;gap:8px"><select name="p" aria-label="Pilih proyek">{% for a in active %}<option value="{{ a.0 }}">{{ a.1 }} · {{ a.2|truncatechars:40 }}</option>{% endfor %}</select><button class="btn btn-primary" type="submit">+ Tulis laporan</button></form></div>{% endif %}
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel flush">
+  {% if rows %}<div class="table-wrap"><table class="data"><thead><tr><th>Tanggal</th><th>Proyek</th><th>Aktivitas</th><th>Jam</th><th>Progres</th><th></th></tr></thead><tbody>
+    {% for r in rows %}<tr>
+      <td>{{ r.date|date:"d M Y" }}<small>{{ r.weather|default:"-" }}</small></td>
+      <td><a class="link mono" href="{% url 'survey_project_detail' r.project_id %}">{{ r.code }}</a><small>{{ r.client }}</small></td>
+      <td style="min-width:260px">{{ r.activity|truncatechars:140 }}{% if r.issues %}<small class="text-red">{{ r.issues|truncatechars:80 }}</small>{% endif %}</td>
+      <td>{{ r.work|floatformat:"-1" }} j kerja<small>{{ r.standby|floatformat:"-1" }} j standby</small></td>
+      <td>{% if r.progress != None %}{{ r.progress|floatformat:"-1" }}%{% else %}—{% endif %}</td>
+      <td><a class="btn btn-outline btn-sm" href="{% url 'survey_report_document' r.id %}{% if pdf_available %}?format=pdf{% endif %}">Unduh</a></td>
+    </tr>{% endfor %}
+  </tbody></table></div>{% else %}<div class="panel-pad"><div class="empty">Belum ada laporan harian.</div></div>{% endif %}
+</section>
+{% endblock %}

@@ -7,6 +7,9 @@ from django.db import DatabaseError, connection
 from django.forms import BaseFormSet, formset_factory
 
 
+EQUIPMENT_CATEGORIES = ("Geodetic", "Geophysic", "Metocean")
+
+
 class EquipmentForm(forms.Form):
     category = forms.CharField(
         label="Kategori", max_length=120,
@@ -28,21 +31,9 @@ class EquipmentForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        suggestions = ["Geodetic", "Geophysics", "Metocean"]
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT DISTINCT nama FROM kategori_alat "
-                    "WHERE lower(nama) <> lower(%s) ORDER BY nama",
-                    ["GNSS Positioning"],
-                )
-                existing = [row[0] for row in cursor.fetchall()]
-        except DatabaseError:
-            existing = []
-        categories = list(dict.fromkeys(suggestions + existing))
         self.fields["category"] = forms.ChoiceField(
             label="Kategori",
-            choices=[("", "Pilih kategori...")] + [(item, item) for item in categories],
+            choices=[("", "Pilih kategori...")] + [(item, item) for item in EQUIPMENT_CATEGORIES],
         )
 
     def clean_photo(self):
@@ -379,6 +370,19 @@ class InvoiceForm(forms.Form):
         help_text="Syarat akan mengikuti template perusahaan jika kolom ini dikosongkan.",
     )
     notes = forms.CharField(label="Catatan invoice", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    termin_label = forms.CharField(label="Keterangan termin", max_length=160, required=False,
+                                   help_text="Contoh: Down payment, Termin 2 – progres 50%, Pelunasan setelah BAST.")
+    termin_percent = forms.DecimalField(label="Persentase termin (%)", required=False, min_value=Decimal("0.01"),
+                                        max_value=Decimal("100"), max_digits=6, decimal_places=2)
+
+    def __init__(self, *args, termin=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.termin = termin
+        if termin:
+            self.fields["termin_percent"].required = True
+        else:
+            del self.fields["termin_label"]
+            del self.fields["termin_percent"]
 
     def clean(self):
         cleaned = super().clean()
@@ -419,15 +423,15 @@ class ProjectForm(forms.Form):
     )
     status = forms.ChoiceField(
         label="Status", choices=[
-            ("DIRENCANAKAN", "Direncanakan"), ("BERJALAN", "Berjalan"),
-            ("SELESAI", "Selesai"), ("DIBATALKAN", "Dibatalkan"),
+            ("DIRENCANAKAN", "Direncanakan"), ("MOBILISASI", "Mobilisasi"), ("BERJALAN", "Berjalan"),
+            ("PENGOLAHAN_DATA", "Pengolahan data"), ("SELESAI", "Selesai"), ("DIBATALKAN", "Dibatalkan"),
             ("DIARSIPKAN", "Diarsipkan"),
         ],
     )
     rented_unit_ids = forms.MultipleChoiceField(
-        label="Alat rental di proyek ini", required=False, choices=(),
+        label="Alat yang dipakai di proyek (dari Daftar Alat Rental)", required=False, choices=(),
         widget=forms.CheckboxSelectMultiple(attrs={"class": "rented-unit-options"}),
-        help_text="Pilih unit yang sedang disewa dan berada di area proyek ini.",
+        help_text="Alat terpilih berstatus 'Di proyek' sehingga tidak bisa disewakan sampai proyek selesai.",
     )
     notes = forms.CharField(
         label="Catatan", required=False,
@@ -444,33 +448,22 @@ class ProjectForm(forms.Form):
             ]
             cursor.execute(
                 """
-                SELECT u.id, u.nomor_seri, m.merek, m.nama_model,
-                       COALESCE(active_rental.nomor_rental, ''),
-                       COALESCE(active_rental.nama_perusahaan, ''),
-                       COALESCE(active_rental.status, '')
+                SELECT u.id, u.nomor_seri, m.merek, m.nama_model, k.nama, u.status
                 FROM unit_alat u
                 JOIN model_alat m ON m.id = u.model_alat_id
-                LEFT JOIN LATERAL (
-                    SELECT r.nomor_rental, kl.nama_perusahaan, r.status
-                    FROM rental_item ri
-                    JOIN rental r ON r.id = ri.rental_id
-                    JOIN klien kl ON kl.id = r.klien_id
-                    WHERE ri.unit_alat_id = u.id AND r.status = 'BERJALAN'
-                    ORDER BY r.dibuat_pada DESC LIMIT 1
-                ) active_rental ON TRUE
-                WHERE active_rental.nomor_rental IS NOT NULL
-                   OR (%s IS NOT NULL AND EXISTS (
-                       SELECT 1 FROM proyek_unit pu
-                       WHERE pu.unit_alat_id = u.id AND pu.proyek_id = %s
-                   ))
-                ORDER BY m.merek, m.nama_model, u.nomor_seri
+                JOIN kategori_alat k ON k.id = m.kategori_alat_id
+                WHERE u.modul = 'RENTAL'
+                  AND (u.status = 'TERSEDIA'
+                       OR (%s IS NOT NULL AND EXISTS (
+                           SELECT 1 FROM proyek_unit pu WHERE pu.unit_alat_id = u.id AND pu.proyek_id = %s)))
+                ORDER BY k.nama, m.merek, m.nama_model, u.nomor_seri
                 """,
                 [project_id, project_id],
             )
             self.fields["rented_unit_ids"].choices = [
-                (str(row[0]), " - ".join(part for part in (
-                    f"S/N {row[1] or '-'}", " ".join(part for part in (row[2], row[3]) if part),
-                    row[4], row[5], "Rental aktif" if row[6] == "BERJALAN" else "Sudah ditautkan",
+                (str(row[0]), " · ".join(part for part in (
+                    " ".join(part for part in (row[2], row[3]) if part), f"S/N {row[1] or '-'}", row[4],
+                    "Tersedia" if row[5] == "TERSEDIA" else "Dipakai proyek ini",
                 ) if part))
                 for row in cursor.fetchall()
             ]
@@ -527,29 +520,50 @@ class QuotationItemForm(forms.Form):
 
 
 class QuotationItemFormSetBase(BaseFormSet):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, catalog_kind="RENTAL", **kwargs):
         super().__init__(*args, **kwargs)
+        self.catalog_kind = catalog_kind
         self.equipment_catalog = []
         self.catalog_error = False
         try:
             with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT m.id, k.nama, concat_ws(' ', m.merek, m.nama_model)
-                    FROM model_alat m
-                    JOIN kategori_alat k ON k.id = m.kategori_alat_id
-                    WHERE aktif
-                    ORDER BY k.nama, m.merek, m.nama_model
-                    """
-                )
-                self.equipment_catalog = [
-                    {"id": row[0], "category": row[1], "name": row[2]}
-                    for row in cursor.fetchall()
-                ]
+                if catalog_kind == "PENJUALAN":
+                    cursor.execute(
+                        """
+                        SELECT p.id, k.nama, concat_ws(' ', p.merek, p.nama), p.harga_jual, p.satuan
+                        FROM produk_jual p
+                        JOIN kategori_alat k ON k.id = p.kategori_alat_id
+                        WHERE p.aktif
+                        ORDER BY k.nama, p.merek, p.nama
+                        """
+                    )
+                    self.equipment_catalog = [
+                        {"id": row[0], "category": row[1], "name": row[2],
+                         "price": str(row[3] or 0), "unit": row[4] or "unit"}
+                        for row in cursor.fetchall()
+                    ]
+                elif catalog_kind == "RENTAL":
+                    cursor.execute(
+                        """
+                        SELECT m.id, k.nama, concat_ws(' ', m.merek, m.nama_model)
+                        FROM model_alat m
+                        JOIN kategori_alat k ON k.id = m.kategori_alat_id
+                        WHERE m.aktif AND EXISTS (
+                            SELECT 1 FROM unit_alat u WHERE u.model_alat_id = m.id
+                              AND u.modul = 'RENTAL' AND u.status NOT IN ('DIARSIPKAN', 'TERJUAL'))
+                        ORDER BY k.nama, m.merek, m.nama_model
+                        """
+                    )
+                    self.equipment_catalog = [
+                        {"id": row[0], "category": row[1], "name": row[2]}
+                        for row in cursor.fetchall()
+                    ]
         except DatabaseError:
             self.equipment_catalog = []
             self.catalog_error = True
-        choices = [("", "Pilih alat atau isi item manual...")] + [
+        placeholder = {"PENJUALAN": "Pilih produk dari katalog atau isi item manual...",
+                       "JASA_SURVEY": "Item jasa survey (isi manual)..."}.get(catalog_kind, "Pilih alat atau isi item manual...")
+        choices = [("", placeholder)] + [
             (item["id"], f'{item["category"]} · {item["name"]}')
             for item in self.equipment_catalog
         ]
@@ -561,7 +575,8 @@ class QuotationItemFormSetBase(BaseFormSet):
         if any(form.errors for form in self.forms):
             return
         if not any(
-            form.cleaned_data.get("description") and not form.cleaned_data.get("DELETE")
+            (form.cleaned_data.get("description") or form.cleaned_data.get("equipment_id"))
+            and not form.cleaned_data.get("DELETE")
             for form in self.forms
         ):
             raise forms.ValidationError("Tambahkan setidaknya satu item quotation.")
@@ -573,13 +588,3 @@ QuotationItemFormSet = formset_factory(
     QuotationItemForm, formset=QuotationItemFormSetBase,
     extra=1, can_delete=True, max_num=30, validate_max=True,
 )
-
-
-class SaleDeliveryForm(forms.Form):
-    received_by = forms.CharField(label="Diterima oleh (nama penerima klien)", max_length=180)
-    delivered_at = forms.DateTimeField(
-        label="Waktu serah terima",
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
-        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"],
-    )
-    notes = forms.CharField(label="Catatan", required=False, widget=forms.Textarea(attrs={"rows": 2}))

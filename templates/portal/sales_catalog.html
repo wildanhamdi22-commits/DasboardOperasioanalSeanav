@@ -1,0 +1,46 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Katalog Produk{% endblock %}
+{% block crumb %}Penjualan · Katalog Produk{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Katalog produk</h1><p>Produk dan instrumen yang dijual. Unit dengan serial number dicatat saat barang indent datang dari pabrikan.</p></div>
+  <div class="page-actions">
+    {% if show_inactive %}<a class="btn btn-outline" href="{% url 'sales_catalog' %}">Sembunyikan arsip</a>{% else %}<a class="btn btn-outline" href="?arsip=1">Lihat arsip</a>{% endif %}
+    <a class="btn btn-primary" href="{% url 'sales_catalog_create' %}">+ Tambah produk</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="tabs kind-tabs">
+  <a href="?{% if search %}q={{ search|urlencode }}{% endif %}" class="{% if not category %}on{% endif %}">Semua kategori</a>{% for item in categories %}<a href="?kategori={{ item }}{% if search %}&amp;q={{ search|urlencode }}{% endif %}" class="{% if category == item %}on{% endif %}">{{ item }}</a>{% endfor %}
+</div>
+<form class="toolbar" method="get">
+  {% if category %}<input type="hidden" name="kategori" value="{{ category }}">{% endif %}
+  <label class="grow">Cari<input type="search" name="q" value="{{ search }}" placeholder="Merek, nama produk, spesifikasi…"></label>
+  <button class="btn btn-primary" type="submit">Cari</button>
+  {% if search or category %}<a class="btn btn-ghost" href="{% url 'sales_catalog' %}">Reset</a>{% endif %}
+</form>
+<section class="panel flush">
+  {% if products %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Produk</th><th>Kategori</th><th class="num">Harga jual</th><th>Indent & garansi</th><th>Riwayat</th><th>Aksi</th></tr></thead>
+    <tbody>{% for p in products %}<tr>
+      <td style="min-width:240px"><b>{{ p.brand }} {{ p.name }}</b>{% if p.description %}<small>{{ p.description|truncatechars:110 }}</small>{% endif %}{% if not p.active %}<small><span class="st st-DIARSIPKAN">Diarsipkan</span></small>{% endif %}</td>
+      <td><span class="cat cat-{{ p.category }}">{{ p.category }}</span></td>
+      <td class="num"><b>{{ p.price|rupiah }}</b><small>per {{ p.unit }}</small></td>
+      <td>{{ p.lead_time|default:"—" }}<small>{{ p.warranty|default:"Garansi belum diisi" }}</small></td>
+      <td>{{ p.quoted }}× ditawarkan<small>{{ p.sold }} unit datang/terjual</small></td>
+      <td><div class="row-actions">
+        <a class="btn btn-primary btn-sm" href="{% url 'sales_catalog_edit' p.id %}">Edit</a>
+        {% if p.active %}
+        <form method="post" action="{% url 'sales_catalog_delete' p.id %}" data-confirm="{% if p.quoted %}Produk sudah pernah ditawarkan, sehingga akan diarsipkan dari katalog. Lanjutkan?{% else %}Hapus produk ini dari katalog secara permanen?{% endif %}">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Hapus</button></form>
+        {% else %}
+        <form method="post" action="{% url 'sales_catalog_delete' p.id %}">{% csrf_token %}<input type="hidden" name="action" value="aktifkan"><button class="btn btn-outline btn-sm" type="submit">Aktifkan</button></form>
+        {% endif %}
+      </div></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="panel-pad"><div class="empty">Katalog masih kosong.<br><a href="{% url 'sales_catalog_create' %}">+ Tambah produk pertama</a></div></div>{% endif %}
+</section>
+{% endblock %}

@@ -14,11 +14,10 @@ Dibangun dengan **Django 6 + PostgreSQL**. Siap dijalankan di komputer kantor (W
 |---|---|
 | **Website publik** | Landing page perusahaan (`/`) + halaman login staf |
 | **Dashboard** | KPI pendapatan, piutang, utilisasi armada, rental, pipeline quotation, proyek; grafik tren pendapatan; peta sebaran operasi; peringatan (rental terlambat, invoice jatuh tempo, kalibrasi); aktivitas terbaru; filter periode; mode gelap; cetak |
-| **Inventaris Alat** | Unit, serial number, OMSN, foto, aksesori, kondisi, status, riwayat keluar, arsip/pulihkan |
-| **Quotation** | Buat penawaran multi-item (tarif/hari, PPN 11% otomatis), status draft → terkirim → disetujui/ditolak klien, unduh **Word & PDF** sesuai kop perusahaan |
-| **Invoice** | Dibuat dari quotation yang disetujui, terbitkan, catat lunas, unduh Word & PDF |
-| **Rental & Serah Terima** | Rental dari invoice (unit dipasangkan otomatis), alat keluar/kembali, status unit otomatis, lokasi penggunaan di peta |
-| **Rekap Proyek** | Proyek, titik lokasi di peta, unit rental yang ditugaskan |
+| **Rental** | Daftar alat (kategori Geodetic / Geophysic / Metocean, hapus atau arsip), quotation & invoice rental, catatan rental + **arsip DO bertanda tangan**, pengembalian alat dengan checklist & foto + berita acara, peta rental |
+| **Penjualan** | Katalog produk, quotation & invoice penjualan, pesanan **indent** ke pabrikan → barang datang (cek SN vs packing list) → **QC checklist** + QC Report → DO penjualan + arsip, peta penjualan |
+| **Jasa Survey** | Quotation proposal survei, proyek (kru, kapal, alat dari armada rental), **laporan harian (DPR)**, deliverable & **BAST**, invoice **termin** (DP / progres / pelunasan), peta proyek |
+| **Dokumen resmi** | Quotation, Invoice, Delivery Order, Return Note, QC Report, Daily Report, BAST — satu desain; Oseana = Century Gothic, Seanav = Aptos; unduh Word & PDF |
 | **Absensi** | Absen masuk/pulang dengan **foto selfie** & **GPS** (deteksi di kantor/lapangan), status terlambat, kalender bulanan |
 | **Izin & Cuti** | Pengajuan izin/sakit/cuti/dinas luar + lampiran, persetujuan atasan |
 | **Rekap Absensi** | Rekap per staf per bulan (hadir, terlambat, izin, sakit, cuti, tanpa keterangan, jam kerja), detail harian dengan foto & lokasi, **ekspor Excel (CSV)** |

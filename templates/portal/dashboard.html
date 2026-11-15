@@ -1,5 +1,5 @@
 {% extends "portal/base.html" %}
-{% load static %}
+{% load static portal_extras %}
 {% block title %}Dashboard{% endblock %}
 {% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">{% endblock %}
 {% block breadcrumb %}<div class="crumb"><span><b>Dashboard</b> · Oseana · Seanav Operations</span><span class="upd">Terakhir diperbarui <span class="mono">{% now "H:i" %}</span><a href="?periode={{ period_key }}" aria-label="Muat ulang"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></a></span></div>{% endblock %}
@@ -34,13 +34,44 @@
     </section>
     {% if database_error %}<div class="error">⚠ {{ database_error }}</div>{% endif %}
 
-    <!-- ================= QUICK ACCESS ================= -->
-    <section class="quick">
-      {% if business_access.inventory %}<a class="qcard" href="{% url 'inventory' %}"><span class="qi t-navy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span><span class="tag">{{ summary.total_units }} unit</span><b>Inventaris Alat</b><p>Ketersediaan, nomor seri, kondisi &amp; riwayat unit</p></a>{% endif %}
-      {% if business_access.quotation %}<a class="qcard" href="{% url 'quotation_list' %}"><span class="qi t-cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></span><span class="tag">{{ summary.quotation_open }} aktif</span><b>Quotation</b><p>Buat, ajukan, dan kirim penawaran ke klien</p></a>{% endif %}
-      {% if business_access.invoice %}<a class="qcard" href="{% url 'invoice_list' %}"><span class="qi t-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="tag">{{ summary.receivable_count }} terbit</span><b>Invoice</b><p>Penerbitan invoice &amp; pemantauan pembayaran</p></a>{% endif %}
-      {% if business_access.rental %}<a class="qcard" href="{% url 'rental_handover' %}"><span class="qi t-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l-4-4 4-4"/><path d="M3 13h13"/><path d="M17 7l4 4-4 4"/></svg></span><span class="tag">{{ summary.active_rentals }} berjalan</span><b>Serah Terima Rental</b><p>Catat alat keluar dan pengembalian</p></a>{% endif %}
+    <!-- ================= MODUL BISNIS ================= -->
+    {% if module_stats %}{% with r=module_stats.rental s=module_stats.sales v=module_stats.survey %}
+    <section class="mod-kpis">
+      <article class="mod-card">
+        <div class="bar" style="background:linear-gradient(90deg,#17365d,#2b5a8f)"></div>
+        <header><h3>Rental</h3><a class="link" href="{% url 'rental_list' %}">Catatan rental →</a></header>
+        <div class="mk">
+          <div><b>{{ r.available }}</b><span>Alat siap disewa</span></div>
+          <div><b>{{ r.out }}</b><span>Alat di klien / proyek</span></div>
+          <div><b>{{ r.running }}</b><span>Rental berjalan</span></div>
+          <div><b class="{% if r.overdue %}text-red{% endif %}">{{ r.overdue }}</b><span>Lewat batas kembali</span></div>
+        </div>
+        <p class="small muted" style="margin:10px 0 0">Pendapatan lunas tahun ini · <b>{{ r.revenue|rupiah }}</b></p>
+      </article>
+      <article class="mod-card">
+        <div class="bar" style="background:linear-gradient(90deg,#a9682b,#d49a5c)"></div>
+        <header><h3>Penjualan</h3><a class="link" href="{% url 'sales_orders' %}">Pesanan →</a></header>
+        <div class="mk">
+          <div><b>{{ s.catalog }}</b><span>Produk di katalog</span></div>
+          <div><b>{{ s.quotes }}</b><span>Penawaran aktif</span></div>
+          <div><b>{{ s.orders }}</b><span>Pesanan diproses</span></div>
+          <div><b class="{% if s.qc %}text-red{% endif %}">{{ s.qc }}</b><span>Unit menunggu QC</span></div>
+        </div>
+        <p class="small muted" style="margin:10px 0 0">Pendapatan lunas tahun ini · <b>{{ s.revenue|rupiah }}</b></p>
+      </article>
+      <article class="mod-card">
+        <div class="bar" style="background:linear-gradient(90deg,#0f86a3,#3fc1d9)"></div>
+        <header><h3>Jasa Survey</h3><a class="link" href="{% url 'project_list' %}">Proyek →</a></header>
+        <div class="mk">
+          <div><b>{{ v.projects }}</b><span>Proyek berjalan</span></div>
+          <div><b>{{ v.quotes }}</b><span>Proposal aktif</span></div>
+          <div><b>{{ v.reports }}</b><span>Laporan harian 7 hari</span></div>
+          <div><b class="{% if v.no_bast %}text-red{% endif %}">{{ v.no_bast }}</b><span>Selesai tanpa BAST</span></div>
+        </div>
+        <p class="small muted" style="margin:10px 0 0">Pendapatan lunas tahun ini · <b>{{ v.revenue|rupiah }}</b></p>
+      </article>
     </section>
+    {% endwith %}{% endif %}
 
     <!-- ================= KPI ================= -->
     <section class="kpis">

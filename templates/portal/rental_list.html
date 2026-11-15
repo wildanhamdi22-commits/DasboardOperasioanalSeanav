@@ -1,12 +1,12 @@
 {% extends "portal/base.html" %}
 {% load portal_extras %}
-{% block title %}Rental Alat{% endblock %}
-{% block crumb %}Rental Alat{% endblock %}
+{% block title %}Catatan Rental{% endblock %}
+{% block crumb %}Rental · Catatan Rental{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Rental Alat</h1><p>Rekap kontrak rental PT Oseana Prawira Persada dan PT Seanav dalam satu halaman.</p></div>
+  <div><h1>Catatan Rental</h1><p>Kontrak sewa beserta arsip Delivery Order bertanda tangan — satu catatan untuk kita dan peminjam.</p></div>
   <div class="page-actions">
-    <a class="btn btn-outline" href="{% url 'rental_handover' %}">Serah terima / pengembalian</a>
+    <a class="btn btn-outline" href="{% url 'rental_returns' %}">Pengembalian alat</a>
     <a class="btn btn-primary" href="{% url 'rental_create' %}">+ Buat rental dari invoice</a>
   </div>
 </div>
@@ -50,7 +50,7 @@
                 <a class="btn btn-outline btn-sm" href="{% url 'rental_location_edit' rental.id %}">{% if rental.map_edit %}Tandai lokasi{% else %}Lokasi{% endif %}</a>
                 {% if rental.quotation_id %}<a class="btn btn-ghost btn-sm" href="{% url 'quotation_document' rental.quotation_id %}{% if pdf_available %}?format=pdf{% endif %}">Quotation</a>{% endif %}
                 {% if rental.invoice_id %}<a class="btn btn-ghost btn-sm" href="{% url 'invoice_document' rental.invoice_id %}{% if pdf_available %}?format=pdf{% endif %}">Invoice</a>{% endif %}
-                {% if rental.unit_count %}<a class="btn btn-ghost btn-sm" href="{% url 'rental_delivery_order' rental.id %}{% if pdf_available %}?format=pdf{% endif %}" title="Unduh Delivery Order">Delivery Order</a>{% endif %}
+                <a class="btn btn-outline btn-sm" href="{% url 'rental_archive' rental.id %}">Arsip DO{% if rental.signed_do %} <span class="badge green">{{ rental.signed_do }}</span>{% elif rental.unit_count %} <span class="badge red">!</span>{% endif %}</a>
               </div>
             </td>
           </tr>

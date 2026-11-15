@@ -1,0 +1,124 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}{{ order.number }}{% endblock %}
+{% block crumb %}Penjualan · Pesanan{% endblock %}
+{% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Pesanan <span class="mono">{{ order.number }}</span></h1><p>{{ order.client }} · {{ order.company }} · quotation <span class="mono">{{ order.quotation|default:"-" }}</span> · {{ order.total|rupiah }}</p></div>
+  <div class="page-actions">
+    <a class="btn btn-outline" href="{% url 'sales_orders' %}">← Pesanan</a>
+    {% if order.status == "DIKIRIM" %}<a class="btn btn-primary" href="{% url 'sale_delivery_order' order.id %}{% if pdf_available %}?format=pdf{% endif %}">Unduh DO</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<ol class="steps">{% for code, label in steps %}<li class="{% if forloop.counter0 < order.step %}done{% elif forloop.counter0 == order.step %}{% if order.status == 'DIKIRIM' %}done{% else %}now{% endif %}{% endif %}"><b>{{ label }}</b>{% if code == "DATANG" %}{{ counts.received }}/{{ counts.expected }} unit{% elif code == "SIAP_KIRIM" %}{{ counts.passed }}/{{ counts.received }} lulus{% elif code == "INDENT" %}{{ order.supplier|default:"-" }}{% elif code == "DIKIRIM" %}{% if order.shipped_at %}{{ order.shipped_at|date:"d M Y" }}{% else %}-{% endif %}{% else %}{{ order.date|date:"d M Y" }}{% endif %}</li>{% endfor %}</ol>
+
+<div class="grid-2 wide-left">
+<div>
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-amber"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span><div><h2>1. Indent ke pabrikan</h2><p>Catat pemesanan ke pabrikan / distributor dan perkiraan tiba.</p></div></div></div>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="indent">
+      <div class="form-grid">
+        <div class="field"><label for="supplier">Pabrikan / pemasok</label><input id="supplier" name="supplier" value="{{ order.supplier }}" maxlength="200" {% if order.status == 'DIKIRIM' %}disabled{% endif %}></div>
+        <div class="field"><label for="supplier_po">No. PO ke pemasok</label><input id="supplier_po" name="supplier_po" value="{{ order.supplier_po }}" maxlength="100" {% if order.status == 'DIKIRIM' %}disabled{% endif %}></div>
+        <div class="field"><label for="supplier_date">Tanggal pesan</label><input id="supplier_date" type="date" name="supplier_date" value="{{ order.supplier_date|date:'Y-m-d' }}" {% if order.status == 'DIKIRIM' %}disabled{% endif %}></div>
+        <div class="field"><label for="eta">Perkiraan tiba (ETA)</label><input id="eta" type="date" name="eta" value="{{ order.eta|date:'Y-m-d' }}" {% if order.status == 'DIKIRIM' %}disabled{% endif %}></div>
+        <div class="field full"><label for="notes">Catatan</label><textarea id="notes" name="notes" rows="2" {% if order.status == 'DIKIRIM' %}disabled{% endif %}>{{ order.notes }}</textarea></div>
+      </div>
+      {% if order.status != 'DIKIRIM' %}<div class="form-actions" style="border:0;padding-top:4px"><button class="btn btn-primary" type="submit">Simpan indent</button></div>{% endif %}
+    </form>
+  </section>
+
+  <section class="panel mt">
+    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><div><h2>2. Barang datang & cek SN · 3. QC</h2><p>Input SN dari fisik unit dan SN di packing list; sistem memberi tanda bila berbeda.</p></div></div></div>
+    {% for item in items %}
+      <div class="qc-sec">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>{{ forloop.counter }}. {{ item.name }}</b><span class="mono small">{{ item.qty|floatformat:"-2" }} {{ item.unit }}{% if item.tracked %} · {{ item.units|length }}/{{ item.expected }} datang{% endif %}</span></div>
+        {% if item.tracked %}
+          {% if item.units %}<div class="table-wrap"><table class="data compact"><thead><tr><th>SN unit</th><th>SN packing list</th><th>Datang</th><th>QC</th><th></th></tr></thead><tbody>
+            {% for u in item.units %}<tr>
+              <td class="mono">{{ u.serial }}</td>
+              <td class="mono">{{ u.packing_sn|default:"—" }}{% if u.mismatch %} <span class="st st-DITOLAK_KLIEN" title="SN tidak sama">Beda</span>{% elif u.packing_sn %} <span class="text-green">✓</span>{% endif %}</td>
+              <td>{{ u.arrived|date:"d M Y" }}</td>
+              <td><span class="st st-QC_{{ u.qc }}">{{ u.qc_label }}</span>{% if u.qc_by %}<small>{{ u.qc_by }}</small>{% endif %}</td>
+              <td><div class="row-actions">{% if order.status != 'DIKIRIM' %}<a class="btn btn-{% if u.qc == 'BELUM' or u.qc == 'GAGAL' %}primary{% else %}outline{% endif %} btn-sm" href="{% url 'sales_qc_form' u.id %}">{% if u.qc == 'BELUM' %}Cek QC{% else %}QC ulang{% endif %}</a>{% endif %}{% if u.qc != 'BELUM' %}<a class="btn btn-ghost btn-sm" href="{% url 'sales_qc_report' u.id %}{% if pdf_available %}?format=pdf{% endif %}">QC Report</a>{% endif %}
+                {% if u.qc == 'BELUM' and order.status != 'DIKIRIM' %}<form method="post" data-confirm="Hapus SN {{ u.serial }} dari catatan barang datang?">{% csrf_token %}<input type="hidden" name="action" value="remove_unit"><input type="hidden" name="unit_id" value="{{ u.id }}"><button class="btn btn-ghost btn-sm" type="submit">Hapus</button></form>{% endif %}</div></td>
+            </tr>{% endfor %}
+          </tbody></table></div>{% endif %}
+          {% if item.units|length < item.expected and order.status != 'DIKIRIM' %}
+          <form method="post" class="upload-box" style="margin:10px 0 0">{% csrf_token %}<input type="hidden" name="action" value="receive"><input type="hidden" name="item_id" value="{{ item.id }}">
+            <div class="form-grid">
+              <div class="field full"><label>Serial number datang ({{ item.expected|add:0 }} unit dipesan) — satu baris per unit: <span class="mono">SN unit | SN packing list</span></label><textarea name="serials" rows="{% if item.expected > 3 %}4{% else %}2{% endif %}" placeholder="Contoh:&#10;NB-77120 | NB-77120"></textarea></div>
+              <div class="field"><label>Tanggal datang</label><input type="date" name="arrived" value="{{ today }}"></div>
+            </div>
+            <div class="form-actions" style="border:0;padding-top:2px"><button class="btn btn-primary btn-sm" type="submit">Catat barang datang</button></div>
+          </form>{% endif %}
+        {% else %}<p class="small muted" style="margin:6px 0 0">Item non-stok (jasa / aksesori tanpa SN) — tidak perlu cek SN & QC.</p>{% endif %}
+      </div>
+    {% endfor %}
+  </section>
+</div>
+
+<div>
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 15l2 2 4-4"/></svg></span><div><h2>4. Pengiriman & DO</h2><p>{% if order.status == 'DIKIRIM' %}Terkirim {{ order.shipped_at|date:"d M Y H:i" }} · diterima {{ order.receiver }}{% elif counts.ready %}Semua unit lulus QC — siap dikirim.{% else %}Aktif setelah semua unit datang dan lulus QC.{% endif %}</p></div></div></div>
+    {% if order.status != 'DIKIRIM' %}
+    <form method="post" id="ship-form">{% csrf_token %}<input type="hidden" name="action" value="ship">
+      <fieldset {% if not counts.ready %}disabled{% endif %} style="border:0;padding:0;margin:0">
+      <div class="form-grid">
+        <div class="field"><label for="receiver">Penerima (klien)</label><input id="receiver" name="receiver" maxlength="180" required></div>
+        <div class="field"><label for="sender">Pengirim / kurir</label><input id="sender" name="sender" maxlength="180"></div>
+        <div class="field"><label for="shipped_at">Waktu kirim</label><input id="shipped_at" type="datetime-local" name="shipped_at" value="{{ now }}"></div>
+        <div class="field full"><label for="address">Alamat pengiriman</label><textarea id="address" name="address" rows="2">{{ order.address }}</textarea></div>
+        <input type="hidden" name="lat" id="lat" value="{{ order.lat|default_if_none:'' }}"><input type="hidden" name="lng" id="lng" value="{{ order.lng|default_if_none:'' }}">
+        <div class="field full"><label>Titik lokasi (klik peta)</label><div id="pick-map" style="height:220px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div><span class="help" id="pick-help">{% if order.lat %}{{ order.lat }}, {{ order.lng }}{% else %}Klik peta untuk menandai lokasi klien — tampil di Peta Penjualan.{% endif %}</span></div>
+        <div class="field full"><label for="ship_notes">Catatan pengiriman</label><input id="ship_notes" name="ship_notes" maxlength="300"></div>
+      </div>
+      <div class="form-actions" style="border:0;padding-top:4px"><button class="btn btn-primary" type="submit">Catat barang terkirim</button></div>
+      </fieldset>
+    </form>
+    {% else %}
+      <dl class="kv"><dt>Penerima</dt><dd>{{ order.receiver }}</dd><dt>Pengirim</dt><dd>{{ order.sender|default:"-" }}</dd><dt>Alamat</dt><dd>{{ order.address|default:"-" }}</dd></dl>
+      <form method="post" id="ship-form">{% csrf_token %}<input type="hidden" name="action" value="location">
+        <input type="hidden" name="address" value="{{ order.address }}"><input type="hidden" name="lat" id="lat" value="{{ order.lat|default_if_none:'' }}"><input type="hidden" name="lng" id="lng" value="{{ order.lng|default_if_none:'' }}">
+        <div id="pick-map" style="height:200px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div>
+        <span class="help" id="pick-help">{% if order.lat %}{{ order.lat }}, {{ order.lng }}{% else %}Klik peta untuk menandai lokasi klien.{% endif %}</span>
+        <div class="form-actions" style="border:0;padding-top:4px"><button class="btn btn-outline btn-sm" type="submit">Simpan lokasi</button></div>
+      </form>
+      <h3 class="sub-h">Arsip DO bertanda tangan</h3>
+      <form method="post" enctype="multipart/form-data" class="upload-box">{% csrf_token %}<input type="hidden" name="action" value="upload">
+        <div class="form-grid">
+          <div class="field"><label>Jenis</label><select name="jenis"><option value="DO_TTD">DO bertanda tangan</option><option value="BAST">Berita acara serah terima</option><option value="LAINNYA">Dokumen lain</option></select></div>
+          <div class="field"><label>Judul (opsional)</label><input name="title" maxlength="200"></div>
+          <div class="field full"><input type="file" name="file" required accept=".pdf,image/*,.doc,.docx"></div>
+        </div>
+        <div class="form-actions" style="border:0;padding-top:2px"><button class="btn btn-primary btn-sm" type="submit">Unggah</button></div>
+      </form>
+      {% if files %}<ul class="file-list">{% for f in files %}<li><a href="{{ f.url }}" target="_blank" rel="noopener" class="file-ic {% if f.is_image %}img{% endif %}">{% if f.is_image %}<img src="{{ f.url }}" alt="">{% else %}PDF{% endif %}</a><div><a class="link" href="{{ f.url }}" target="_blank" rel="noopener"><b>{{ f.title }}</b></a><small>{{ f.kind_label }} · {{ f.uploaded_at|date:"d M Y H:i" }}</small></div></li>{% endfor %}</ul>{% else %}<div class="empty small">DO bertanda tangan belum diunggah.</div>{% endif %}
+    {% endif %}
+  </section>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  const el = document.getElementById("pick-map"); if (!el || !window.L) return;
+  const lat = document.getElementById("lat"), lng = document.getElementById("lng"), help = document.getElementById("pick-help");
+  const start = lat.value ? [Number(lat.value), Number(lng.value)] : [-6.2, 106.82];
+  const map = L.map(el, {scrollWheelZoom: false}).setView(start, lat.value ? 13 : 5);
+  window.SeanavBasemap(map);
+  let marker = lat.value ? L.marker(start).addTo(map) : null;
+  if (el.closest("fieldset[disabled]")) return;
+  map.on("click", (e) => {
+    lat.value = e.latlng.lat.toFixed(7); lng.value = e.latlng.lng.toFixed(7);
+    if (marker) marker.setLatLng(e.latlng); else marker = L.marker(e.latlng).addTo(map);
+    help.textContent = `${lat.value}, ${lng.value}`;
+  });
+  setTimeout(() => map.invalidateSize(), 200);
+})();
+</script>
+{% endblock %}

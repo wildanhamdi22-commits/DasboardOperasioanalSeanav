@@ -1,0 +1,63 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block crumb %}{{ crumb }}{% endblock %}
+{% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>{{ title }}</h1><p>{{ intro }}</p></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="map-box" id="module-map" style="height:520px;border-radius:14px;overflow:hidden;border:1px solid var(--line)"></div>
+  <div class="map-legend" style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px">
+    {% for code, label, color in legend %}<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:11px;height:11px;border-radius:50%;background:{{ color }};display:inline-block"></i>{{ label }}</span>{% endfor %}
+  </div>
+</section>
+<section class="panel flush mt">
+  {% if points %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Nomor</th><th>Klien</th><th>Lokasi</th><th>Periode / tanggal</th><th>Status</th><th></th></tr></thead>
+    <tbody>{% for p in points %}<tr data-point="{{ forloop.counter0 }}" class="{% if p.lat != None %}clickable{% endif %}">
+      <td><b class="mono">{{ p.title }}</b><small>{{ p.company }}</small></td>
+      <td>{{ p.client }}<small>{{ p.detail|truncatechars:80 }}</small></td>
+      <td>{{ p.location|default:"—" }}{% if p.lat == None %}<small class="muted">Belum ditandai di peta</small>{% endif %}</td>
+      <td>{{ p.period }}</td>
+      <td><span class="st st-{{ p.status }}">{{ p.status|title }}</span></td>
+      <td><a class="btn btn-outline btn-sm" href="{{ p.url }}">Detail</a></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="panel-pad"><div class="empty">Belum ada data. {{ missing_hint }}</div></div>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+{{ points|json_script:"map-points" }}
+{{ legend|json_script:"map-legend" }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  const el = document.getElementById("module-map");
+  if (!el || !window.L) return;
+  const points = JSON.parse(document.getElementById("map-points").textContent);
+  const colors = Object.fromEntries(JSON.parse(document.getElementById("map-legend").textContent).map(x => [x[0], x[2]]));
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const map = L.map(el, {scrollWheelZoom: false}).setView([-2.5, 118], 5);
+  window.SeanavBasemap(map);
+  const markers = {}, bounds = [];
+  points.forEach((p, i) => {
+    if (p.lat === null || p.lng === null) return;
+    const m = L.circleMarker([p.lat, p.lng], {radius: 9, color: "#fff", weight: 2, fillColor: colors[p.status] || "#17365d", fillOpacity: .95})
+      .addTo(map).bindPopup(`<b>${esc(p.title)}</b><br>${esc(p.client)}<br><small>${esc(p.location)}</small><br><small>${esc(p.period)}</small>${p.detail ? `<br><small>${esc(p.detail)}</small>` : ""}<br><a href="${esc(p.url)}">Detail →</a>`);
+    markers[i] = m; bounds.push([p.lat, p.lng]);
+  });
+  if (bounds.length === 1) map.setView(bounds[0], 12);
+  else if (bounds.length) map.fitBounds(bounds, {padding: [40, 40], maxZoom: 13});
+  document.querySelectorAll("tr[data-point]").forEach(tr => tr.addEventListener("click", ev => {
+    if (ev.target.closest("a")) return;
+    const m = markers[tr.dataset.point]; if (!m) return;
+    map.setView(m.getLatLng(), 14); m.openPopup(); el.scrollIntoView({behavior: "smooth", block: "center"});
+  }));
+  setTimeout(() => map.invalidateSize(), 200);
+})();
+</script>
+{% endblock %}

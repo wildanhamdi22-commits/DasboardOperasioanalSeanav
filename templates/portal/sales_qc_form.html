@@ -1,0 +1,43 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}QC {{ unit.1 }}{% endblock %}
+{% block crumb %}Penjualan · Pengecekan (QC){% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Pengecekan sebelum kirim</h1><p><b>{{ unit.3 }}</b> · SN <span class="mono">{{ unit.1 }}</span> · pesanan <span class="mono">{{ unit.5 }}</span> · {{ unit.6 }}</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'sales_order_detail' unit.4 %}">← Pesanan</a>{% if last %}<a class="btn btn-outline" href="{% url 'sales_qc_report' unit.0 %}{% if pdf_available %}?format=pdf{% endif %}">QC Report</a>{% endif %}</div>
+</div>
+{% endblock %}
+{% block content %}
+{% if mismatch %}<div class="flash warning">SN di packing list (<span class="mono">{{ unit.2 }}</span>) berbeda dengan SN unit (<span class="mono">{{ unit.1 }}</span>). Pastikan kembali sebelum mencentang poin pertama.</div>{% endif %}
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<div class="grid-2">
+<form method="post" enctype="multipart/form-data" class="panel">{% csrf_token %}
+  <div class="ph"><div class="ph-l"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><div><h2>Checklist QC</h2><p>Centang poin yang sudah diperiksa dan sesuai.</p></div></div>
+    <button type="button" class="btn btn-ghost btn-sm" id="check-all">Centang semua</button></div>
+  {% for section, points in checklist %}
+    <div class="qc-sec"><h3>{{ section }}</h3><div class="check-grid">{% for key, label in points %}<label class="check-item"><input type="checkbox" name="chk_{{ key }}" {% if request.POST %}{% for k, v in request.POST.items %}{% if k == "chk_"|add:key %}checked{% endif %}{% endfor %}{% endif %}> <span>{{ label }}</span></label>{% endfor %}</div></div>
+  {% endfor %}
+  <div class="form-grid" style="margin-top:6px">
+    <div class="field"><label for="firmware">Versi firmware</label><input id="firmware" name="firmware" maxlength="80" placeholder="Contoh: v2.4.1" value="{{ request.POST.firmware }}"></div>
+    <div class="field"><label for="photos">Foto QC (unit, pelat SN, kelengkapan)</label><input id="photos" type="file" name="photos" accept="image/*" multiple></div>
+    <div class="field full"><label>Hasil</label>
+      <div class="result-pick">
+        <label><input type="radio" name="result" value="LULUS" required> <span class="ok">Lulus</span></label>
+        <label><input type="radio" name="result" value="CATATAN"> <span class="warn">Lulus dengan catatan</span></label>
+        <label><input type="radio" name="result" value="GAGAL"> <span class="bad">Tidak lulus (retur)</span></label>
+      </div></div>
+    <div class="field full"><label for="notes">Catatan pemeriksa</label><textarea id="notes" name="notes" rows="3" placeholder="Wajib untuk hasil 'dengan catatan' atau 'tidak lulus'">{{ request.POST.notes }}</textarea></div>
+  </div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Simpan hasil QC</button></div>
+</form>
+<section class="panel">
+  <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><h2>Riwayat QC</h2><p>Status saat ini: <span class="st st-QC_{{ unit.7 }}">{{ qc_label }}</span></p></div></div></div>
+  <ul class="timeline">{% for h in history %}<li class="{% if h.result == 'GAGAL' %}out{% else %}in{% endif %}"><b>{{ h.label }}</b> · {{ h.at|date:"d M Y H:i" }}<small>{{ h.by|default:"-" }}{% if h.firmware %} · firmware {{ h.firmware }}{% endif %}{% if h.notes %} · {{ h.notes }}{% endif %}</small></li>{% empty %}<li class="muted">Belum pernah di-QC.</li>{% endfor %}</ul>
+  {% if photos %}<h3 class="sub-h">Foto QC</h3><div class="thumbs">{% for p in photos %}<a href="{{ p.url }}" target="_blank" rel="noopener"><img src="{{ p.url }}" alt="Foto QC" style="width:72px;height:72px"></a>{% endfor %}</div>{% endif %}
+</section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.getElementById("check-all").addEventListener("click",()=>document.querySelectorAll('.qc-sec input[type=checkbox]').forEach(c=>c.checked=true));</script>
+{% endblock %}

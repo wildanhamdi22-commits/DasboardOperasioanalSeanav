@@ -1,11 +1,11 @@
 {% extends "portal/base.html" %}
 {% load portal_extras l10n %}
-{% block title %}Rekap Proyek{% endblock %}
-{% block crumb %}Rekap Proyek{% endblock %}
+{% block title %}Proyek Survey{% endblock %}
+{% block crumb %}Jasa Survey · Proyek Survey{% endblock %}
 {% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Rekap Proyek</h1><p>Lokasi proyek dan alat rental yang sedang ditugaskan di setiap area.</p></div>
+  <div><h1>Proyek survey</h1><p>Pekerjaan survei berjalan dan selesai: lokasi, alat yang dipakai, laporan harian, dan deliverable.</p></div>
   <div class="page-actions">
     {% if include_archived %}<a class="btn btn-outline" href="{% url 'project_list' %}">Sembunyikan arsip</a>{% else %}<a class="btn btn-outline" href="?arsip=1">Lihat arsip</a>{% endif %}
     <a class="btn btn-primary" href="{% url 'project_create' %}">+ Tambah proyek</a>
@@ -39,7 +39,7 @@
             {% if project.equipment %}<ul style="margin:6px 0 0;padding-left:16px">{% for item in project.equipment %}<li>{{ item.name }} · S/N {{ item.serial }} · {{ item.rental_number }}</li>{% endfor %}</ul>{% else %}<div class="muted">Belum ada unit rental aktif yang ditautkan.</div>{% endif %}
           </div>
           <div class="ic-foot">
-            <a class="btn btn-primary btn-sm" href="{% url 'project_edit' project.id %}">Edit proyek / alat</a>
+            <a class="btn btn-primary btn-sm" href="{% url 'survey_project_detail' project.id %}">Buka proyek</a><a class="btn btn-outline btn-sm" href="{% url 'project_edit' project.id %}">Edit</a>
             {% if project.status == "DIARSIPKAN" %}
               <form method="post" action="{% url 'project_archive' project.id 'pulihkan' %}">{% csrf_token %}<button class="btn btn-outline btn-sm" type="submit">Pulihkan</button></form>
             {% else %}

@@ -1,10 +1,10 @@
 {% extends "portal/base.html" %}
-{% block title %}Serah Terima{% endblock %}
-{% block crumb %}Serah Terima{% endblock %}
+{% block title %}{% if is_return %}Pengembalian Alat{% else %}Serah Terima{% endif %}{% endblock %}
+{% block crumb %}Rental · {% if is_return %}Pengembalian Alat{% else %}Serah Terima{% endif %}{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Serah terima alat</h1><p>Catat saat unit diserahkan ke klien atau dikembalikan. Status inventaris dan rental berubah otomatis.</p></div>
-  <div class="page-actions"><a class="btn btn-outline" href="{% url 'rental_list' %}">Daftar rental</a></div>
+  <div><h1>{% if is_return %}Pengembalian alat{% else %}Serah terima alat{% endif %}</h1><p>{% if is_return %}Periksa kelengkapan dan kondisi unit yang kembali, lampirkan foto, lalu simpan. Unit kembali berstatus Tersedia.{% else %}Catat saat unit diserahkan ke klien. Status inventaris dan rental berubah otomatis.{% endif %}</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% if is_return %}{% url 'rental_returns' %}{% else %}{% url 'rental_list' %}{% endif %}">← Kembali</a></div>
 </div>
 {% endblock %}
 {% block content %}
@@ -12,7 +12,7 @@
   {% if database_error %}<div class="flash error">{{ database_error }} Tambahkan dahulu data klien, rental beserta unit fisiknya, dan PIC internal.</div>{% endif %}
   {% if form %}
     {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="form-grid">
       {% for field in form %}
@@ -24,8 +24,24 @@
         </div>
       {% endfor %}
       </div>
+      <div class="return-check" id="return-check" {% if not is_return %}hidden{% endif %}>
+        <h3>Checklist pengecekan pengembalian</h3>
+        <div class="check-grid">{% for key, label in return_checklist %}<label class="check-item"><input type="checkbox" name="chk_{{ key }}"> <span>{{ label }}</span></label>{% endfor %}</div>
+      </div>
+      <div class="field full" style="margin-top:12px"><label for="photos">Foto kondisi alat (opsional, maks. 8)</label><input type="file" id="photos" name="photos" accept="image/*" multiple><span class="help">Foto unit, aksesori, dan kerusakan bila ada. Tersimpan di arsip rental.</span></div>
       <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit">Simpan serah terima</button><a class="btn btn-ghost" href="{% url 'rental_list' %}">Batal</a></div>
     </form>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const kind = document.getElementById("id_kind"), box = document.getElementById("return-check");
+  if (!kind || !box) return;
+  const sync = () => { box.hidden = kind.value !== "KEMBALI"; };
+  kind.addEventListener("change", sync); sync();
+})();
+</script>
 {% endblock %}

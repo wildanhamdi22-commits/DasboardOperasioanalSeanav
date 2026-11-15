@@ -1,17 +1,14 @@
 {% extends "portal/base.html" %}
 {% load portal_extras %}
-{% block title %}Quotation{% endblock %}
-{% block crumb %}Quotation{% endblock %}
+{% block title %}Quotation {{ mod.label }}{% endblock %}
+{% block crumb %}{{ mod.label }} · Quotation{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Quotation</h1><p>Penawaran rental alat, penjualan produk, dan jasa survey. Setelah klien setuju, buat invoice lalu lanjutkan ke rental atau pengiriman barang.</p></div>
-  <div class="page-actions"><a class="btn btn-primary" href="{% url 'quotation_create' %}">+ Buat quotation</a></div>
+  <div><h1>Quotation {{ mod.label }}</h1><p>{{ mod.quotation_hint }} Setelah klien setuju, buat invoice dari quotation tersebut.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url mod.invoices %}">Invoice {{ mod.label }}</a><a class="btn btn-primary" href="{% url mod.quotation_create %}">+ Buat quotation</a></div>
 </div>
 {% endblock %}
 {% block content %}
-<div class="tabs kind-tabs">
-  <a href="{% url 'quotation_list' %}" class="{% if not kind_filter %}on{% endif %}">Semua jenis</a>{% for code, label in kind_choices %}<a href="?jenis={{ code }}" class="{% if kind_filter == code %}on{% endif %}">{{ label }}</a>{% endfor %}
-</div>
 <div class="tabs" id="q-tabs">
   <a href="#" class="on" data-f="">Semua</a><a href="#" data-f="DRAFT">Draft</a><a href="#" data-f="TERKIRIM">Terkirim</a><a href="#" data-f="DITERIMA_KLIEN">Diterima klien</a><a href="#" data-f="DITOLAK_KLIEN">Ditolak</a>
 </div>
@@ -23,7 +20,7 @@
       <tbody>
         {% for quote in quotations %}
           <tr data-status="{{ quote.status }}">
-            <td><b class="mono">{{ quote.number }}</b><small>{{ quote.company }} · <span class="kind kind-{{ quote.kind }}">{{ quote.kind_label }}</span></small></td>
+            <td><b class="mono">{{ quote.number }}</b><small>{{ quote.company }}</small></td>
             <td><b>{{ quote.client }}</b></td>
             <td>{{ quote.date|date:"d M Y" }}<small>Berlaku s.d. {{ quote.valid_until|date:"d M Y"|default:"—" }}</small></td>
             <td>{{ quote.item_count }} item<small>{{ quote.items|default:"Belum ada item"|truncatechars:70 }}</small></td>
@@ -39,8 +36,8 @@
                   <form method="post" action="{% url 'quotation_status' quote.id 'terima' %}">{% csrf_token %}<button class="btn btn-green btn-sm" type="submit">Klien setuju</button></form>
                   <form method="post" action="{% url 'quotation_status' quote.id 'tolak' %}" data-confirm="Catat quotation ini ditolak klien?">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Klien menolak</button></form>
                 {% elif quote.status == "DITERIMA_KLIEN" %}
-                  {% if quote.invoice_created %}<a class="btn btn-outline btn-sm" href="{% url 'invoice_list' %}">Lihat invoice</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'invoice_create' quote.id %}">Buat invoice</a>{% endif %}
-                  {% if quote.kind == "PENJUALAN" %}{% if quote.delivered %}<a class="btn btn-outline btn-sm" href="{% url 'sale_delivery_order' quote.id %}{% if pdf_available %}?format=pdf{% endif %}" title="Unduh Delivery Order">Delivery Order</a> <span class="st st-SELESAI">Barang terkirim</span>{% else %}<a class="btn btn-primary btn-sm" href="{% url 'sale_delivery' quote.id %}">Kirim barang</a>{% endif %}{% endif %}
+                  {% if quote.invoice_created and quote.kind != "JASA_SURVEY" %}<a class="btn btn-outline btn-sm" href="{% url mod.invoices %}">Lihat invoice</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'invoice_create' quote.id %}">Buat invoice</a>{% endif %}
+                  {% if quote.kind == "PENJUALAN" %}{% if quote.delivered %}<a class="btn btn-outline btn-sm" href="{% url 'sales_orders' %}">Lihat pesanan</a>{% else %}<form method="post" action="{% url 'sales_order_create' quote.id %}">{% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Buat pesanan</button></form>{% endif %}{% endif %}{% if quote.kind == "JASA_SURVEY" %}{% if quote.project_id %}<a class="btn btn-outline btn-sm" href="{% url 'survey_project_detail' quote.project_id %}">Lihat proyek</a>{% else %}<a class="btn btn-primary btn-sm" href="{% url 'project_create' %}?quotation_id={{ quote.id }}">Buat proyek</a>{% endif %}{% endif %}
                 {% endif %}
               </div>
             </td>
@@ -49,7 +46,7 @@
       </tbody>
     </table></div>
     <div class="panel-pad" id="q-empty" hidden><div class="empty">Tidak ada quotation dengan status ini.</div></div>
-  {% else %}<div class="panel-pad"><div class="empty">Belum ada quotation. Buat draft pertama untuk mencatat penawaran klien.<br><a href="{% url 'quotation_create' %}">+ Buat quotation</a></div></div>{% endif %}
+  {% else %}<div class="panel-pad"><div class="empty">Belum ada quotation. Buat draft pertama untuk mencatat penawaran klien.<br><a href="{% url mod.quotation_create %}">+ Buat quotation</a></div></div>{% endif %}
 </section>
 {% endblock %}
 {% block scripts %}

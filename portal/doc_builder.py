@@ -849,4 +849,48 @@ def build_delivery_order(company: str, data: dict) -> bytes:
     return d.save()
 
 
-BUILDERS = {"quotation": build_quotation, "invoice": build_invoice, "delivery_order": build_delivery_order}
+
+
+
+def build_generic(company: str, data: dict) -> bytes:
+    """Dokumen umum dengan gaya yang sama: dipakai untuk berita acara pengembalian,
+    QC Report, Daily Progress Report, BAST, dan DO penjualan.
+
+    data: title, subtitle, number, footer_title, meta[(label, value)], parties[(label, [lines])],
+          sections[...] — tiap section salah satu dari:
+            {"heading": str}
+            {"table": {"columns": [...], "widths": [...], "rows": [...], "center": (), "numeric": ()}}
+            {"box": {"title": str, "lines": [...]}}
+            {"text": str}
+          signatures[(label, name, role) | None], signature_height
+    """
+    b = BRANDS[company]
+    d = DocBuilder(b)
+    d.header_footer(data.get("footer_title", data["title"].title()), data["number"])
+    d.title_block(data["title"], data.get("subtitle", ""), data.get("meta", []))
+    if data.get("parties"):
+        d.party_boxes(data["parties"])
+    for section in data.get("sections", []):
+        if "heading" in section:
+            d.heading(section["heading"])
+        elif "table" in section:
+            t = section["table"]
+            widths = list(t["widths"])
+            if None in widths:
+                fixed = sum(w for w in widths if w)
+                widths = [w if w else d.content_w - fixed for w in widths]
+            d.items_table(t["columns"], t["rows"], widths, numeric_cols=t.get("numeric", ()),
+                          center_cols=t.get("center", ()))
+            d.spacer(8)
+        elif "box" in section:
+            d.info_box(section["box"]["title"], section["box"]["lines"])
+        elif "text" in section:
+            p = d.para(after=6)
+            d.run(p, section["text"], size=8.5, color="3A4553")
+    if data.get("signatures"):
+        d.signatures(data["signatures"], height_mm=data.get("signature_height", 20))
+    return d.save()
+
+
+BUILDERS = {"quotation": build_quotation, "invoice": build_invoice, "delivery_order": build_delivery_order,
+            "generic": build_generic}

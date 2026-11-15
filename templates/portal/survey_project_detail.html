@@ -1,0 +1,100 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}{{ p.code }}{% endblock %}
+{% block crumb %}Jasa Survey · Proyek Survey{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>{{ p.name }}</h1><p><span class="mono">{{ p.code }}</span> · {{ p.client }} · {{ p.company }}{% if p.quotation %} · quotation <span class="mono">{{ p.quotation }}</span>{% endif %}</p></div>
+  <div class="page-actions">
+    <a class="btn btn-outline" href="{% url 'project_list' %}">← Proyek</a>
+    <a class="btn btn-outline" href="{% url 'project_edit' p.id %}">Edit data & lokasi</a>
+    {% if p.quotation_id %}<a class="btn btn-primary" href="{% url 'invoice_create' p.quotation_id %}">+ Invoice termin</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="kpis" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px">
+  <div class="mod-card"><span class="small muted">Status</span><div style="margin:6px 0 8px"><span class="st st-{{ p.status }}">{{ p.status|label }}</span></div><div class="progress"><span style="width:{{ p.progress|floatformat:0 }}%"></span></div><small class="muted">Progres {{ p.progress|floatformat:"-1" }}%</small></div>
+  <div class="mod-card"><span class="small muted">Jadwal</span><b style="display:block;margin-top:6px">{{ p.start|date:"d M Y"|default:"-" }} – {{ p.end|date:"d M Y"|default:"-" }}</b><small class="muted">{{ p.location|default:"Lokasi belum diisi"|truncatechars:50 }}</small></div>
+  <div class="mod-card"><span class="small muted">Laporan harian</span><b style="display:block;margin-top:6px;font-size:20px">{{ totals.days }} hari</b><small class="muted">{{ totals.work|floatformat:"-1" }} jam kerja · {{ totals.standby|floatformat:"-1" }} jam standby</small></div>
+  <div class="mod-card"><span class="small muted">Penagihan</span><b style="display:block;margin-top:6px;font-size:20px">{{ totals.billed|floatformat:"-2" }}%</b><small class="muted">{{ totals.billed_amount|rupiah }}{% if p.contract %} dari {{ p.contract|rupiah }}{% endif %}</small></div>
+</div>
+
+<div class="grid-2">
+<div>
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></span><div><h2>Laporan harian (DPR)</h2><p>Aktivitas, cuaca, jam kerja & standby, progres, kendala, dan foto lapangan.</p></div></div></div>
+    <details class="upload-box" {% if not reports %}open{% endif %}><summary style="cursor:pointer;font-weight:700">+ Tulis laporan hari ini</summary>
+      <form method="post" enctype="multipart/form-data" style="margin-top:12px">{% csrf_token %}<input type="hidden" name="action" value="dpr">
+        <div class="form-grid">
+          <div class="field"><label>Tanggal</label><input type="date" name="date" value="{{ today }}" required></div>
+          <div class="field"><label>Cuaca / kondisi laut</label><input name="weather" maxlength="120" placeholder="Cerah, gelombang 0,5 m"></div>
+          <div class="field"><label>Jam kerja</label><input type="number" name="work_hours" min="0" max="24" step="0.5" value="8"></div>
+          <div class="field"><label>Jam standby</label><input type="number" name="standby_hours" min="0" max="24" step="0.5" value="0"></div>
+          <div class="field"><label>Progres total (%)</label><input type="number" name="progress" min="0" max="100" step="1" value="{{ p.progress|floatformat:0 }}"></div>
+          <div class="field"><label>Foto lapangan</label><input type="file" name="photos" accept="image/*" multiple></div>
+          <div class="field full"><label>Aktivitas</label><textarea name="activity" rows="3" required placeholder="Contoh: Akuisisi MBES line 01–12, kalibrasi patch test, cek SVP."></textarea></div>
+          <div class="field full"><label>Kendala / catatan</label><textarea name="issues" rows="2"></textarea></div>
+        </div>
+        <div class="form-actions" style="border:0;padding-top:2px"><button class="btn btn-primary btn-sm" type="submit">Simpan laporan</button></div>
+      </form>
+    </details>
+    <ul class="timeline">{% for r in reports %}<li class="in">
+      <b>{{ r.date|date:"l, d M Y" }}</b>{% if r.progress != None %} · progres {{ r.progress|floatformat:"-1" }}%{% endif %}
+      <small>{{ r.weather|default:"Cuaca -" }} · kerja {{ r.work|floatformat:"-1" }} j · standby {{ r.standby|floatformat:"-1" }} j · {{ r.by|default:"-" }}</small>
+      <div style="margin-top:4px">{{ r.activity|linebreaksbr }}</div>
+      {% if r.issues %}<small class="text-red">Kendala: {{ r.issues }}</small>{% endif %}
+      {% if r.photos %}<div class="thumbs">{% for ph in r.photos %}<a href="{{ ph.url }}" target="_blank" rel="noopener"><img src="{{ ph.url }}" alt="Foto"></a>{% endfor %}</div>{% endif %}
+      <a class="link small" href="{% url 'survey_report_document' r.id %}{% if pdf_available %}?format=pdf{% endif %}">Unduh Daily Report →</a>
+    </li>{% empty %}<li class="muted">Belum ada laporan harian.</li>{% endfor %}</ul>
+  </section>
+</div>
+
+<div>
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><div><h2>Status, tim & kapal</h2><p>Perbarui saat tahap pekerjaan berubah.</p></div></div></div>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update">
+      <div class="form-grid">
+        <div class="field"><label>Status</label><select name="status">{% for code, label in statuses %}<option value="{{ code }}" {% if p.status == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Progres (%)</label><input type="number" name="progress" min="0" max="100" value="{{ p.progress|floatformat:0 }}"></div>
+        <div class="field full"><label>Kapal / wahana</label><input name="vessel" maxlength="200" value="{{ p.vessel }}" placeholder="Contoh: KM Survey 01 / small craft"></div>
+        <div class="field full"><label>Kru / personel</label><textarea name="crew" rows="3" placeholder="Satu nama per baris, mis. Party chief – Andi">{{ p.crew }}</textarea></div>
+      </div>
+      <div class="form-actions" style="border:0;padding-top:2px"><button class="btn btn-primary btn-sm" type="submit">Simpan</button></div>
+    </form>
+    <h3 class="sub-h">Alat dari Daftar Alat Rental</h3>
+    <ul class="plain-list">{% for e in equipment %}<li><b>{{ e.0 }}</b> <span class="cat cat-{{ e.2 }}">{{ e.2 }}</span><small class="mono">S/N {{ e.1 }}</small></li>{% empty %}<li class="muted">Belum ada alat. Tambahkan lewat <a class="link" href="{% url 'project_edit' p.id %}">Edit data</a>.</li>{% endfor %}</ul>
+  </section>
+
+  <section class="panel mt">
+    <div class="ph"><div class="ph-l"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg></span><div><h2>Deliverable & BAST</h2><p>{{ deliverables|length }} file · {{ final_count }} final{% if p.bast_date %} · BAST {{ p.bast_date|date:"d M Y" }}{% endif %}</p></div></div></div>
+    <form method="post" enctype="multipart/form-data" class="upload-box">{% csrf_token %}<input type="hidden" name="action" value="deliverable">
+      <div class="form-grid">
+        <div class="field"><label>Judul</label><input name="title" maxlength="200" required placeholder="Laporan akhir survei batimetri"></div>
+        <div class="field"><label>Versi</label><select name="version"><option value="DRAFT">Draft</option><option value="FINAL">Final</option></select></div>
+        <div class="field full"><input type="file" name="file" required></div>
+      </div>
+      <div class="form-actions" style="border:0;padding-top:2px"><button class="btn btn-primary btn-sm" type="submit">Unggah deliverable</button></div>
+    </form>
+    {% if deliverables %}<ul class="file-list">{% for d in deliverables %}<li><a class="file-ic" href="{{ d.url }}" target="_blank" rel="noopener">{{ d.version|slice:":1" }}</a><div><a class="link" href="{{ d.url }}" target="_blank" rel="noopener"><b>{{ d.title }}</b></a> <span class="kind v-{{ d.version }}">{{ d.version|title }}</span><small>{{ d.name }} · {{ d.at|date:"d M Y H:i" }} · {{ d.by|default:"-" }}</small></div></li>{% endfor %}</ul>{% endif %}
+    <h3 class="sub-h">Berita Acara Serah Terima (BAST)</h3>
+    {% if p.bast_date %}<div class="flash success">BAST {{ p.bast_date|date:"d M Y" }} · diterima {{ p.bast_receiver }}</div>{% endif %}
+    <div class="row-actions" style="margin-bottom:10px"><a class="btn btn-outline btn-sm" href="{% url 'survey_bast_document' p.id %}{% if pdf_available %}?format=pdf{% endif %}">Unduh BAST</a></div>
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="bast">
+      <div class="form-grid">
+        <div class="field"><label>Tanggal BAST</label><input type="date" name="bast_date" value="{{ p.bast_date|date:'Y-m-d'|default:today }}"></div>
+        <div class="field"><label>Penerima (klien)</label><input name="bast_receiver" maxlength="180" value="{{ p.bast_receiver }}"></div>
+        <div class="field full"><label>BAST bertanda tangan (opsional)</label><input type="file" name="file" accept=".pdf,image/*"></div>
+      </div>
+      <div class="form-actions" style="border:0;padding-top:2px"><button class="btn btn-green btn-sm" type="submit">{% if p.bast_date %}Perbarui BAST{% else %}Catat BAST & selesaikan proyek{% endif %}</button></div>
+    </form>
+    {% if files %}<ul class="file-list" style="margin-top:10px">{% for f in files %}<li><a href="{{ f.url }}" target="_blank" rel="noopener" class="file-ic {% if f.is_image %}img{% endif %}">{% if f.is_image %}<img src="{{ f.url }}" alt="">{% else %}PDF{% endif %}</a><div><a class="link" href="{{ f.url }}" target="_blank" rel="noopener"><b>{{ f.title }}</b></a><small>{{ f.uploaded_at|date:"d M Y H:i" }}</small></div></li>{% endfor %}</ul>{% endif %}
+  </section>
+
+  <section class="panel mt">
+    <div class="ph"><div class="ph-l"><span class="qi t-amber"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><div><h2>Invoice termin</h2><p>{{ totals.billed|floatformat:"-2" }}% dari nilai kontrak sudah ditagih</p></div></div></div>
+    <ul class="plain-list">{% for i in invoices %}<li><b class="mono">{{ i.number }}</b> · {% if i.termin %}Termin {{ i.termin }} ({{ i.percent|floatformat:"-2" }}%) {{ i.label }}{% else %}Penuh{% endif %}<small>{{ i.total|rupiah }} · <span class="st st-{{ i.status }}">{{ i.status|label }}</span></small></li>{% empty %}<li class="muted">Belum ada invoice.{% if not p.quotation_id %} Proyek ini belum terhubung ke quotation jasa survey.{% endif %}</li>{% endfor %}</ul>
+  </section>
+</div>
+</div>
+{% endblock %}

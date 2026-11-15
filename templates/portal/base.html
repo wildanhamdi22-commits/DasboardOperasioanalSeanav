@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   {% block leaflet_css %}{% endblock %}
   <script>try{if(localStorage.getItem("snv-theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'portal/app.css' %}?v=20261116a">
+  <link rel="stylesheet" href="{% static 'portal/app.css' %}?v=20261116b">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -40,47 +40,60 @@
       <span><b>Absensi</b><small>Masuk &amp; pulang</small></span>
     </a>
 
-    {% if business_access.inventory or business_access.quotation or business_access.invoice or business_access.rental or business_access.project %}
-    <div class="sb-label">Operasional</div>
+    {% if business_access.inventory or business_access.quotation or business_access.rental or business_access.project %}
+    <div class="sb-label">Bisnis</div>
     {% endif %}
-    {% if business_access.inventory %}
-    <a class="sb-link {% if nav_active == 'inventory' %}on{% endif %}" href="{% url 'inventory' %}">
-      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span>
-      <span><b>Inventaris Alat</b><small>Unit, S/N &amp; kondisi</small></span>
-      <span class="badge green">{{ b.units }}</span>
-    </a>
+    {% if business_access.inventory or business_access.rental %}
+    <details class="sb-group" {% if nav_module == 'rental' %}open{% endif %}>
+      <summary class="sb-link {% if nav_module == 'rental' %}on{% endif %}">
+        <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span>
+        <span><b>Rental</b><small>Sewa alat survei</small></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </summary>
+      <div class="sb-subs">
+        <a class="sb-sub {% if nav_active == 'r_units' %}on{% endif %}" href="{% url 'inventory' %}"><span>Daftar Alat</span>{% if b.units %}<span class="badge green">{{ b.units }}</span>{% endif %}</a>
+        <a class="sb-sub {% if nav_active == 'r_quotes' %}on{% endif %}" href="{% url 'rental_quotations' %}"><span>Quotation</span></a>
+        <a class="sb-sub {% if nav_active == 'r_invoices' %}on{% endif %}" href="{% url 'rental_invoices' %}"><span>Invoice</span></a>
+        <a class="sb-sub {% if nav_active == 'r_rentals' %}on{% endif %}" href="{% url 'rental_list' %}"><span>Catatan Rental & DO</span>{% if b.rentals %}<span class="badge">{{ b.rentals }}</span>{% endif %}</a>
+        <a class="sb-sub {% if nav_active == 'r_returns' %}on{% endif %}" href="{% url 'rental_returns' %}"><span>Pengembalian Alat</span>{% if b.returns_due %}<span class="badge red">{{ b.returns_due }}</span>{% endif %}</a>
+        <a class="sb-sub {% if nav_active == 'r_map' %}on{% endif %}" href="{% url 'rental_map' %}"><span>Peta Rental</span></a>
+      </div>
+    </details>
     {% endif %}
-    {% if business_access.quotation %}
-    <a class="sb-link {% if nav_active == 'quotation' %}on{% endif %}" href="{% url 'quotation_list' %}">
-      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></span>
-      <span><b>Quotation</b><small>Penawaran klien</small></span>
-      {% if b.quotations %}<span class="badge">{{ b.quotations }}</span>{% endif %}
-    </a>
+    {% if business_access.inventory or business_access.quotation %}
+    <details class="sb-group" {% if nav_module == 'sales' %}open{% endif %}>
+      <summary class="sb-link {% if nav_module == 'sales' %}on{% endif %}">
+        <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2l-2 4v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6l-2-4z"/><path d="M4 6h16M16 10a4 4 0 0 1-8 0"/></svg></span>
+        <span><b>Penjualan</b><small>Produk & instrumen</small></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </summary>
+      <div class="sb-subs">
+        <a class="sb-sub {% if nav_active == 's_catalog' %}on{% endif %}" href="{% url 'sales_catalog' %}"><span>Katalog Produk</span></a>
+        <a class="sb-sub {% if nav_active == 's_quotes' %}on{% endif %}" href="{% url 'sales_quotations' %}"><span>Quotation</span></a>
+        <a class="sb-sub {% if nav_active == 's_invoices' %}on{% endif %}" href="{% url 'sales_invoices' %}"><span>Invoice</span></a>
+        <a class="sb-sub {% if nav_active == 's_orders' %}on{% endif %}" href="{% url 'sales_orders' %}"><span>Pesanan & Indent</span>{% if b.orders_open %}<span class="badge">{{ b.orders_open }}</span>{% endif %}</a>
+        <a class="sb-sub {% if nav_active == 's_qc' %}on{% endif %}" href="{% url 'sales_qc_list' %}"><span>Pengecekan (QC)</span>{% if b.qc_pending %}<span class="badge red">{{ b.qc_pending }}</span>{% endif %}</a>
+        <a class="sb-sub {% if nav_active == 's_do' %}on{% endif %}" href="{% url 'sales_deliveries' %}"><span>DO Penjualan</span>{% if b.do_missing %}<span class="badge red">{{ b.do_missing }}</span>{% endif %}</a>
+        <a class="sb-sub {% if nav_active == 's_map' %}on{% endif %}" href="{% url 'sales_map' %}"><span>Peta Penjualan</span></a>
+      </div>
+    </details>
     {% endif %}
-    {% if business_access.invoice %}
-    <a class="sb-link {% if nav_active == 'invoice' %}on{% endif %}" href="{% url 'invoice_list' %}">
-      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>
-      <span><b>Invoice</b><small>Penagihan &amp; pembayaran</small></span>
-      {% if b.invoices_overdue %}<span class="badge red">{{ b.invoices_overdue }}</span>{% elif b.invoices_open %}<span class="badge">{{ b.invoices_open }}</span>{% endif %}
-    </a>
-    {% endif %}
-    {% if business_access.rental %}
-    <a class="sb-link {% if nav_active == 'rental' %}on{% endif %}" href="{% url 'rental_list' %}">
-      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span>
-      <span><b>Rental Alat</b><small>Kontrak sewa</small></span>
-      {% if b.rentals %}<span class="badge">{{ b.rentals }}</span>{% endif %}
-    </a>
-    <a class="sb-link {% if nav_active == 'handover' %}on{% endif %}" href="{% url 'rental_handover' %}">
-      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l-4-4 4-4"/><path d="M3 13h13"/><path d="M17 7l4 4-4 4"/></svg></span>
-      <span><b>Serah Terima</b><small>Alat keluar &amp; kembali</small></span>
-    </a>
-    {% endif %}
-    {% if business_access.project %}
-    <a class="sb-link {% if nav_active == 'project' %}on{% endif %}" href="{% url 'project_list' %}">
-      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
-      <span><b>Rekap Proyek</b><small>Proyek &amp; peta</small></span>
-      {% if b.projects %}<span class="badge">{{ b.projects }}</span>{% endif %}
-    </a>
+    {% if business_access.project or business_access.quotation %}
+    <details class="sb-group" {% if nav_module == 'survey' %}open{% endif %}>
+      <summary class="sb-link {% if nav_module == 'survey' %}on{% endif %}">
+        <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+        <span><b>Jasa Survey</b><small>Proyek & pekerjaan</small></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </summary>
+      <div class="sb-subs">
+        <a class="sb-sub {% if nav_active == 'v_quotes' %}on{% endif %}" href="{% url 'survey_quotations' %}"><span>Quotation</span></a>
+        <a class="sb-sub {% if nav_active == 'v_projects' %}on{% endif %}" href="{% url 'project_list' %}"><span>Proyek Survey</span>{% if b.projects %}<span class="badge">{{ b.projects }}</span>{% endif %}</a>
+        <a class="sb-sub {% if nav_active == 'v_reports' %}on{% endif %}" href="{% url 'survey_reports' %}"><span>Laporan Harian</span></a>
+        <a class="sb-sub {% if nav_active == 'v_deliverables' %}on{% endif %}" href="{% url 'survey_deliverables' %}"><span>Deliverable & BAST</span></a>
+        <a class="sb-sub {% if nav_active == 'v_invoices' %}on{% endif %}" href="{% url 'survey_invoices' %}"><span>Invoice Termin</span></a>
+        <a class="sb-sub {% if nav_active == 'v_map' %}on{% endif %}" href="{% url 'survey_map' %}"><span>Peta Proyek</span></a>
+      </div>
+    </details>
     {% endif %}
 
     <div class="sb-label">SDM</div>

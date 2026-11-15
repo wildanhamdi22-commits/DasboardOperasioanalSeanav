@@ -1,0 +1,50 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Arsip {{ rental.1 }}{% endblock %}
+{% block crumb %}Rental · Catatan Rental{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Arsip rental <span class="mono">{{ rental.1 }}</span></h1><p>{{ rental.3 }} · {{ rental.5|date:"d M Y" }} – {{ rental.6|date:"d M Y" }}{% if rental.7 %} · {{ rental.7 }}{% endif %}</p></div>
+  <div class="page-actions">
+    <a class="btn btn-outline" href="{% url 'rental_list' %}">← Catatan rental</a>
+    <a class="btn btn-primary" href="{% url 'rental_delivery_order' rental.0 %}{% if pdf_available %}?format=pdf{% endif %}">Unduh Delivery Order</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 15l2 2 4-4"/></svg></span>
+      <div><h2>DO bertanda tangan</h2><p>Unggah scan/foto DO yang sudah ditandatangani peminjam sebagai arsip bersama.</p></div></div>
+      <span class="st {% if signed %}st-SELESAI{% else %}st-DRAFT{% endif %}">{% if signed %}{{ signed|length }} tersimpan{% else %}Belum ada{% endif %}</span></div>
+    <form method="post" enctype="multipart/form-data" class="upload-box">{% csrf_token %}
+      <div class="form-grid">
+        <div class="field"><label for="jenis">Jenis dokumen</label><select id="jenis" name="jenis"><option value="DO_TTD">DO keluar bertanda tangan</option><option value="BA_KEMBALI">Berita acara pengembalian bertanda tangan</option><option value="LAINNYA">Dokumen lain (PO, surat jalan, dll.)</option></select></div>
+        <div class="field"><label for="title">Judul (opsional)</label><input id="title" name="title" maxlength="200" placeholder="Contoh: DO ditandatangani Pak Andi"></div>
+        <div class="field full"><label for="file">File (PDF / foto, maks. 25 MB)</label><input id="file" type="file" name="file" required accept=".pdf,image/*,.doc,.docx"></div>
+      </div>
+      <div class="form-actions" style="border:0;padding-top:4px"><button class="btn btn-primary" type="submit">Unggah ke arsip</button></div>
+    </form>
+    {% if files %}
+      <ul class="file-list">{% for f in files %}<li>
+        <a href="{{ f.url }}" target="_blank" rel="noopener" class="file-ic {% if f.is_image %}img{% endif %}">{% if f.is_image %}<img src="{{ f.url }}" alt="">{% else %}PDF{% endif %}</a>
+        <div><a class="link" href="{{ f.url }}" target="_blank" rel="noopener"><b>{{ f.title }}</b></a><small>{{ f.kind_label }} · {{ f.uploaded_at|date:"d M Y H:i" }}{% if f.uploaded_by %} · {{ f.uploaded_by }}{% endif %}</small></div>
+      </li>{% endfor %}</ul>
+    {% else %}<div class="empty small">Belum ada dokumen di arsip rental ini.</div>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span>
+      <div><h2>Ringkasan</h2><p>{{ rental.2 }} · status <span class="st st-{{ rental.4 }}">{{ rental.4|label }}</span></p></div></div></div>
+    <dl class="kv"><dt>Quotation</dt><dd class="mono">{{ rental.8|default:"-" }}</dd><dt>Invoice</dt><dd class="mono">{{ rental.9|default:"-" }}</dd></dl>
+    <h3 class="sub-h">Alat</h3>
+    <ul class="plain-list">{% for u in units %}<li><b>{{ u.0 }}</b> <span class="mono small">S/N {{ u.1 }}</span><small>{{ u.2|label }}{% if u.4 %} · kembali {{ u.4|label|lower }}{% endif %}</small></li>{% empty %}<li class="muted">Belum ada unit.</li>{% endfor %}</ul>
+    <h3 class="sub-h">Riwayat serah terima</h3>
+    <ul class="timeline">{% for h in handovers %}<li class="{% if h.kind == 'KEMBALI' %}in{% else %}out{% endif %}">
+      <b>{% if h.kind == 'KELUAR' %}Alat keluar{% else %}Alat kembali{% endif %}</b> · {{ h.date|date:"d M Y H:i" }}
+      <small>{% if h.recipient %}{% if h.kind == 'KELUAR' %}Penerima{% else %}Dikembalikan oleh{% endif %} {{ h.recipient }} · {% endif %}PIC {{ h.pic|default:"-" }}{% if h.notes %} · {{ h.notes }}{% endif %}</small>
+      {% if h.photos %}<div class="thumbs">{% for p in h.photos %}<a href="{{ p.url }}" target="_blank" rel="noopener"><img src="{{ p.url }}" alt="Foto"></a>{% endfor %}</div>{% endif %}
+    </li>{% empty %}<li class="muted">Belum ada serah terima.</li>{% endfor %}</ul>
+  </section>
+</div>
+{% endblock %}

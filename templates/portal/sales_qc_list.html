@@ -1,0 +1,20 @@
+{% extends "portal/base.html" %}
+{% block title %}Pengecekan (QC){% endblock %}
+{% block crumb %}Penjualan · Pengecekan (QC){% endblock %}
+{% block page_head %}
+<div class="page-head"><div><h1>Pengecekan sebelum kirim (QC)</h1><p>Setiap unit yang datang dari pabrikan dicek SN, fisik, kelengkapan, dan fungsinya sebelum dikirim ke konsumen.</p></div></div>
+{% endblock %}
+{% block content %}
+<section class="panel flush">
+  <div class="ph panel-pad" style="margin:0"><div class="ph-l"><span class="qi t-amber"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></span><div><h2>Menunggu QC</h2><p>{{ pending|length }} unit belum lulus pengecekan</p></div></div></div>
+  {% if pending %}<div class="table-wrap"><table class="data"><thead><tr><th>Unit</th><th>Pesanan</th><th>Datang</th><th>Status</th><th></th></tr></thead><tbody>
+    {% for u in pending %}<tr><td><b>{{ u.name }}</b><small class="mono">SN {{ u.serial }}{% if u.mismatch %} · <span class="text-red">SN beda dengan packing list</span>{% endif %}</small></td><td><a class="mono link" href="{% url 'sales_order_detail' u.order_id %}">{{ u.order }}</a><small>{{ u.client }}</small></td><td>{{ u.arrived|date:"d M Y" }}</td><td><span class="st st-QC_{{ u.qc }}">{{ u.qc_label }}</span></td><td><a class="btn btn-primary btn-sm" href="{% url 'sales_qc_form' u.id %}">Cek QC</a></td></tr>{% endfor %}
+  </tbody></table></div>{% else %}<div class="panel-pad"><div class="empty">Tidak ada unit yang menunggu QC.</div></div>{% endif %}
+</section>
+<section class="panel flush mt">
+  <div class="ph panel-pad" style="margin:0"><div class="ph-l"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span><div><h2>Sudah lulus QC</h2><p>QC Report dapat dilampirkan ke konsumen</p></div></div></div>
+  {% if done %}<div class="table-wrap"><table class="data"><thead><tr><th>Unit</th><th>Pesanan</th><th>Diperiksa</th><th>Hasil</th><th></th></tr></thead><tbody>
+    {% for u in done %}<tr><td><b>{{ u.name }}</b><small class="mono">SN {{ u.serial }}</small></td><td><a class="mono link" href="{% url 'sales_order_detail' u.order_id %}">{{ u.order }}</a><small>{{ u.client }}</small></td><td>{{ u.qc_at|date:"d M Y H:i" }}<small>{{ u.qc_by }}</small></td><td><span class="st st-QC_{{ u.qc }}">{{ u.qc_label }}</span></td><td><a class="btn btn-outline btn-sm" href="{% url 'sales_qc_report' u.id %}{% if pdf_available %}?format=pdf{% endif %}">QC Report</a></td></tr>{% endfor %}
+  </tbody></table></div>{% else %}<div class="panel-pad"><div class="empty">Belum ada unit yang lulus QC.</div></div>{% endif %}
+</section>
+{% endblock %}
