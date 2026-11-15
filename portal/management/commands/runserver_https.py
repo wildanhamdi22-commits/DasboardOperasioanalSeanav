@@ -87,6 +87,11 @@ class HttpsServer(ThreadedWSGIServer):
         import sys
         if isinstance(sys.exc_info()[1], (ssl.SSLError, ConnectionError, TimeoutError)):
             return  # browser menolak sertifikat / koneksi terputus: abaikan
+        import traceback
+        log = Path(settings.BASE_DIR) / "sertifikat" / "server_error.log"
+        with open(log, "a", encoding="utf-8") as fh:
+            fh.write(f"\n--- {datetime.now():%Y-%m-%d %H:%M:%S} {client_address}\n")
+            traceback.print_exc(file=fh)
         super().handle_error(request, client_address)
 
 
@@ -106,7 +111,12 @@ class Command(BaseCommand):
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(str(cert), str(key))
-        httpd = HttpsServer(("0.0.0.0", port), HttpsHandler, ipv6=False)
+        try:
+            httpd = HttpsServer(("0.0.0.0", port), HttpsHandler, ipv6=False)
+        except OSError as exc:
+            self.stderr.write(f"\n[!] Port {port} tidak bisa dipakai ({exc}).")
+            self.stderr.write("    Kemungkinan server HTTPS lain masih berjalan. Tutup jendela server lain lalu coba lagi.")
+            raise SystemExit(2)
         httpd.daemon_threads = True
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True, do_handshake_on_connect=False)
         httpd.set_app(StaticFilesHandler(get_internal_wsgi_application()))
@@ -121,5 +131,11 @@ class Command(BaseCommand):
             httpd.serve_forever()
         except KeyboardInterrupt:
             pass
+        except Exception:
+            import traceback
+            with open(Path(settings.BASE_DIR) / "sertifikat" / "server_error.log", "a", encoding="utf-8") as fh:
+                fh.write(f"\n--- {datetime.now():%Y-%m-%d %H:%M:%S} server berhenti\n")
+                traceback.print_exc(file=fh)
+            raise
         finally:
             httpd.server_close()
