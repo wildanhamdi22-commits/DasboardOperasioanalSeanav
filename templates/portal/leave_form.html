@@ -1,0 +1,23 @@
+{% extends "portal/base.html" %}
+{% block title %}Ajukan Izin / Cuti{% endblock %}
+{% block crumb %}Izin &amp; Cuti{% endblock %}
+{% block page_head %}
+<div class="page-head"><div><h1>Ajukan izin, sakit, atau cuti</h1><p>Hari Sabtu–Minggu tidak dihitung sebagai hari kerja di rekap absensi.</p></div>
+<div class="page-actions"><a class="btn btn-outline" href="{% url 'leave_list' %}">← Kembali</a></div></div>
+{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:820px">
+  {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div class="field wide">{{ form.jenis.label_tag }}{{ form.jenis }}{% for e in form.jenis.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+      <div class="field">{{ form.tanggal_mulai.label_tag }}{{ form.tanggal_mulai }}{% for e in form.tanggal_mulai.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+      <div class="field">{{ form.tanggal_selesai.label_tag }}{{ form.tanggal_selesai }}{% for e in form.tanggal_selesai.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+      <div class="field wide">{{ form.alasan.label_tag }}{{ form.alasan }}{% for e in form.alasan.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+      <div class="field wide">{{ form.lampiran.label_tag }}{{ form.lampiran }}<span class="help">{{ form.lampiran.help_text }}</span>{% for e in form.lampiran.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Kirim pengajuan</button><a class="btn btn-ghost" href="{% url 'leave_list' %}">Batal</a></div>
+  </form>
+</section>
+{% endblock %}

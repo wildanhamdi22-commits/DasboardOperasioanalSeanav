@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="id">
+<head>
+  {% load static %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071a31">
+  <meta name="description" content="PT Oseana Prawira Persada dan PT Seanav Maritim Indonesia — survei hidrografi, geofisika, met-ocean, aerial, ROV, serta penjualan dan penyewaan peralatan survei.">
+  <title>Oseana &amp; Seanav · Marine, Survey &amp; Geospatial Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#0b1b2e;--navy:#0b2a4a;--navy-2:#123a63;--deep:#061628;--red:#c8102e;--red-2:#a00c24;
+      --cyan:#16a3c4;--sand:#a9682b;--muted:#5d6b7e;--line:#e3e8ee;--soft:#f4f6f9;--white:#fff;
+      --radius:14px;--shadow:0 24px 60px rgba(8,27,52,.12);
+      font-family:"Plus Jakarta Sans","Segoe UI",Arial,sans-serif;color:var(--ink);background:#fff;
+    }
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:80px}body{margin:0;-webkit-font-smoothing:antialiased}
+    a{color:inherit}img{max-width:100%}button{font:inherit}
+    .container{width:min(1220px,calc(100% - 48px));margin:auto}
+    .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+    /* ---------- NAV ---------- */
+    .topbar{position:fixed;inset:0 0 auto;z-index:50;transition:background .25s,box-shadow .25s,border-color .25s;border-bottom:1px solid transparent}
+    .topbar.scrolled{background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-color:var(--line);box-shadow:0 6px 24px rgba(8,27,52,.06)}
+    .nav-wrap{height:76px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+    .brand{display:flex;align-items:center;gap:14px;text-decoration:none}
+    .brand-logos{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:10px;background:#fff}
+    .brand-logos img{height:34px;width:auto;max-width:120px;object-fit:contain}
+    .brand-logos i{width:1px;height:24px;background:#dbe1e8}
+    .brand-text{display:grid;gap:2px;color:#fff;transition:color .25s}
+    .brand-text strong{font-size:13px;letter-spacing:.12em}
+    .brand-text small{font-size:11px;opacity:.7}
+    .scrolled .brand-text{color:var(--navy)}
+    .nav{display:flex;align-items:center;gap:26px;font-size:14px;font-weight:600;color:rgba(255,255,255,.82)}
+    .scrolled .nav{color:#3c4b60}
+    .nav a{text-decoration:none;position:relative}
+    .nav a:not(.btn):after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:2px;background:var(--red);transform:scaleX(0);transition:transform .2s}
+    .nav a:not(.btn):hover:after,.nav a.active:after{transform:scaleX(1)}
+    .menu-toggle{display:none;width:42px;height:42px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-size:18px;cursor:pointer}
+    .scrolled .menu-toggle{border-color:var(--line);color:var(--navy)}
+
+    /* ---------- BUTTONS ---------- */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;border:1px solid transparent;cursor:pointer;transition:transform .15s,background .15s,border-color .15s,box-shadow .15s}
+    .btn:hover{transform:translateY(-2px)}
+    .btn-red{background:var(--red);color:#fff!important;box-shadow:0 10px 24px rgba(200,16,46,.28)}
+    .btn-red:hover{background:var(--red-2)}
+    .btn-ghost{border-color:rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.06)}
+    .btn-ghost:hover{background:rgba(255,255,255,.14)}
+    .btn-line{border-color:#cfd7e0;color:var(--navy);background:#fff}
+    .btn-line:hover{border-color:var(--navy)}
+    .btn-sm{min-height:40px;padding:0 16px;font-size:13px}
+
+    /* ---------- HERO ---------- */
+    .hero{position:relative;overflow:hidden;color:#fff;background:radial-gradient(1200px 600px at 85% 10%,#14406b 0%,transparent 60%),radial-gradient(800px 500px at 0% 100%,#0e3358 0%,transparent 60%),var(--deep);padding:150px 0 0}
+    .hero canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.55;pointer-events:none}
+    .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.02fr .98fr;gap:56px;align-items:center}
+    .pill{display:inline-flex;align-items:center;gap:10px;padding:7px 14px 7px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.06);font-size:12px;font-weight:600;letter-spacing:.02em}
+    .pill b{white-space:nowrap;padding:3px 9px;border-radius:999px;background:var(--red);font-size:10px;letter-spacing:.1em}
+    .hero h1{margin:22px 0 18px;font-size:clamp(40px,5.2vw,66px);line-height:1.04;letter-spacing:-.035em;font-weight:800}
+    .hero h1 em{font-style:normal;background:linear-gradient(90deg,#ff5a6e,#ffffff 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .hero-lead{max-width:560px;margin:0;color:#c3d1e2;font-size:17px;line-height:1.7}
+    .hero-feats{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:560px;margin:26px 0 0}
+    .hero-feats span{display:flex;align-items:center;gap:10px;color:#e3ebf5;font-size:14px;font-weight:600}
+    .hero-feats span:before{content:"";flex:none;width:18px;height:18px;border-radius:50%;background:var(--red) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.2l2.6 2.5L12 5.4' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat}
+    .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+
+    .console{position:relative;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));backdrop-filter:blur(8px);padding:14px;box-shadow:0 40px 80px rgba(0,0,0,.35)}
+    .console-top{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 12px;font-size:11px;color:#a9bbd0;letter-spacing:.08em}
+    .console-top .dots{display:flex;gap:6px}.console-top .dots i{width:9px;height:9px;border-radius:50%;background:#33506f}.console-top .dots i:first-child{background:var(--red)}
+    .live{display:inline-flex;align-items:center;gap:7px;color:#7fe0b0;font-weight:700}
+    .live:before{content:"";width:7px;height:7px;border-radius:50%;background:#3ddc97;box-shadow:0 0 0 0 rgba(61,220,151,.6);animation:ping 1.8s infinite}
+    @keyframes ping{70%{box-shadow:0 0 0 9px rgba(61,220,151,0)}100%{box-shadow:0 0 0 0 rgba(61,220,151,0)}}
+    .console-map{position:relative;height:290px;border-radius:12px;overflow:hidden;background:#06213a;border:1px solid rgba(255,255,255,.08)}
+    .console-map svg{position:absolute;inset:0;width:100%;height:100%}
+    .swath{animation:swath 6s linear infinite}
+    @keyframes swath{from{transform:translateX(-30%)}to{transform:translateX(110%)}}
+    .console-tag{position:absolute;left:12px;top:12px;padding:6px 10px;border-radius:8px;background:rgba(6,22,40,.75);border:1px solid rgba(255,255,255,.12);font-size:11px;color:#d5e2f0}
+    .scale{position:absolute;right:12px;top:12px;bottom:12px;width:10px;border-radius:6px;background:linear-gradient(#f6d365,#3fd0c9,#1679c5,#14246b)}
+    .readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+    .readout{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+    .readout small{display:block;font-size:10px;color:#93a8bf;letter-spacing:.08em;text-transform:uppercase}
+    .readout b{display:block;margin-top:4px;font-size:15px;color:#fff}
+    .readout b.ok{color:#7fe0b0}
+    .console-note{margin:10px 4px 0;font-size:10px;color:#7f93aa}
+    .float-badge{position:absolute;left:-22px;bottom:84px;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:#fff;color:var(--navy);box-shadow:var(--shadow);font-size:12px;font-weight:700;animation:bob 5s ease-in-out infinite}
+    .float-badge i{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#fdecef;color:var(--red);font-style:normal;font-size:16px}
+    .float-badge small{display:block;color:var(--muted);font-weight:600;font-size:11px}
+    @keyframes bob{50%{transform:translateY(-8px)}}
+
+    .hero-stats{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);margin-top:72px;border-top:1px solid rgba(255,255,255,.12)}
+    .hero-stats div{padding:26px 22px}
+    .hero-stats div+div{border-left:1px solid rgba(255,255,255,.12)}
+    .hero-stats b{display:block;font-size:34px;font-weight:800;letter-spacing:-.02em}
+    .hero-stats b sup{font-size:16px;color:#ff6b7d;margin-left:2px}
+    .hero-stats span{color:#a9bbd0;font-size:13px}
+
+    /* ---------- SECTOR BAND ---------- */
+    .sectors{border-bottom:1px solid var(--line);background:#fff;overflow:hidden}
+    .sectors-inner{display:flex;align-items:center;gap:34px;height:84px}
+    .sectors-label{flex:none;font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+    .marquee{flex:1;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+    .marquee-track{display:flex;gap:44px;width:max-content;animation:marq 38s linear infinite}
+    .marquee-track span{display:flex;align-items:center;gap:10px;font-weight:700;color:#2a3b52;white-space:nowrap;font-size:15px}
+    .marquee-track span:before{content:"";width:8px;height:8px;border-radius:2px;background:var(--red);transform:rotate(45deg)}
+    @keyframes marq{to{transform:translateX(-50%)}}
+
+    /* ---------- SECTIONS ---------- */
+    .section{padding:104px 0}
+    .soft{background:var(--soft)}
+    .dark{background:var(--deep);color:#fff}
+    .eyebrow{display:inline-flex;align-items:center;gap:10px;color:var(--red);font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+    .eyebrow:before{content:"";width:26px;height:2px;background:currentColor}
+    .dark .eyebrow{color:#ff7184}
+    .head{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;margin-bottom:44px}
+    .head h2,.h2{margin:14px 0 0;font-size:clamp(30px,3.6vw,46px);line-height:1.1;letter-spacing:-.03em;font-weight:800;max-width:720px}
+    .head p,.lead{max-width:470px;margin:0;color:var(--muted);font-size:16px;line-height:1.7}
+    .dark .head p,.dark .lead{color:#b4c4d7}
+
+    /* about */
+    .about{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+    .about-visual{position:relative;aspect-ratio:1/1;border-radius:24px;background:linear-gradient(160deg,#0b2a4a,#061628);overflow:hidden;box-shadow:var(--shadow)}
+    .about-visual svg{position:absolute;inset:0;width:100%;height:100%}
+    .about-card{position:absolute;right:22px;bottom:22px;left:22px;padding:20px 22px;border-radius:14px;background:#fff;box-shadow:var(--shadow)}
+    .about-card b{display:block;color:var(--navy);font-size:16px}
+    .about-card p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.6}
+    .about-copy p{color:#4b5a6e;font-size:16px;line-height:1.8;margin:18px 0 0}
+    .about-feats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:30px}
+    .about-feat{display:flex;gap:14px;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+    .about-feat i{flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:11px;background:#eef4fb;color:var(--navy);font-style:normal}
+    .about-feat b{display:block;font-size:14px;color:var(--navy)}
+    .about-feat span{display:block;margin-top:3px;font-size:12.5px;color:var(--muted);line-height:1.5}
+    .entities{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:56px}
+    .entity{position:relative;padding:28px;border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden;transition:box-shadow .2s,transform .2s}
+    .entity:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+    .entity:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--red)}
+    .entity.alt:before{background:var(--cyan)}
+    .entity small{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--red)}
+    .entity.alt small{color:#0f86a3}
+    .entity h3{margin:10px 0 8px;font-size:21px;color:var(--navy)}
+    .entity p{margin:0;color:var(--muted);font-size:14px;line-height:1.7}
+    .link{display:inline-flex;align-items:center;gap:6px;margin-top:16px;color:var(--red);font-weight:700;font-size:13px;text-decoration:none}
+    .link:hover{text-decoration:underline}
+
+    /* filters */
+    .filters{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{padding:10px 16px;border-radius:999px;border:1px solid #d3dbe4;background:#fff;color:#3c4b60;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+    .chip:hover{border-color:var(--navy)}
+    .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+    .dark .chip{background:transparent;border-color:rgba(255,255,255,.22);color:#d3deea}
+    .dark .chip.on{background:#fff;color:var(--navy)}
+
+    /* services */
+    .svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .svc{display:flex;flex-direction:column;padding:26px;border:1px solid var(--line);border-radius:18px;background:#fff;transition:transform .2s,box-shadow .2s,border-color .2s,opacity .25s}
+    .svc:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:transparent}
+    .svc.hide{display:none}
+    .svc-top{display:flex;align-items:center;justify-content:space-between}
+    .svc-ico{display:grid;place-items:center;width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#0b2a4a,#174b7d);color:#fff}
+    .svc-ico svg{width:26px;height:26px}
+    .svc-num{font-family:"JetBrains Mono",monospace;color:#b6c1ce;font-size:13px}
+    .svc h3{margin:20px 0 8px;font-size:18px;color:var(--navy)}
+    .svc p{margin:0;color:var(--muted);font-size:14px;line-height:1.65;flex:1}
+    .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:18px}
+    .tags span{padding:5px 9px;border-radius:6px;background:var(--soft);color:#43536a;font-size:11.5px;font-weight:600}
+
+    /* operations diagram */
+    .ops{position:relative;border-radius:22px;overflow:hidden;background:linear-gradient(#0d3157 0%,#0b2a4a 40%,#082039 100%);border:1px solid rgba(255,255,255,.08)}
+    .ops svg{display:block;width:100%;height:auto}
+    .hot{cursor:pointer}
+    .hot circle.ring{animation:ring 2.4s ease-out infinite;transform-box:fill-box;transform-origin:center}
+    @keyframes ring{from{opacity:.9;transform:scale(.6)}to{opacity:0;transform:scale(2.2)}}
+    .ops-legend{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:22px}
+    .ops-item{padding:18px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);cursor:pointer;transition:.2s}
+    .ops-item.on,.ops-item:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.3)}
+    .ops-item small{font-family:"JetBrains Mono",monospace;font-size:11px;color:#ff7184}
+    .ops-item b{display:block;margin:6px 0 4px;font-size:15px}
+    .ops-item span{font-size:12.5px;color:#a9bbd0;line-height:1.5}
+
+    /* spec tabs */
+    .tabs{display:grid;grid-template-columns:280px 1fr;gap:28px}
+    .tab-list{display:flex;flex-direction:column;gap:8px}
+    .tab{display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:12px;border:1px solid var(--line);background:#fff;color:#3c4b60;font-size:14px;font-weight:700;text-align:left;cursor:pointer;transition:.15s}
+    .tab i{font-style:normal;font-family:"JetBrains Mono",monospace;font-size:12px;color:#9aa8b8}
+    .tab.on{border-color:var(--navy);background:var(--navy);color:#fff}
+    .tab.on i{color:#ff8a99}
+    .panel{display:none;padding:32px;border:1px solid var(--line);border-radius:18px;background:#fff}
+    .panel.on{display:block;animation:fade .3s ease}
+    @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    .panel h3{margin:0 0 6px;font-size:22px;color:var(--navy)}
+    .panel>p{margin:0 0 24px;color:var(--muted);font-size:14.5px;line-height:1.7;max-width:640px}
+    .spec-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+    .spec-cols h4{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--red)}
+    .spec-table{width:100%;border-collapse:collapse;font-size:13.5px}
+    .spec-table td{padding:11px 0;border-bottom:1px solid var(--line);vertical-align:top}
+    .spec-table td:first-child{color:var(--muted);width:46%}
+    .spec-table td:last-child{color:var(--navy);font-weight:600}
+    .ticks{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+    .ticks li{display:flex;gap:10px;font-size:13.5px;color:#34445a;line-height:1.5}
+    .ticks li:before{content:"";flex:none;width:16px;height:16px;margin-top:2px;border-radius:50%;background:#e8f6f9 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.2l2.6 2.5L12 5.4' fill='none' stroke='%230f86a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/11px no-repeat}
+
+    /* equipment */
+    .eq-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+    .eq{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden;transition:.2s}
+    .eq:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+    .eq.hide{display:none}
+    .eq-art{position:relative;height:150px;display:grid;place-items:center;background:linear-gradient(150deg,#eef3f8,#dde7f1)}
+    .eq-art svg{width:96px;height:96px;color:var(--navy)}
+    .eq-cat{position:absolute;left:12px;top:12px;padding:4px 9px;border-radius:999px;background:#fff;color:var(--navy);font-size:10.5px;font-weight:800;letter-spacing:.06em}
+    .eq-body{display:flex;flex-direction:column;flex:1;padding:18px}
+    .eq-body small{color:var(--muted);font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .eq-body h3{margin:6px 0 10px;font-size:16px;color:var(--navy);line-height:1.3}
+    .eq-body ul{margin:0 0 16px;padding:0;list-style:none;display:grid;gap:5px;flex:1}
+    .eq-body li{font-size:12.5px;color:#4a5a6f;padding-left:14px;position:relative}
+    .eq-body li:before{content:"";position:absolute;left:0;top:7px;width:6px;height:2px;background:var(--red)}
+    .eq-foot{display:flex;gap:8px}
+    .eq-foot .btn{flex:1;min-height:38px;padding:0 10px;font-size:12.5px}
+    .rent-note{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;margin-top:28px;padding:22px 26px;border-radius:16px;background:var(--navy);color:#fff}
+    .rent-note div{display:flex;flex-wrap:wrap;gap:28px}
+    .rent-note span{display:flex;align-items:center;gap:10px;font-size:14px;color:#d6e1ee}
+    .rent-note span b{color:#fff}
+
+    /* process */
+    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;counter-reset:s}
+    .step{position:relative;padding:28px 24px;border-radius:18px;background:#fff;border:1px solid var(--line)}
+    .step:after{content:"";position:absolute;top:50px;right:-14px;width:10px;height:10px;border-top:2px solid #c3ccd7;border-right:2px solid #c3ccd7;transform:rotate(45deg);z-index:1}
+    .step:last-child:after{display:none}
+    .step-n{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:#fdecef;color:var(--red);font-weight:800;font-family:"JetBrains Mono",monospace}
+    .step h3{margin:18px 0 8px;font-size:17px;color:var(--navy)}
+    .step p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.65}
+
+    /* values */
+    .values{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+    .value{padding:24px;border-radius:16px;background:linear-gradient(160deg,#0b2a4a,#123a63);color:#fff}
+    .value b{display:block;font-size:20px}
+    .value span{display:block;margin-top:6px;color:#b8c8da;font-size:13.5px;line-height:1.6}
+
+    /* ecosystem */
+    .eco{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .eco-card{display:flex;gap:16px;align-items:center;padding:20px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);transition:.2s}
+    .eco-card:hover{background:rgba(255,255,255,.08)}
+    .eco-card i{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:rgba(200,16,46,.16);color:#ff8394;font-style:normal;font-weight:800;font-size:13px;font-family:"JetBrains Mono",monospace}
+    .eco-card b{display:block;font-size:15px}
+    .eco-card span{display:block;margin-top:3px;font-size:12.5px;color:#a9bbd0}
+
+    /* CTA */
+    .cta{position:relative;overflow:hidden;padding:56px;border-radius:24px;background:linear-gradient(120deg,var(--red) 0%,#8f0a20 100%);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:30px}
+    .cta:after{content:"";position:absolute;right:-120px;top:-160px;width:460px;height:460px;border-radius:50%;border:1px solid rgba(255,255,255,.2);box-shadow:0 0 0 50px rgba(255,255,255,.04),0 0 0 110px rgba(255,255,255,.03)}
+    .cta h2{margin:0;font-size:clamp(26px,3vw,38px);letter-spacing:-.02em;max-width:620px;position:relative;z-index:1}
+    .cta p{margin:10px 0 0;color:#ffd9de;max-width:560px;position:relative;z-index:1}
+    .cta .btns{display:flex;gap:12px;flex-wrap:wrap;position:relative;z-index:1}
+    .btn-white{background:#fff;color:var(--red)!important}
+    .btn-white:hover{background:#fff4f5}
+
+    /* contact */
+    .contact{display:grid;grid-template-columns:1fr 1.15fr;gap:48px}
+    .info{display:grid;gap:14px;margin-top:30px}
+    .info-card{padding:22px;border-radius:16px;border:1px solid var(--line);background:#fff}
+    .info-card h3{margin:0 0 12px;font-size:16px;color:var(--navy)}
+    .info-row{display:flex;gap:12px;margin-top:10px;font-size:13.5px;color:#3c4b60;line-height:1.55}
+    .info-row i{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--soft);font-style:normal;font-size:13px}
+    .info-row a{text-decoration:none}.info-row a:hover{color:var(--red)}
+    .form{padding:34px;border-radius:20px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow)}
+    .form h3{margin:0 0 4px;font-size:22px;color:var(--navy)}
+    .form>p{margin:0 0 22px;color:var(--muted);font-size:14px}
+    .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .field{display:grid;gap:6px}
+    .field.full{grid-column:1/-1}
+    .field label{font-size:12.5px;font-weight:700;color:#34445a}
+    .field input,.field select,.field textarea{width:100%;padding:13px 14px;border:1px solid #d3dbe4;border-radius:10px;font:inherit;font-size:14px;color:var(--ink);background:#fbfcfd;transition:border-color .15s,box-shadow .15s}
+    .field textarea{min-height:120px;resize:vertical}
+    .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 4px rgba(11,42,74,.08);background:#fff}
+    .form-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+    .form-note{margin-top:12px;font-size:12px;color:var(--muted)}
+
+    /* footer */
+    footer{background:var(--deep);color:#a9bbd0;padding:72px 0 28px}
+    .foot{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px}
+    .foot-brand .brand-logos{display:inline-flex}
+    .foot-brand p{margin:18px 0 0;font-size:13.5px;line-height:1.7;max-width:330px}
+    .foot h4{margin:0 0 16px;color:#fff;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+    .foot ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;font-size:13.5px}
+    .foot a{text-decoration:none}.foot a:hover{color:#fff}
+    .foot-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;margin-top:56px;padding-top:24px;border-top:1px solid rgba(255,255,255,.1);font-size:12.5px}
+
+    .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+    .reveal.in{opacity:1;transform:none}
+    .to-top{position:fixed;right:22px;bottom:22px;z-index:40;display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:var(--red);color:#fff;text-decoration:none;box-shadow:0 10px 24px rgba(200,16,46,.3);opacity:0;pointer-events:none;transition:.25s}
+    .to-top.show{opacity:1;pointer-events:auto}
+    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+
+    /* ---------- RESPONSIVE ---------- */
+    @media(max-width:1100px){
+      .nav{gap:18px;font-size:13px}.brand-text{display:none}
+      .eq-grid{grid-template-columns:repeat(3,1fr)}
+      .ops-legend{grid-template-columns:repeat(3,1fr)}
+    }
+    @media(max-width:960px){
+      .menu-toggle{display:block}
+      .nav{position:absolute;top:76px;left:0;right:0;display:none;flex-direction:column;align-items:stretch;gap:0;padding:12px 24px 20px;background:#fff;color:#2a3b52;border-bottom:1px solid var(--line);box-shadow:0 18px 30px rgba(8,27,52,.1)}
+      .nav.open{display:flex}
+      .nav a:not(.btn){padding:14px 0;border-bottom:1px solid #eef1f4}
+      .nav a:not(.btn):after{display:none}
+      .nav .btn{margin-top:14px}
+      .topbar:has(.nav.open){background:#fff}
+      .topbar:has(.nav.open) .menu-toggle{color:var(--navy);border-color:var(--line)}
+      .hero{padding-top:120px}
+      .hero-grid,.about,.contact,.tabs{grid-template-columns:1fr}
+      .float-badge{left:12px}
+      .hero-stats{grid-template-columns:repeat(2,1fr)}
+      .hero-stats div:nth-child(3){border-left:0}
+      .hero-stats div:nth-child(n+3){border-top:1px solid rgba(255,255,255,.12)}
+      .head{flex-direction:column;align-items:flex-start;gap:18px}
+      .svc-grid,.eq-grid,.eco{grid-template-columns:repeat(2,1fr)}
+      .steps{grid-template-columns:repeat(2,1fr)}.step:after{display:none}
+      .tab-list{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+      .tab{flex:none}
+      .foot{grid-template-columns:1fr 1fr}
+      .cta{flex-direction:column;align-items:flex-start;padding:40px}
+      .about-visual{max-width:520px}
+    }
+    @media(max-width:640px){
+      .container{width:calc(100% - 32px)}
+      .section{padding:72px 0}
+      .brand-logos img{height:28px;max-width:92px}
+      .hero h1{font-size:clamp(36px,10vw,46px)}
+      .hero-feats,.readouts{grid-template-columns:1fr 1fr}
+      .hero-stats b{font-size:26px}
+      .svc-grid,.eq-grid,.eco,.steps,.values,.entities,.about-feats,.spec-cols,.fgrid,.ops-legend{grid-template-columns:1fr}
+      .panel,.form{padding:22px}
+      .foot{grid-template-columns:1fr}
+      .float-badge{display:none}
+      .sectors-label{display:none}
+      .console-top .mono{display:none}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ================= NAV ================= -->
+<header class="topbar" id="topbar">
+  <div class="container nav-wrap">
+    <a class="brand" href="#beranda" aria-label="Oseana dan Seanav">
+      <span class="brand-logos"><img src="{% static 'portal/oseana-logo.png' %}" alt="PT Oseana Prawira Persada"><i></i><img src="{% static 'portal/seanav-logo-trim.png' %}" alt="Seanav"></span>
+      <span class="brand-text"><strong>OSEANA · SEANAV</strong><small>Marine, survey &amp; geospatial</small></span>
+    </a>
+    <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Buka menu" aria-expanded="false">☰</button>
+    <nav class="nav" id="site-menu" aria-label="Menu utama">
+      <a href="#tentang">Tentang</a>
+      <a href="#layanan">Layanan</a>
+      <a href="#operasi">Area Operasi</a>
+      <a href="#spesifikasi">Spesifikasi</a>
+      <a href="#peralatan">Sewa Alat</a>
+      <a href="#ekosistem">Grup</a>
+      <a href="#kontak">Kontak</a>
+      {% if request.user.is_authenticated %}<a class="btn btn-red btn-sm" href="{% url 'dashboard' %}">Portal →</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'login' %}">Login staf →</a>{% endif %}
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ================= HERO ================= -->
+<section class="hero" id="beranda">
+  <canvas id="sonar" aria-hidden="true"></canvas>
+  <div class="container hero-grid">
+    <div>
+      <span class="pill"><b>SEANAV GROUP</b> Marine · Survey · Geospatial Solutions</span>
+      <h1>Data survei yang presisi, dari <em>darat hingga dasar laut.</em></h1>
+      <p class="hero-lead">PT Oseana Prawira Persada dan PT Seanav Maritim Indonesia menghadirkan layanan survei maritim, geospasial, inspeksi bawah air, serta penjualan dan penyewaan peralatan survei — didukung kru berpengalaman dan instrumen terkini.</p>
+      <div class="hero-feats">
+        <span>Survei hidrografi &amp; geofisika</span>
+        <span>Met-ocean &amp; lingkungan</span>
+        <span>Aerial LiDAR &amp; topografi</span>
+        <span>Sewa, jual &amp; servis alat</span>
+      </div>
+      <div class="hero-actions">
+        <a class="btn btn-red" href="#kontak">Konsultasi proyek <span>→</span></a>
+        <a class="btn btn-ghost" href="#peralatan">Lihat peralatan sewa</a>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      <div class="console" aria-label="Ilustrasi tampilan akuisisi data survei hidrografi">
+        <div class="console-top">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <span class="mono">HYDROGRAPHIC ACQUISITION · LINE 014</span>
+          <span class="live">LIVE</span>
+        </div>
+        <div class="console-map">
+          <svg viewBox="0 0 520 290" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="bathy" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f6d365"/><stop offset=".25" stop-color="#3fd0c9"/><stop offset=".6" stop-color="#1679c5"/><stop offset="1" stop-color="#14246b"/>
+              </linearGradient>
+              <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+              <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#ffffff" stroke-opacity=".06"/></pattern>
+            </defs>
+            <rect width="520" height="290" fill="url(#bathy)" opacity=".85"/>
+            <g fill="none" stroke="#06213a" stroke-opacity=".35" stroke-width="1">
+              <path d="M-10 40 C80 20 160 70 250 50 S420 10 530 40"/>
+              <path d="M-10 80 C90 60 170 110 260 90 S430 50 530 85"/>
+              <path d="M-10 125 C100 100 180 155 270 135 S440 95 530 130"/>
+              <path d="M-10 170 C110 145 190 200 280 180 S450 140 530 175"/>
+              <path d="M-10 215 C120 190 200 245 290 225 S460 185 530 220"/>
+              <path d="M-10 260 C130 235 210 290 300 270 S470 230 530 265"/>
+            </g>
+            <rect width="520" height="290" fill="url(#grid)"/>
+            <g stroke="#ffffff" stroke-opacity=".55" stroke-dasharray="4 5" stroke-width="1.2">
+              <line x1="20" y1="70" x2="500" y2="70"/><line x1="20" y1="130" x2="500" y2="130"/><line x1="20" y1="190" x2="500" y2="190"/><line x1="20" y1="250" x2="500" y2="250"/>
+            </g>
+            <path d="M20 130 H330" stroke="#c8102e" stroke-width="3" stroke-linecap="round"/>
+            <g class="swath"><rect x="0" y="100" width="90" height="60" fill="url(#beam)"/></g>
+            <g transform="translate(330 130)">
+              <circle r="16" fill="#c8102e" opacity=".25"><animate attributeName="r" values="8;22;8" dur="2.4s" repeatCount="indefinite"/></circle>
+              <path d="M-9 6 L0 -10 L9 6 Z" fill="#fff" transform="rotate(90)"/>
+            </g>
+          </svg>
+          <span class="console-tag mono">MBES · swath 130° · survey line planning</span>
+          <span class="scale"></span>
+        </div>
+        <div class="readouts mono">
+          <div class="readout"><small>Depth</small><b id="ro-depth">24.62 m</b></div>
+          <div class="readout"><small>GNSS</small><b class="ok">RTK FIX</b></div>
+          <div class="readout"><small>Heave</small><b id="ro-heave">0.12 m</b></div>
+          <div class="readout"><small>Tide</small><b id="ro-tide">+1.04 m</b></div>
+        </div>
+        <p class="console-note">Ilustrasi tampilan akuisisi — bukan data proyek nyata.</p>
+      </div>
+      <div class="float-badge"><i>⚓</i><div>Siap dari Jakarta<small>Alat tersedia 1 hari setelah PO</small></div></div>
+    </div>
+  </div>
+
+  <div class="container hero-stats">
+    <div><b data-count="9">0</b><span>Lini layanan survei &amp; operasi</span></div>
+    <div><b data-count="5">0</b><span>Lingkungan kerja: darat hingga offshore</span></div>
+    <div><b data-count="6">0</b><span>Unit usaha dalam Seanav Group</span></div>
+    <div><b>1<sup>hari</sup></b><span>Kesiapan alat sewa setelah PO diterima</span></div>
+  </div>
+</section>
+
+<!-- ================= SECTORS ================= -->
+<div class="sectors">
+  <div class="container sectors-inner">
+    <span class="sectors-label">Mendukung sektor</span>
+    <div class="marquee"><div class="marquee-track">
+      <span>Energi &amp; Offshore Oil &amp; Gas</span><span>Pelabuhan &amp; Pengerukan</span><span>Kabel &amp; Pipa Bawah Laut</span><span>Pertambangan</span><span>Infrastruktur &amp; Konstruksi</span><span>Pemetaan &amp; Geospasial</span><span>Lingkungan &amp; Riset Kelautan</span><span>Pertahanan</span>
+      <span>Energi &amp; Offshore Oil &amp; Gas</span><span>Pelabuhan &amp; Pengerukan</span><span>Kabel &amp; Pipa Bawah Laut</span><span>Pertambangan</span><span>Infrastruktur &amp; Konstruksi</span><span>Pemetaan &amp; Geospasial</span><span>Lingkungan &amp; Riset Kelautan</span><span>Pertahanan</span>
+    </div></div>
+  </div>
+</div>
+
+<!-- ================= ABOUT ================= -->
+<section class="section" id="tentang">
+  <div class="container">
+    <div class="about">
+      <div class="about-visual reveal" aria-hidden="true">
+        <svg viewBox="0 0 500 500">
+          <defs><radialGradient id="glow" cx=".5" cy=".42" r=".55"><stop offset="0" stop-color="#16a3c4" stop-opacity=".35"/><stop offset="1" stop-color="#16a3c4" stop-opacity="0"/></radialGradient></defs>
+          <rect width="500" height="500" fill="url(#glow)"/>
+          <g fill="none" stroke="#fff" stroke-opacity=".12">
+            <circle cx="250" cy="210" r="60"/><circle cx="250" cy="210" r="110"/><circle cx="250" cy="210" r="160"/><circle cx="250" cy="210" r="210"/>
+            <line x1="250" y1="0" x2="250" y2="420"/><line x1="40" y1="210" x2="460" y2="210"/>
+          </g>
+          <g transform="translate(250 210)"><path d="M0 0 L0 -210 A210 210 0 0 1 148 -149 Z" fill="#16a3c4" opacity=".18"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="7s" repeatCount="indefinite"/></path></g>
+          <g fill="#c8102e"><circle cx="320" cy="150" r="5"/><circle cx="180" cy="270" r="5"/><circle cx="330" cy="290" r="4" fill="#16a3c4"/><circle cx="200" cy="120" r="4" fill="#a9682b"/></g>
+        </svg>
+        <div class="about-card"><b>Precision · Safety · Reliable data</b><p>Metode, instrumen, dan kru disesuaikan dengan kondisi area serta tujuan pekerjaan Anda.</p></div>
+      </div>
+      <div class="about-copy reveal">
+        <span class="eyebrow">Tentang kami</span>
+        <h2 class="h2">Keahlian survei, teknologi, dan pelaksanaan lapangan dalam satu tim.</h2>
+        <p><strong>PT Oseana Prawira Persada</strong> menyediakan layanan survei maritim terpadu untuk lingkungan offshore dan nearshore — didukung kapal dan small craft, kru berpengalaman, serta instrumen survei untuk kebutuhan engineering, konstruksi, dan lingkungan.</p>
+        <p><strong>PT Seanav Maritim Indonesia</strong>, bagian dari Seanav Group, melengkapinya dengan penjualan, penyewaan, dan perbaikan peralatan survei serta dukungan operasional proyek.</p>
+        <div class="about-feats">
+          <div class="about-feat"><i>🛰</i><div><b>Instrumen terkini</b><span>MBES, GNSS RTK, LiDAR, ROV</span></div></div>
+          <div class="about-feat"><i>👷</i><div><b>Kru berpengalaman</b><span>Surveyor &amp; operator lapangan</span></div></div>
+          <div class="about-feat"><i>🚢</i><div><b>Vessel &amp; small craft</b><span>Offshore dan nearshore</span></div></div>
+          <div class="about-feat"><i>📊</i><div><b>Data siap pakai</b><span>Olah data hingga pelaporan</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="entities">
+      <article class="entity reveal"><small>MARINE SURVEY &amp; OPERATIONS</small><h3>PT Oseana Prawira Persada</h3><p>Survei hidrografi, geofisika, geoteknik, met-ocean, pesisir, aerial, underwater, dan UXO — termasuk penjualan, penyewaan, dan dukungan peralatan survei.</p><a class="link" href="https://oseanaprawirapersada.com/about/" target="_blank" rel="noopener">Tentang Oseana ↗</a></article>
+      <article class="entity alt reveal"><small>MARITIME OPERATIONS · SEANAV GROUP</small><h3>PT Seanav Maritim Indonesia</h3><p>Identitas operasional Seanav yang didukung ekosistem grup untuk solusi teknis, peralatan, logistik, pelatihan, serta layanan rental &amp; repair.</p><a class="link" href="https://seanavgroup.co.id/" target="_blank" rel="noopener">Profil Seanav Group ↗</a></article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SERVICES ================= -->
+<section class="section soft" id="layanan">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Layanan &amp; solusi</span><h2>Dukungan teknis untuk pekerjaan dari darat hingga bawah air.</h2></div>
+      <div class="filters" id="svc-filters">
+        <button class="chip on" data-f="all">Semua</button>
+        <button class="chip" data-f="laut">Survei laut</button>
+        <button class="chip" data-f="darat">Darat &amp; udara</button>
+        <button class="chip" data-f="dukungan">Alat &amp; operasi</button>
+      </div>
+    </div>
+    <div class="svc-grid" id="svc-grid">
+      <article class="svc reveal" data-c="laut"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 6c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0"/><path d="M12 8v4M12 12l-6 8M12 12l6 8M12 12v8"/></svg></span><span class="svc-num">01</span></div><h3>Hydrographic survey</h3><p>Pengukuran kedalaman dan pemetaan dasar perairan untuk navigasi, pengerukan, pengembangan area, dan konstruksi offshore.</p><div class="tags"><span>MBES</span><span>SBES</span><span>GNSS</span><span>MRU</span><span>Tide gauge</span></div></article>
+      <article class="svc reveal" data-c="laut"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 15h18M3 19h18"/><path d="M5 11c2-4 12-4 14 0"/><circle cx="12" cy="7" r="2"/></svg></span><span class="svc-num">02</span></div><h3>Marine geophysical survey</h3><p>Investigasi dasar laut dan lapisan bawah permukaan untuk routing kabel/pipa, identifikasi objek, dan kajian geohazard.</p><div class="tags"><span>Side scan sonar</span><span>Sub-bottom profiler</span><span>Magnetometer</span></div></article>
+      <article class="svc reveal" data-c="laut"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3v14"/><path d="M8 17h8l-4 4z"/><path d="M6 7h12"/></svg></span><span class="svc-num">03</span></div><h3>Marine geotechnical survey</h3><p>Pengambilan data tanah dasar laut untuk mendukung rancangan fondasi dan pekerjaan engineering offshore.</p><div class="tags"><span>CPT/CPTU</span><span>Vibrocore</span><span>Grab sampler</span></div></article>
+      <article class="svc reveal" data-c="laut"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M12 14l4-4"/><path d="M3 19c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0"/></svg></span><span class="svc-num">04</span></div><h3>Met-ocean &amp; environmental</h3><p>Pengukuran kondisi oseanografi dan meteorologi untuk perencanaan operasi, desain struktur, dan analisis lingkungan.</p><div class="tags"><span>ADCP</span><span>CTD</span><span>Wave sensor</span><span>Weather station</span></div></article>
+      <article class="svc reveal" data-c="darat"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="9" width="6" height="4" rx="1"/><path d="M5 7h4M15 7h4M7 7v2M17 7v2M10 13l-3 6M14 13l3 6"/></svg></span><span class="svc-num">05</span></div><h3>Land, coastal &amp; aerial survey</h3><p>Survei topografi, pesisir, dan udara untuk pemetaan, monitoring, serta dukungan engineering dan perizinan lingkungan.</p><div class="tags"><span>GNSS RTK</span><span>Total station</span><span>UAV LiDAR</span><span>RTK-PPK</span></div></article>
+      <article class="svc reveal" data-c="laut"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="8" width="14" height="8" rx="3"/><circle cx="16" cy="12" r="1.6"/><path d="M12 4v4M8 16v3M16 16v3"/></svg></span><span class="svc-num">06</span></div><h3>Underwater inspection &amp; ROV</h3><p>Inspeksi visual dan kondisi struktur bawah air, pipeline, kabel, serta fitur dasar laut menggunakan sistem ROV dan tim operasi.</p><div class="tags"><span>Saab Seaeye Falcon</span><span>FMD</span><span>ROV charter</span></div></article>
+      <article class="svc reveal" data-c="laut"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></span><span class="svc-num">07</span></div><h3>UXO survey</h3><p>Deteksi dan pemetaan indikasi unexploded ordnance untuk penilaian risiko sebelum konstruksi atau intervensi dasar laut.</p><div class="tags"><span>Magnetometer</span><span>Side scan sonar</span><span>ROV / diver</span></div></article>
+      <article class="svc reveal" data-c="dukungan"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M14.5 6.5a4 4 0 0 0-5 5L4 17l3 3 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"/></svg></span><span class="svc-num">08</span></div><h3>Equipment sales, rental &amp; repair</h3><p>Akses peralatan survei untuk kebutuhan jangka pendek maupun proyek, termasuk dukungan teknis dan pemeliharaan.</p><div class="tags"><span>Sales</span><span>Rental harian</span><span>Repair &amp; kalibrasi</span></div></article>
+      <article class="svc reveal" data-c="dukungan"><div class="svc-top"><span class="svc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 16l2 4h14l2-4z"/><path d="M6 16V9h9l3 7"/><path d="M10 9V5h3"/></svg></span><span class="svc-num">09</span></div><h3>Vessel &amp; marine operations</h3><p>Dukungan kapal survei, small craft, kru, mobilisasi, dan operasi lapangan untuk lingkungan offshore dan nearshore.</p><div class="tags"><span>KM Alika</span><span>Vessel charter</span><span>Project crew</span></div></article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= OPERATIONS DIAGRAM ================= -->
+<section class="section dark" id="operasi">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Area operasi</span><h2>Satu mitra untuk setiap lapisan lingkungan kerja.</h2></div>
+      <p>Dari udara, daratan, garis pantai, perairan dangkal, hingga dasar laut dalam — pilih zona untuk melihat layanan yang relevan.</p>
+    </div>
+    <div class="ops reveal">
+      <svg viewBox="0 0 1200 430" aria-label="Diagram penampang area operasi dari darat hingga offshore">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#123a63"/><stop offset="1" stop-color="#1d5486"/></linearGradient>
+          <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1680b0" stop-opacity=".9"/><stop offset="1" stop-color="#06213a"/></linearGradient>
+          <linearGradient id="land" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b5d43"/><stop offset="1" stop-color="#22362a"/></linearGradient>
+          <linearGradient id="mb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6b7d" stop-opacity=".55"/><stop offset="1" stop-color="#ff6b7d" stop-opacity="0"/></linearGradient>
+        </defs>
+        <rect width="1200" height="190" fill="url(#sky)"/>
+        <!-- water -->
+        <path d="M300 190 H1200 V430 H300 Z" fill="url(#water)"/>
+        <path d="M300 190 Q330 186 360 190 T420 190 T480 190 T540 190 T600 190 T660 190 T720 190 T780 190 T840 190 T900 190 T960 190 T1020 190 T1080 190 T1140 190 T1200 190" fill="none" stroke="#9fdcef" stroke-opacity=".6" stroke-width="2"/>
+        <!-- seabed -->
+        <path d="M0 160 L120 150 L230 168 L330 196 L480 250 L640 300 L820 350 L1000 385 L1200 405 V430 H0 Z" fill="#a9682b" opacity=".85"/>
+        <path d="M0 160 L120 150 L230 168 L330 196 L480 250 L640 300 L820 350 L1000 385 L1200 405" fill="none" stroke="#e0a56b" stroke-width="2"/>
+        <!-- land -->
+        <path d="M0 170 L60 150 L120 158 L170 140 L230 160 L300 190 L0 190 Z" fill="url(#land)"/>
+        <!-- GNSS tripod on land -->
+        <g stroke="#fff" stroke-width="2" fill="none"><path d="M140 150 L130 175 M140 150 L150 175 M140 150 V140"/></g><circle cx="140" cy="136" r="5" fill="#fff"/>
+        <!-- drone -->
+        <g transform="translate(170 70)"><rect x="-14" y="-4" width="28" height="8" rx="3" fill="#fff"/><path d="M-26 -8 H-8 M8 -8 H26" stroke="#fff" stroke-width="2"/><path d="M-14 4 L-60 80 H60 L14 4" fill="#ffffff" opacity=".1"/><animateTransform attributeName="transform" type="translate" values="170 70;190 64;170 70" dur="5s" repeatCount="indefinite"/></g>
+        <!-- tide gauge at coast -->
+        <g><rect x="318" y="140" width="6" height="70" fill="#d9e3ee"/><rect x="310" y="132" width="22" height="12" rx="2" fill="#fff"/></g>
+        <!-- vessel with MBES -->
+        <g transform="translate(600 168)"><path d="M-60 0 H60 L45 22 H-45 Z" fill="#fff"/><rect x="-20" y="-22" width="40" height="22" fill="#e9eef4"/><rect x="-6" y="-36" width="4" height="14" fill="#c8102e"/></g>
+        <path d="M600 190 L470 268 L735 330 Z" fill="url(#mb)"/>
+        <!-- ROV + tether -->
+        <path d="M960 190 C950 260 990 300 960 360" fill="none" stroke="#ffd36b" stroke-width="1.6" stroke-dasharray="4 4"/>
+        <g transform="translate(960 362)"><rect x="-22" y="-10" width="44" height="20" rx="5" fill="#f0b429"/><circle cx="16" cy="0" r="4" fill="#06213a"/></g>
+        <g transform="translate(960 178)"><path d="M-40 0 H40 L30 16 H-30 Z" fill="#fff"/></g>
+        <!-- ADCP mooring -->
+        <g><line x1="800" y1="345" x2="800" y2="290" stroke="#9fdcef" stroke-width="1.5"/><circle cx="800" cy="286" r="7" fill="#16a3c4"/></g>
+        <!-- labels -->
+        <g font-family="JetBrains Mono,monospace" font-size="13" fill="#d6e2ef">
+          <text x="30" y="40">01 · AERIAL</text><text x="30" y="120">02 · DARAT</text><text x="300" y="120">03 · PESISIR</text><text x="560" y="120">04 · NEARSHORE</text><text x="900" y="120">05 · OFFSHORE &amp; SUBSEA</text>
+        </g>
+        <!-- hotspots -->
+        <g class="hot" data-z="0"><circle class="ring" cx="170" cy="70" r="12" fill="none" stroke="#ff6b7d" stroke-width="2"/></g>
+        <g class="hot" data-z="1"><circle class="ring" cx="140" cy="136" r="12" fill="none" stroke="#ff6b7d" stroke-width="2"/></g>
+        <g class="hot" data-z="2"><circle class="ring" cx="321" cy="138" r="12" fill="none" stroke="#ff6b7d" stroke-width="2"/></g>
+        <g class="hot" data-z="3"><circle class="ring" cx="600" cy="150" r="12" fill="none" stroke="#ff6b7d" stroke-width="2"/></g>
+        <g class="hot" data-z="4"><circle class="ring" cx="960" cy="362" r="14" fill="none" stroke="#ff6b7d" stroke-width="2"/></g>
+      </svg>
+    </div>
+    <div class="ops-legend" id="ops-legend">
+      <div class="ops-item on reveal" data-z="0"><small>01</small><b>Aerial</b><span>UAV LiDAR &amp; fotogrametri, RTK-PPK, orthophoto.</span></div>
+      <div class="ops-item reveal" data-z="1"><small>02</small><b>Darat</b><span>Topografi GNSS RTK, total station, kontrol geodetik.</span></div>
+      <div class="ops-item reveal" data-z="2"><small>03</small><b>Pesisir</b><span>Pasang surut, garis pantai, survei shallow water.</span></div>
+      <div class="ops-item reveal" data-z="3"><small>04</small><b>Nearshore</b><span>Batimetri MBES/SBES, met-ocean ADCP &amp; CTD.</span></div>
+      <div class="ops-item reveal" data-z="4"><small>05</small><b>Offshore &amp; subsea</b><span>Geofisika, UXO, inspeksi ROV &amp; FMD.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SPEC TABS ================= -->
+<section class="section" id="spesifikasi">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Kapabilitas teknis</span><h2>Instrumen dan metode dipilih mengikuti kebutuhan pekerjaan.</h2></div>
+      <p>Konfigurasi sistem dan deliverable akhir menyesuaikan ruang lingkup, standar, dan ketersediaan peralatan proyek.</p>
+    </div>
+    <div class="tabs reveal">
+      <div class="tab-list" role="tablist">
+        <button class="tab on" data-t="0" role="tab"><i>01</i>Hidrografi</button>
+        <button class="tab" data-t="1" role="tab"><i>02</i>Geofisika &amp; UXO</button>
+        <button class="tab" data-t="2" role="tab"><i>03</i>Met-ocean</button>
+        <button class="tab" data-t="3" role="tab"><i>04</i>Aerial &amp; darat</button>
+        <button class="tab" data-t="4" role="tab"><i>05</i>Bawah air &amp; ROV</button>
+      </div>
+      <div>
+        <div class="panel on" data-p="0">
+          <h3>Survei hidrografi</h3>
+          <p>Pemetaan kedalaman dan morfologi dasar perairan beresolusi tinggi untuk navigasi, pengerukan, desain pelabuhan, dan konstruksi offshore.</p>
+          <div class="spec-cols">
+            <div><h4>Contoh sistem — R2Sonic 2020 MBES</h4><table class="spec-table">
+              <tr><td>Frekuensi</td><td>200–450 kHz (700 kHz opsional)</td></tr>
+              <tr><td>Kedalaman sounding</td><td>200 m+</td></tr>
+              <tr><td>Soundings per ping</td><td>hingga 1.024</td></tr>
+              <tr><td>Sektor swath</td><td>10°–130°</td></tr>
+              <tr><td>Ping rate</td><td>hingga 60 Hz</td></tr>
+              <tr><td>Resolusi deteksi dasar</td><td>3 mm</td></tr>
+            </table></div>
+            <div><h4>Sistem &amp; deliverable</h4><ul class="ticks">
+              <li>Multibeam &amp; single beam echosounder</li><li>GNSS RTK / DGPS / PPK dan motion reference unit</li><li>Sound velocity profiling &amp; tide gauge</li><li>DTM batimetri, peta kontur, dan volume pengerukan</li><li>Laporan survei sesuai lingkup &amp; standar proyek</li>
+            </ul></div>
+          </div>
+        </div>
+        <div class="panel" data-p="1">
+          <h3>Geofisika kelautan &amp; UXO</h3>
+          <p>Investigasi dasar laut dan lapisan bawah permukaan untuk rute kabel/pipa, identifikasi objek, kajian geohazard, dan penilaian risiko UXO.</p>
+          <div class="spec-cols">
+            <div><h4>Instrumen</h4><ul class="ticks"><li>Side scan sonar</li><li>Sub-bottom profiler</li><li>Marine magnetometer — Geometrics G-882</li><li>Acoustic positioning (USBL)</li></ul></div>
+            <div><h4>Deliverable</h4><ul class="ticks"><li>Mosaik sonar &amp; daftar kontak/target</li><li>Interpretasi lapisan sedimen</li><li>Peta anomali magnetik</li><li>Rekomendasi rute dan zona risiko</li></ul></div>
+          </div>
+        </div>
+        <div class="panel" data-p="2">
+          <h3>Met-ocean &amp; lingkungan</h3>
+          <p>Pengukuran arus, gelombang, pasang surut, kualitas air, dan cuaca untuk perencanaan operasi, desain struktur, dan kajian lingkungan.</p>
+          <div class="spec-cols">
+            <div><h4>Instrumen</h4><ul class="ticks"><li>ADCP — profil arus &amp; gelombang</li><li>CTD &amp; sensor kualitas air</li><li>Tide gauge — Valeport TideMaster (pressure / radar)</li><li>Wave sensor &amp; weather station</li></ul></div>
+            <div><h4>Deliverable</h4><ul class="ticks"><li>Data time-series terkalibrasi</li><li>Analisis harmonik pasang surut</li><li>Statistik arus &amp; gelombang</li><li>Monitoring jangka panjang (sewa bulanan)</li></ul></div>
+          </div>
+        </div>
+        <div class="panel" data-p="3">
+          <h3>Aerial LiDAR &amp; survei darat</h3>
+          <p>Pemetaan topografi cepat dan akurat untuk area tambang, koridor infrastruktur, pesisir, dan kawasan proyek.</p>
+          <div class="spec-cols">
+            <div><h4>Sistem</h4><ul class="ticks"><li>DJI Matrice 400 + Zenmuse LiDAR</li><li>DJI D-RTK 2 base station</li><li>Trimble R8s GNSS receiver</li><li>Total station &amp; kamera RGB pemetaan</li></ul></div>
+            <div><h4>Deliverable</h4><ul class="ticks"><li>Point cloud terklasifikasi</li><li>DSM / DTM &amp; kontur</li><li>Orthophoto mosaic</li><li>Perhitungan volume stockpile / galian</li></ul></div>
+          </div>
+        </div>
+        <div class="panel" data-p="4">
+          <h3>Inspeksi bawah air &amp; ROV</h3>
+          <p>Inspeksi visual dan kondisi struktur bawah air, jacket, pipeline, dan kabel menggunakan ROV dan sensor khusus.</p>
+          <div class="spec-cols">
+            <div><h4>Contoh sistem — Impact Subsea ISA500 (FMD)</h4><table class="spec-table">
+              <tr><td>Frekuensi</td><td>500 kHz</td></tr>
+              <tr><td>Rentang</td><td>0,1–30 m</td></tr>
+              <tr><td>Depth rating</td><td>6.000 m</td></tr>
+              <tr><td>Resolusi</td><td>1 mm</td></tr>
+              <tr><td>Beam angle</td><td>6° conical</td></tr>
+            </table></div>
+            <div><h4>Kapabilitas</h4><ul class="ticks"><li>ROV Saab Seaeye Falcon &amp; pilot berpengalaman</li><li>Flooded member detection (FMD)</li><li>General visual &amp; close visual inspection</li><li>Video, foto, dan laporan anomali</li></ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= EQUIPMENT ================= -->
+<section class="section soft" id="peralatan">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Sewa &amp; penjualan alat</span><h2>Peralatan survei siap mobilisasi untuk proyek Anda.</h2></div>
+      <div class="filters" id="eq-filters">
+        <button class="chip on" data-f="all">Semua</button>
+        <button class="chip" data-f="marine">Marine</button>
+        <button class="chip" data-f="aerial">Aerial &amp; GNSS</button>
+        <button class="chip" data-f="subsea">Subsea</button>
+      </div>
+    </div>
+    <div class="eq-grid">
+      <article class="eq reveal" data-c="marine"><div class="eq-art"><span class="eq-cat">MARINE</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="30" y="16" width="36" height="22" rx="4"/><path d="M48 38v10"/><path d="M48 48 L18 84 M48 48 L78 84 M48 48 L36 86 M48 48 L60 86" stroke-opacity=".45"/></svg></div><div class="eq-body"><small>Multibeam echosounder</small><h3>R2Sonic 2020</h3><ul><li>200–450 kHz, swath 10°–130°</li><li>Hingga 1.024 soundings/ping</li><li>Lengkap kabel &amp; interface unit</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="R2Sonic 2020 MBES">Minta penawaran</a></div></div></article>
+      <article class="eq reveal" data-c="marine"><div class="eq-art"><span class="eq-cat">MARINE</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="26" y="20" width="44" height="30" rx="6"/><circle cx="48" cy="35" r="7"/><path d="M48 50v10M28 72c7-6 13-6 20 0s13 6 20 0" /></svg></div><div class="eq-body"><small>Wideband multibeam</small><h3>Norbit iWBMS</h3><ul><li>Sistem terintegrasi GNSS/INS</li><li>Mobilisasi cepat di kapal kecil</li><li>Ideal untuk survei nearshore</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="Norbit iWBMS">Minta penawaran</a></div></div></article>
+      <article class="eq reveal" data-c="marine"><div class="eq-art"><span class="eq-cat">MARINE</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="40" y="10" width="16" height="74" rx="3"/><path d="M40 30h16M40 50h16M40 70h16"/><path d="M14 60c6-5 12-5 18 0M64 60c6-5 12-5 18 0"/></svg></div><div class="eq-body"><small>Tide gauge</small><h3>Valeport TideMaster</h3><ul><li>Sensor pressure &amp; radar</li><li>Logging pasang surut kontinu</li><li>Sewa harian hingga bulanan</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="Valeport TideMaster">Minta penawaran</a></div></div></article>
+      <article class="eq reveal" data-c="marine"><div class="eq-art"><span class="eq-cat">MARINE</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 30h40"/><path d="M50 30 c10 0 10 30 26 30"/><rect x="66" y="52" width="22" height="14" rx="7"/><path d="M18 74c6-4 12-4 18 0s12 4 18 0"/></svg></div><div class="eq-body"><small>Marine magnetometer</small><h3>Geometrics G-882</h3><ul><li>Deteksi objek ferromagnetik</li><li>Survei UXO, pipa &amp; kabel</li><li>Towed system untuk geofisika</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="Magnetometer Geometrics G-882">Minta penawaran</a></div></div></article>
+      <article class="eq reveal" data-c="aerial"><div class="eq-art"><span class="eq-cat">AERIAL</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="36" y="38" width="24" height="14" rx="4"/><path d="M36 42H18M60 42h18M18 34v8M78 34v8M10 34h16M70 34h16"/><rect x="42" y="54" width="12" height="10" rx="2"/><path d="M48 64 L30 86 M48 64 L66 86" stroke-opacity=".45"/></svg></div><div class="eq-body"><small>Drone LiDAR</small><h3>DJI Matrice 400 + Zenmuse LiDAR</h3><ul><li>Point cloud area luas</li><li>Paket bersama D-RTK 2</li><li>Opsi pilot &amp; operator</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="DJI Matrice 400 + Zenmuse LiDAR">Minta penawaran</a></div></div></article>
+      <article class="eq reveal" data-c="aerial"><div class="eq-art"><span class="eq-cat">GNSS</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><ellipse cx="48" cy="26" rx="18" ry="8"/><path d="M48 34v16M48 50 L30 86M48 50 L66 86M48 50v36"/></svg></div><div class="eq-body"><small>GNSS receiver</small><h3>Trimble R8s</h3><ul><li>RTK / static positioning</li><li>Kontrol survei &amp; staking</li><li>Base atau rover</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="Trimble R8s GNSS">Minta penawaran</a></div></div></article>
+      <article class="eq reveal" data-c="aerial"><div class="eq-art"><span class="eq-cat">GNSS</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="48" cy="26" r="10"/><path d="M34 14a20 20 0 0 1 28 0M28 8a28 28 0 0 1 40 0" stroke-opacity=".5"/><path d="M48 36v14M48 50 L30 86M48 50 L66 86"/></svg></div><div class="eq-body"><small>Mobile base station</small><h3>DJI D-RTK 2</h3><ul><li>Koreksi RTK untuk drone</li><li>Akurasi sentimeter</li><li>Pelengkap paket LiDAR</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="DJI D-RTK 2">Minta penawaran</a></div></div></article>
+      <article class="eq reveal" data-c="subsea"><div class="eq-art"><span class="eq-cat">SUBSEA</span><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="20" y="36" width="56" height="28" rx="8"/><circle cx="66" cy="50" r="5"/><path d="M48 36V14M30 64v10M66 64v10M14 50h6"/></svg></div><div class="eq-body"><small>ROV &amp; FMD</small><h3>Saab Seaeye Falcon · Impact Subsea ISA500</h3><ul><li>Inspeksi visual struktur</li><li>Flooded member detection</li><li>Dengan pilot ROV</li></ul><div class="eq-foot"><a class="btn btn-red" href="#kontak" data-eq="ROV Saab Seaeye Falcon / FMD ISA500">Minta penawaran</a></div></div></article>
+    </div>
+    <div class="rent-note reveal">
+      <div>
+        <span>📦 <b>Siap dari Jakarta</b> — 1 hari setelah PO</span>
+        <span>💳 <b>Termin</b> 50% DP · 50% setelah demobilisasi</span>
+        <span>🛠 <b>Dukungan teknis</b> &amp; operator tersedia</span>
+      </div>
+      <a class="btn btn-white btn-sm" href="#kontak">Ajukan kebutuhan alat →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PROCESS ================= -->
+<section class="section" id="proses">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Cara kami bekerja</span><h2>Dari kebutuhan teknis hingga data siap pakai.</h2></div>
+      <p>Alur kolaboratif sejak awal menyelaraskan ruang lingkup, metode, keselamatan, dan keluaran pekerjaan.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><span class="step-n">01</span><h3>Pahami kebutuhan</h3><p>Diskusi tujuan proyek, area kerja, jadwal, standar, dan kebutuhan data.</p></div>
+      <div class="step reveal"><span class="step-n">02</span><h3>Rancang solusi</h3><p>Penentuan metode survei, instrumen, vessel/platform, dan kru yang sesuai — disertai penawaran resmi.</p></div>
+      <div class="step reveal"><span class="step-n">03</span><h3>Mobilisasi &amp; operasi</h3><p>Koordinasi logistik, keselamatan kerja, dan akuisisi data di lapangan.</p></div>
+      <div class="step reveal"><span class="step-n">04</span><h3>Olah data &amp; laporan</h3><p>Pengolahan, kontrol kualitas, dan penyerahan deliverable sesuai lingkup.</p></div>
+    </div>
+    <div class="values">
+      <div class="value reveal"><b>Integrity</b><span>Transparan dalam penawaran, pelaksanaan, dan pelaporan.</span></div>
+      <div class="value reveal"><b>Precision</b><span>Instrumen terkalibrasi dan prosedur QC yang terukur.</span></div>
+      <div class="value reveal"><b>Synergy</b><span>Kekuatan grup untuk solusi alat, logistik, dan pelatihan.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ECOSYSTEM ================= -->
+<section class="section dark" id="ekosistem">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Ekosistem Seanav Group</span><h2>Keahlian khusus yang terhubung dalam satu grup.</h2></div>
+      <p>Unit usaha Seanav Group saling mendukung untuk melayani sektor maritim, pertambangan, dan infrastruktur.</p>
+    </div>
+    <div class="eco">
+      <div class="eco-card reveal"><i>SL</i><div><b>Seanav Sales</b><span>Perangkat keras dan solusi teknis</span></div></div>
+      <div class="eco-card reveal"><i>RR</i><div><b>Seanav Rental &amp; Repair</b><span>Penyewaan dan pemeliharaan peralatan</span></div></div>
+      <div class="eco-card reveal"><i>AC</i><div><b>Seanav Academy</b><span>Training dan pengembangan kompetensi</span></div></div>
+      <div class="eco-card reveal"><i>CN</i><div><b>Seanav Connect</b><span>Logistik dan konektivitas rantai pasok</span></div></div>
+      <div class="eco-card reveal"><i>DF</i><div><b>Seanav Defence</b><span>Peralatan dan dukungan pertahanan</span></div></div>
+      <div class="eco-card reveal"><i>FB</i><div><b>Seanav Food &amp; Beverage</b><span>Produk kuliner dan hospitality</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA ================= -->
+<section class="section" style="padding-bottom:0">
+  <div class="container">
+    <div class="cta reveal">
+      <div><h2>Siap memulai survei atau butuh alat minggu ini?</h2><p>Ceritakan area dan tujuan proyek Anda — tim kami membantu menyusun ruang lingkup, peralatan, dan penawaran.</p></div>
+      <div class="btns"><a class="btn btn-white" href="#kontak">Kirim kebutuhan proyek</a><a class="btn btn-ghost" href="https://wa.me/6281993164828" target="_blank" rel="noopener">WhatsApp</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONTACT ================= -->
+<section class="section" id="kontak">
+  <div class="container contact">
+    <div class="reveal">
+      <span class="eyebrow">Hubungi kami</span>
+      <h2 class="h2">Diskusikan kebutuhan survei atau peralatan Anda.</h2>
+      <p class="lead" style="margin-top:14px">Tim teknis dan sales kami siap membantu menyusun solusi yang tepat.</p>
+      <div class="info">
+        <div class="info-card"><h3>PT Oseana Prawira Persada</h3>
+          <div class="info-row"><i>✉</i><a href="mailto:sales@oseanaprawirapersada.com">sales@oseanaprawirapersada.com</a></div>
+          <div class="info-row"><i>☏</i><a href="https://wa.me/6281993164828" target="_blank" rel="noopener">+62 819-9316-4828 (Telepon / WhatsApp)</a></div>
+          <div class="info-row"><i>⌖</i><span>Indonesia Stock Exchange Tower II, Lt. 17, Jl. Jend. Sudirman Kav. 52–53, Jakarta Selatan 12190</span></div>
+        </div>
+        <div class="info-card"><h3>Seanav Group</h3>
+          <div class="info-row"><i>✉</i><a href="mailto:sales@seanavgroup.co.id">sales@seanavgroup.co.id</a></div>
+          <div class="info-row"><i>☏</i><a href="tel:+622157998020">+62 21 5799 8020</a> · Faks +62 21 8063 1999</div>
+          <div class="info-row"><i>↗</i><a href="https://seanavgroup.co.id/" target="_blank" rel="noopener">seanavgroup.co.id</a></div>
+        </div>
+      </div>
+    </div>
+
+    <form class="form reveal" id="inquiry" novalidate>
+      <h3>Formulir permintaan</h3>
+      <p>Isi formulir, lalu kirim lewat email atau WhatsApp — pesan otomatis tersusun rapi.</p>
+      <div class="fgrid">
+        <div class="field"><label for="f-name">Nama lengkap *</label><input id="f-name" required placeholder="Nama Anda"></div>
+        <div class="field"><label for="f-company">Perusahaan / instansi</label><input id="f-company" placeholder="Nama perusahaan"></div>
+        <div class="field"><label for="f-email">Email *</label><input id="f-email" type="email" required placeholder="nama@perusahaan.com"></div>
+        <div class="field"><label for="f-phone">Telepon / WhatsApp</label><input id="f-phone" placeholder="+62"></div>
+        <div class="field full"><label for="f-type">Jenis kebutuhan *</label>
+          <select id="f-type" required>
+            <option value="">Pilih kebutuhan</option>
+            <option>Layanan survei (hidrografi / geofisika / met-ocean)</option>
+            <option>Survei aerial / darat</option>
+            <option>Inspeksi bawah air &amp; ROV</option>
+            <option>Sewa peralatan</option>
+            <option>Pembelian peralatan</option>
+            <option>Repair &amp; dukungan teknis</option>
+            <option>Kemitraan / lainnya</option>
+          </select></div>
+        <div class="field full"><label for="f-msg">Detail proyek *</label><textarea id="f-msg" required placeholder="Lokasi, jadwal, durasi, alat yang dibutuhkan, dan informasi lain"></textarea></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-red" type="submit" data-via="email">Kirim via email →</button>
+        <button class="btn btn-line" type="submit" data-via="wa">Kirim via WhatsApp</button>
+      </div>
+      <p class="form-note" id="form-note">Kolom bertanda * wajib diisi.</p>
+    </form>
+  </div>
+</section>
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="container">
+    <div class="foot">
+      <div class="foot-brand">
+        <span class="brand-logos"><img src="{% static 'portal/oseana-logo.png' %}" alt="PT Oseana Prawira Persada"><i></i><img src="{% static 'portal/seanav-logo-trim.png' %}" alt="Seanav"></span>
+        <p>Outclassing service for earth, atmosphere &amp; navigation. Solusi survei maritim, geospasial, dan peralatan untuk proyek di darat, udara, pesisir, dan laut.</p>
+      </div>
+      <div><h4>Layanan</h4><ul><li><a href="#layanan">Hydrographic survey</a></li><li><a href="#layanan">Geophysical &amp; UXO</a></li><li><a href="#layanan">Met-ocean</a></li><li><a href="#layanan">Aerial &amp; land survey</a></li><li><a href="#layanan">ROV inspection</a></li></ul></div>
+      <div><h4>Peralatan</h4><ul><li><a href="#peralatan">Sewa alat survei</a></li><li><a href="#peralatan">Penjualan alat</a></li><li><a href="#ekosistem">Rental &amp; repair</a></li><li><a href="#spesifikasi">Spesifikasi teknis</a></li></ul></div>
+      <div><h4>Perusahaan</h4><ul><li><a href="#tentang">Tentang kami</a></li><li><a href="https://oseanaprawirapersada.com/" target="_blank" rel="noopener">Website Oseana ↗</a></li><li><a href="https://seanavgroup.co.id/" target="_blank" rel="noopener">Website Seanav ↗</a></li><li>{% if request.user.is_authenticated %}<a href="{% url 'dashboard' %}">Portal operasional</a>{% else %}<a href="{% url 'login' %}">Login staf</a>{% endif %}</li></ul></div>
+    </div>
+    <div class="foot-bottom"><span>© 2026 PT Oseana Prawira Persada · PT Seanav Maritim Indonesia — Seanav Group</span><span>Integrity · Precision · Synergy</span></div>
+  </div>
+</footer>
+<a class="to-top" id="to-top" href="#beranda" aria-label="Kembali ke atas">↑</a>
+
+<script>
+(() => {
+  /* nav */
+  const bar = document.getElementById("topbar"), toTop = document.getElementById("to-top");
+  const onScroll = () => { const y = window.scrollY > 30; bar.classList.toggle("scrolled", y); toTop.classList.toggle("show", window.scrollY > 700); };
+  onScroll(); window.addEventListener("scroll", onScroll, {passive:true});
+  const btn = document.getElementById("menu-toggle"), menu = document.getElementById("site-menu");
+  btn.addEventListener("click", () => { const o = menu.classList.toggle("open"); btn.setAttribute("aria-expanded", o); btn.textContent = o ? "✕" : "☰"; });
+  menu.querySelectorAll("a").forEach(a => a.addEventListener("click", () => { menu.classList.remove("open"); btn.textContent = "☰"; btn.setAttribute("aria-expanded", false); }));
+  const sections = [...document.querySelectorAll("main section[id]")], links = [...menu.querySelectorAll("a[href^='#']")];
+  const spy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.classList.toggle("active", l.getAttribute("href") === "#" + e.target.id)); }), {rootMargin:"-45% 0px -50% 0px"});
+  sections.forEach(s => spy.observe(s));
+
+  /* reveal + counters */
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), {threshold:.12});
+  document.querySelectorAll(".reveal").forEach((el, i) => { el.style.transitionDelay = (i % 4) * 70 + "ms"; io.observe(el); });
+  document.querySelectorAll("[data-count]").forEach(el => {
+    const end = +el.dataset.count; let n = 0;
+    const t = setInterval(() => { n++; el.textContent = n; if (n >= end) clearInterval(t); }, 110);
+  });
+
+  /* live readouts (illustrative) */
+  const d = document.getElementById("ro-depth"), h = document.getElementById("ro-heave"), td = document.getElementById("ro-tide");
+  let k = 0; setInterval(() => { k += .12;
+    d.textContent = (24.6 + Math.sin(k) * 1.8 + Math.random() * .2).toFixed(2) + " m";
+    h.textContent = (Math.sin(k * 2.3) * .15).toFixed(2) + " m";
+    td.textContent = "+" + (1.04 + Math.sin(k / 6) * .05).toFixed(2) + " m";
+  }, 900);
+
+  /* filters */
+  const filter = (barId, items) => {
+    const b = document.getElementById(barId);
+    b.addEventListener("click", e => { const c = e.target.closest(".chip"); if (!c) return;
+      b.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c));
+      document.querySelectorAll(items).forEach(it => it.classList.toggle("hide", c.dataset.f !== "all" && it.dataset.c !== c.dataset.f));
+    });
+  };
+  filter("svc-filters", ".svc"); filter("eq-filters", ".eq");
+
+  /* tabs */
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+    document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.dataset.p === t.dataset.t));
+  }));
+
+  /* ops zones */
+  const legend = document.querySelectorAll(".ops-item");
+  const pick = z => legend.forEach(x => x.classList.toggle("on", x.dataset.z === z));
+  legend.forEach(x => x.addEventListener("click", () => pick(x.dataset.z)));
+  document.querySelectorAll(".hot").forEach(hs => hs.addEventListener("click", () => pick(hs.dataset.z)));
+
+  /* equipment -> form prefill */
+  document.querySelectorAll("[data-eq]").forEach(a => a.addEventListener("click", () => {
+    document.getElementById("f-type").value = "Sewa peralatan";
+    const m = document.getElementById("f-msg"); m.value = "Saya tertarik menyewa: " + a.dataset.eq + "\nLokasi proyek: \nPerkiraan tanggal & durasi: ";
+  }));
+
+  /* inquiry form */
+  const form = document.getElementById("inquiry"), note = document.getElementById("form-note"); let via = "email";
+  form.querySelectorAll("button[type=submit]").forEach(b => b.addEventListener("click", () => via = b.dataset.via));
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const v = id => document.getElementById(id).value.trim();
+    if (!v("f-name") || !v("f-email") || !v("f-type") || !v("f-msg")) { note.textContent = "Mohon lengkapi kolom bertanda *."; note.style.color = "#c8102e"; return; }
+    const body = `Nama: ${v("f-name")}\nPerusahaan: ${v("f-company") || "-"}\nEmail: ${v("f-email")}\nTelepon: ${v("f-phone") || "-"}\nKebutuhan: ${v("f-type")}\n\n${v("f-msg")}`;
+    if (via === "wa") window.open("https://wa.me/6281993164828?text=" + encodeURIComponent(body), "_blank");
+    else location.href = "mailto:sales@oseanaprawirapersada.com?cc=sales@seanavgroup.co.id&subject=" + encodeURIComponent("Permintaan: " + v("f-type")) + "&body=" + encodeURIComponent(body);
+    note.textContent = "Terima kasih — pesan Anda sudah disiapkan untuk dikirim."; note.style.color = "#0f86a3";
+  });
+
+  /* sonar background */
+  const cv = document.getElementById("sonar"), ctx = cv.getContext("2d");
+  if (!ctx || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let w, hh, a = 0;
+  const size = () => { w = cv.width = cv.offsetWidth * devicePixelRatio; hh = cv.height = cv.offsetHeight * devicePixelRatio; };
+  size(); addEventListener("resize", size);
+  (function draw() {
+    ctx.clearRect(0, 0, w, hh);
+    const cx = w * .78, cy = hh * .4, R = Math.max(w, hh) * .7;
+    ctx.strokeStyle = "rgba(120,180,230,.10)"; ctx.lineWidth = devicePixelRatio;
+    for (let r = R / 8; r < R; r += R / 8) { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); }
+    const g = ctx.createConicGradient ? ctx.createConicGradient(a, cx, cy) : null;
+    if (g) { g.addColorStop(0, "rgba(22,163,196,.22)"); g.addColorStop(.08, "rgba(22,163,196,0)"); g.addColorStop(1, "rgba(22,163,196,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill(); }
+    a += .006; requestAnimationFrame(draw);
+  })();
+})();
+</script>
+</body>
+</html>

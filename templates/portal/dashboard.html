@@ -1,0 +1,270 @@
+{% extends "portal/base.html" %}
+{% load static %}
+{% block title %}Dashboard{% endblock %}
+{% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">{% endblock %}
+{% block breadcrumb %}<div class="crumb"><span><b>Dashboard</b> · Seanav Operations</span><span class="upd">Terakhir diperbarui <span class="mono">{% now "H:i" %}</span><a href="?periode={{ period_key }}" aria-label="Muat ulang"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></a></span></div>{% endblock %}
+{% block content %}{% with name=request.user.get_full_name|default:request.user.username %}
+
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div>
+        <h1>{{ greeting }}, {{ name }} 👋</h1>
+        <p class="sub">PT Oseana Prawira Persada · PT Seanav Maritim Indonesia</p>
+        <p class="lead">Pantau inventaris alat, penawaran, penagihan, rental, dan proyek survei dalam satu tampilan terpadu.</p>
+        <div class="hero-chips">
+          {% if database_error %}<span class="bad">Database: gangguan</span>{% else %}<span>Database: terhubung</span>{% endif %}
+          <span>{{ summary.available_units }} unit siap disewa</span>
+          <span>{{ summary.active_rentals }} rental berjalan</span>
+          {% if danger_alerts %}<span class="bad">{{ danger_alerts }} hal mendesak</span>{% elif alerts %}<span class="warn">{{ alerts|length }} perlu tindakan</span>{% else %}<span>Semua terkendali</span>{% endif %}
+        </div>
+      </div>
+      <div class="hero-side">
+        <form class="hero-tools" method="get">
+          <select name="periode" aria-label="Periode data" onchange="this.form.submit()">
+            {% for key, label in period_options %}<option value="{{ key }}" {% if key == period_key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          <a class="hbtn" href="?periode={{ period_key }}" title="Muat ulang"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></a>
+          <button class="hbtn" type="button" onclick="window.print()" title="Cetak / simpan PDF"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg></button>
+        </form>
+        <div class="hero-cta">
+          {% if business_access.quotation %}<a class="btn btn-white" href="{% url 'quotation_create' %}">+ Quotation</a>{% endif %}
+          {% if business_access.rental %}<a class="btn btn-glass" href="{% url 'rental_create' %}">+ Rental</a>{% endif %}
+        </div>
+      </div>
+    </section>
+    {% if database_error %}<div class="error">⚠ {{ database_error }}</div>{% endif %}
+
+    <!-- ================= QUICK ACCESS ================= -->
+    <section class="quick">
+      {% if business_access.inventory %}<a class="qcard" href="{% url 'inventory' %}"><span class="qi t-navy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span><span class="tag">{{ summary.total_units }} unit</span><b>Inventaris Alat</b><p>Ketersediaan, nomor seri, kondisi &amp; riwayat unit</p></a>{% endif %}
+      {% if business_access.quotation %}<a class="qcard" href="{% url 'quotation_list' %}"><span class="qi t-cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></span><span class="tag">{{ summary.quotation_open }} aktif</span><b>Quotation</b><p>Buat, ajukan, dan kirim penawaran ke klien</p></a>{% endif %}
+      {% if business_access.invoice %}<a class="qcard" href="{% url 'invoice_list' %}"><span class="qi t-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="tag">{{ summary.receivable_count }} terbit</span><b>Invoice</b><p>Penerbitan invoice &amp; pemantauan pembayaran</p></a>{% endif %}
+      {% if business_access.rental %}<a class="qcard" href="{% url 'rental_handover' %}"><span class="qi t-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l-4-4 4-4"/><path d="M3 13h13"/><path d="M17 7l4 4-4 4"/></svg></span><span class="tag">{{ summary.active_rentals }} berjalan</span><b>Serah Terima Rental</b><p>Catat alat keluar dan pengembalian</p></a>{% endif %}
+    </section>
+
+    <!-- ================= KPI ================= -->
+    <section class="kpis">
+      <div class="kpi"><div class="kpi-top"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>{% if summary.revenue_change is not None %}<span class="trend {% if summary.revenue_change > 0 %}up{% elif summary.revenue_change < 0 %}down{% else %}flat{% endif %}">{% if summary.revenue_change > 0 %}↗ +{% elif summary.revenue_change < 0 %}↘ {% endif %}{{ summary.revenue_change }}%</span>{% endif %}</div><small>Pendapatan diterima</small><strong>{{ summary.revenue_period }}</strong><div class="foot">{{ period_days }} hari terakhir</div></div>
+      <div class="kpi"><div class="kpi-top"><span class="qi t-amber"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>{% if summary.overdue_invoices %}<span class="trend down">{{ summary.overdue_invoices }} lewat tempo</span>{% endif %}</div><small>Piutang berjalan</small><strong>{{ summary.receivable }}</strong><div class="foot">{{ summary.receivable_count }} invoice diterbitkan</div></div>
+      <div class="kpi"><div class="kpi-top"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3l-9 9"/></svg></span><span class="trend flat">{{ summary.rented_units }}/{{ summary.total_units }}</span></div><small>Utilisasi armada</small><strong>{{ summary.utilization }}<em>%</em></strong><div class="foot">Unit sedang disewa</div></div>
+      <div class="kpi"><div class="kpi-top"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span>{% if rental_change is not None %}<span class="trend {% if rental_change > 0 %}up{% elif rental_change < 0 %}down{% else %}flat{% endif %}">{% if rental_change > 0 %}↗ +{% elif rental_change < 0 %}↘ {% endif %}{{ rental_change }}%</span>{% else %}<span class="trend flat">+{{ summary.rentals_period }} baru</span>{% endif %}</div><small>Rental berjalan</small><strong>{{ summary.active_rentals }}<em>kontrak</em></strong><div class="foot">{{ summary.rentals_period }} rental baru di periode ini</div></div>
+      <div class="kpi"><div class="kpi-top"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>{% if summary.win_rate is not None %}<span class="trend up">Win {{ summary.win_rate }}%</span>{% endif %}</div><small>Pipeline quotation</small><strong>{{ summary.quotation_open_value }}</strong><div class="foot">{{ summary.quotation_open }} quotation aktif</div></div>
+      <div class="kpi"><div class="kpi-top"><span class="qi t-sand"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="trend flat">{{ summary.planned_projects }} rencana</span></div><small>Proyek aktif</small><strong>{{ summary.active_projects }}<em>proyek</em></strong><div class="foot">{{ summary.clients }} klien aktif</div></div>
+    </section>
+
+    <!-- ================= CHART + FLEET ================= -->
+    <section class="grid g-2-1">
+      <div class="panel">
+        <div class="ph">
+          <div class="ph-l"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-6"/></svg></span><div><h2>Tren Pendapatan</h2><p>Invoice dibayar vs. masih ditagih per bulan</p></div></div>
+          <div class="legend"><span><i style="background:var(--navy-2)"></i>Dibayar</span><span><i style="background:#f0a5b2"></i>Ditagih</span></div>
+        </div>
+        <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+        <div class="chart-sum">
+          <div><small>Diterima ({{ period_days }} hari)</small><b>{{ summary.revenue_period }}</b></div>
+          <div><small>Periode sebelumnya</small><b>{{ summary.revenue_previous }}</b></div>
+          <div><small>Piutang berjalan</small><b>{{ summary.receivable }}</b></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><div><h2>Status Armada</h2><p>Kondisi seluruh unit alat</p></div></div>{% if business_access.inventory %}<a class="pill-btn" href="{% url 'inventory' %}">Lihat</a>{% endif %}</div>
+        <div class="donut-wrap">
+          <div class="donut">
+            <svg viewBox="0 0 42 42" id="donut"></svg>
+            <div class="c"><div><b>{{ summary.total_units }}</b><small>Total unit</small></div></div>
+          </div>
+          <div class="dlist">
+            <div><span><i style="background:var(--green)"></i>Tersedia</span><b>{{ summary.available_units }}</b></div>
+            <div><span><i style="background:var(--navy-2)"></i>Disewa</span><b>{{ summary.rented_units }}</b></div>
+            <div><span><i style="background:var(--amber)"></i>Perawatan</span><b>{{ summary.maintenance_units }}</b></div>
+          </div>
+        </div>
+        <div class="cat">
+          <h3>Utilisasi per kategori</h3>
+          {% for c in category_usage %}
+            <div class="bar-row"><div><b>{{ c.name }}</b><span>{{ c.rented }}/{{ c.total }} · {{ c.percent }}%</span></div><div class="bar"><i style="width:{{ c.percent }}%"></i></div></div>
+          {% empty %}<div class="empty">Belum ada data kategori alat.</div>{% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MAP ================= -->
+    <section class="panel" style="margin-top:18px">
+      <div class="ph">
+        <div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4z"/><path d="M8 2v16M16 6v16"/></svg></span><div><h2>Peta Sebaran Operasi</h2><p>Lokasi rental berjalan dan proyek aktif</p></div></div>
+        <div class="legend"><span><i style="background:var(--red);border-radius:50%"></i>Rental</span><span><i style="background:var(--cyan);border-radius:50%"></i>Proyek</span>{% if business_access.project %}<a class="pill-btn" href="{% url 'project_list' %}">Rekap proyek</a>{% endif %}</div>
+      </div>
+      {% if map_points %}
+        <div id="map" role="region" aria-label="Peta lokasi operasi"></div>
+      {% else %}
+        <div class="map-empty"><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><br>Belum ada lokasi rental/proyek dengan koordinat.<br><small>Tambahkan titik lokasi di halaman Rental atau Proyek agar tampil di peta.</small></div></div>
+      {% endif %}
+    </section>
+
+    <!-- ================= ALERTS + ACTIVITY ================= -->
+    <section class="grid g-1-1">
+      <div class="panel" id="peringatan">
+        <div class="ph"><div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span><div><h2>Peringatan &amp; Tindakan</h2><p>Hal yang perlu ditindaklanjuti tim</p></div></div><span class="pill-btn">{{ alerts|length }} item</span></div>
+        <div class="alerts">
+          {% for a in alerts %}
+          <div class="alert {{ a.level }}">
+            <div class="alert-h"><b><span class="lvl">{% if a.level == 'danger' %}MENDESAK{% elif a.level == 'warning' %}SEGERA{% else %}INFO{% endif %}</span>{{ a.title }}</b><small>{{ a.meta }}</small></div>
+            <p>{{ a.body }}</p>
+            <div class="alert-f"><span>Saran: {{ a.action }}</span><a href="{% url a.url %}">Buka →</a></div>
+          </div>
+          {% empty %}
+          <div class="empty">✅ Tidak ada rental, invoice, quotation, atau kalibrasi yang perlu ditindaklanjuti.</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><div><h2>Aktivitas Terbaru</h2><p>Rental, quotation, invoice &amp; perubahan unit</p></div></div></div>
+        <div class="timeline">
+          {% for f in activities %}
+          <div class="tl"><i class="k-{{ f.kind }}"></i><div><b>{{ f.title }}</b><p>{{ f.detail }}{% if f.by %} · oleh {{ f.by }}{% endif %}</p></div><small>{{ f.when|timesince }} lalu</small></div>
+          {% empty %}
+          <div class="empty">Belum ada aktivitas tercatat.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TABLES ================= -->
+    <section class="grid g-1-1">
+      <div class="panel">
+        <div class="ph"><div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span><div><h2>Rental Berjalan</h2><p>Diurutkan dari yang paling dekat jadwal kembali</p></div></div>{% if business_access.rental %}<a class="pill-btn" href="{% url 'rental_list' %}?status=BERJALAN">Semua</a>{% endif %}</div>
+        {% if running_rentals %}
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Rental</th><th>Unit</th><th>Kembali</th><th>Progres</th></tr></thead>
+          <tbody>
+          {% for r in running_rentals %}
+            <tr>
+              <td><b>{{ r.number }}</b> <span class="co">{{ r.company }}</span><small>{{ r.client }}{% if r.location %} · {{ r.location|truncatechars:28 }}{% endif %}</small></td>
+              <td>{{ r.units }}</td>
+              <td>{% if r.end %}{{ r.end|date:"d M Y" }}<small>{% if r.days_left is not None %}{% if r.days_left < 0 %}<span style="color:var(--red);font-weight:700">Terlambat {{ r.days_late }} hari</span>{% elif r.days_left == 0 %}Hari ini{% else %}{{ r.days_left }} hari lagi{% endif %}{% endif %}</small>{% else %}—{% endif %}</td>
+              <td>{% if r.progress is not None %}<div class="prog"><div class="bar"><i class="{% if r.days_left is not None and r.days_left < 0 %}late{% endif %}" style="width:{{ r.progress }}%"></i></div><span class="mono" style="font-size:11.5px">{{ r.progress }}%</span></div>{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        {% else %}<div class="empty">Tidak ada rental yang sedang berjalan.{% if business_access.rental %}<br><a href="{% url 'rental_create' %}">+ Buat rental</a>{% endif %}</div>{% endif %}
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span><div><h2>Quotation Terbaru</h2><p>Penawaran terakhir yang dibuat</p></div></div>{% if business_access.quotation %}<a class="pill-btn" href="{% url 'quotation_list' %}">Semua</a>{% endif %}</div>
+        {% if recent_quotations %}
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Nomor</th><th>Nilai</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for q in recent_quotations %}
+            <tr>
+              <td><b>{% if business_access.quotation %}<a href="{% url 'quotation_document' q.id %}">{{ q.number }}</a>{% else %}{{ q.number }}{% endif %}</b> <span class="co">{{ q.company }}</span><small>{{ q.client }} · {{ q.type }} · {{ q.date|date:"d M Y" }}</small></td>
+              <td class="num"><b>{{ q.total }}</b></td>
+              <td><span class="st st-{{ q.status }}">{{ q.status_label }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        {% else %}<div class="empty">Belum ada quotation.{% if business_access.quotation %}<br><a href="{% url 'quotation_create' %}">+ Buat quotation</a>{% endif %}</div>{% endif %}
+      </div>
+    </section>
+
+    <!-- ================= COMPANY OVERVIEW ================= -->
+    <section class="overview">
+      <div class="ph">
+        <div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg></span><div><h2>Ringkasan Perusahaan</h2><p>Kinerja per entitas dalam {{ period_days }} hari terakhir</p></div></div>
+        {% if business_access.invoice %}<a class="pill-btn green" href="{% url 'invoice_list' %}">Kelola invoice</a>{% endif %}
+      </div>
+      <div class="ov-grid">
+        <div class="gauge">
+          <div class="ring">
+            <svg viewBox="0 0 42 42"><circle cx="21" cy="21" r="17" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="21" cy="21" r="17" fill="none" stroke="url(#gg)" stroke-width="4" stroke-linecap="round" stroke-dasharray="{{ summary.utilization }} 100" pathLength="100"/><defs><linearGradient id="gg"><stop offset="0" stop-color="#174b7d"/><stop offset="1" stop-color="#c8102e"/></linearGradient></defs></svg>
+            <b>{{ summary.utilization }}%</b>
+          </div>
+          <strong>Utilisasi Armada</strong>
+          <small style="color:{% if summary.utilization >= 60 %}var(--green){% elif summary.utilization >= 30 %}var(--amber){% else %}var(--muted){% endif %}">{% if summary.utilization >= 60 %}Sangat produktif{% elif summary.utilization >= 30 %}Cukup produktif{% else %}Banyak unit menganggur{% endif %}</small>
+        </div>
+        {% for c in company_breakdown %}
+        <div class="co-card">
+          <div class="co-h"><span class="qi {% cycle 't-navy' 't-red' 't-cyan' %}">{{ c.code|slice:":3" }}</span><b>{{ c.name }}</b></div>
+          <div class="rev"><small>Pendapatan diterima</small>{{ c.revenue }}</div>
+          <div class="mini"><span><b>{{ c.rentals }}</b> rental</span><span><b>{{ c.quotations }}</b> quotation</span><span><b>{{ c.projects }}</b> proyek</span></div>
+        </div>
+        {% empty %}
+        <div class="co-card"><div class="empty">Belum ada data perusahaan aktif.</div></div>
+        {% endfor %}
+      </div>
+      <div class="counters">
+        <div class="counter"><b style="color:var(--navy-2)">{{ summary.rentals_period }}</b><span>Rental baru</span></div>
+        <div class="counter"><b style="color:#0f86a3">{{ summary.quotation_period }}</b><span>Quotation dibuat</span></div>
+        <div class="counter"><b style="color:var(--green)">{{ summary.done_projects_period }}</b><span>Proyek selesai</span></div>
+        <div class="counter"><b style="color:var(--red)">{{ summary.overdue_invoices }}</b><span>Invoice lewat tempo</span></div>
+      </div>
+    </section>
+{% endwith %}{% endblock %}
+{% block scripts %}
+{{ revenue_chart|json_script:"revenue-data" }}
+{{ map_points|json_script:"map-data" }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+
+  /* donut */
+  const parts = [[{{ summary.available_units }}, "#14a06b"], [{{ summary.rented_units }}, "#174b7d"], [{{ summary.maintenance_units }}, "#d98b0b"]];
+  const total = parts.reduce((s, p) => s + p[0], 0), donut = $("donut");
+  let svg = '<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--line)" stroke-width="5"/>', off = 0;
+  if (total) parts.forEach(([v, c]) => { if (!v) return; const pct = v * 100 / total;
+    svg += `<circle cx="21" cy="21" r="15.9" fill="none" stroke="${c}" stroke-width="5" pathLength="100" stroke-dasharray="${pct} ${100 - pct}" stroke-dashoffset="${-off}"/>`; off += pct; });
+  donut.innerHTML = svg;
+
+  /* revenue chart */
+  const data = JSON.parse($("revenue-data").textContent), box = $("chart"), tip = $("tip");
+  const W = 700, H = 250, P = {l: 56, r: 10, t: 14, b: 30};
+  const max = Math.max(1, ...data.map(d => d.paid + d.issued));
+  const nice = (() => { const p = Math.pow(10, Math.floor(Math.log10(max))); return Math.ceil(max / p) * p; })();
+  const fmt = v => v >= 1e9 ? (v / 1e9).toFixed(1).replace(".0", "") + " M" : v >= 1e6 ? (v / 1e6).toFixed(0) + " jt" : v >= 1e3 ? (v / 1e3).toFixed(0) + " rb" : String(v);
+  const iw = W - P.l - P.r, ih = H - P.t - P.b, bw = iw / data.length;
+  let g = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+  for (let i = 0; i <= 4; i++) { const y = P.t + ih - ih * i / 4;
+    g += `<line x1="${P.l}" x2="${W - P.r}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="${i ? "3 4" : ""}"/>`;
+    g += `<text x="${P.l - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmt(nice * i / 4)}</text>`; }
+  data.forEach((d, i) => {
+    const x = P.l + i * bw + bw * .22, w = bw * .56;
+    const hp = ih * d.paid / nice, hi = ih * d.issued / nice, y0 = P.t + ih;
+    g += `<g class="bar-g" data-i="${i}">`;
+    g += `<rect x="${P.l + i * bw}" y="${P.t}" width="${bw}" height="${ih}" fill="transparent"/>`;
+    if (hi) g += `<rect x="${x}" y="${y0 - hp - hi}" width="${w}" height="${hi}" rx="4" fill="#f0a5b2"/>`;
+    if (hp) g += `<rect x="${x}" y="${y0 - hp}" width="${w}" height="${hp}" rx="4" fill="#174b7d"/>`;
+    g += `<text x="${x + w / 2}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.label}</text></g>`;
+  });
+  g += "</svg>";
+  box.insertAdjacentHTML("afterbegin", g);
+  box.querySelectorAll(".bar-g").forEach(el => {
+    el.addEventListener("mousemove", e => { const d = data[el.dataset.i], r = box.getBoundingClientRect();
+      tip.innerHTML = `<b>${d.label}</b><br>Dibayar: ${d.paid_text}<br>Ditagih: ${d.issued_text}`;
+      tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px"; tip.style.opacity = 1; });
+    el.addEventListener("mouseleave", () => tip.style.opacity = 0);
+  });
+  if (!data.some(d => d.paid || d.issued)) box.insertAdjacentHTML("beforeend", '<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:13px">Belum ada invoice diterbitkan/dibayar pada rentang ini.</div>');
+
+  /* map */
+  const points = JSON.parse($("map-data").textContent);
+  if (points.length && window.L && $("map")) {
+    const map = L.map("map", {scrollWheelZoom: false});
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 18, attribution: "&copy; OpenStreetMap"}).addTo(map);
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+    const bounds = [];
+    points.forEach(p => {
+      const color = p.type === "rental" ? "#c8102e" : "#16a3c4";
+      L.circleMarker([p.lat, p.lng], {radius: 8, color: "#fff", weight: 2, fillColor: color, fillOpacity: .95})
+        .addTo(map).bindPopup(`<b>${esc(p.code)}</b><br>${esc(p.name)}${p.location ? "<br><small>" + esc(p.location) + "</small>" : ""}<br><small>${p.type === "rental" ? "Rental berjalan" : "Proyek"}</small>`);
+      bounds.push([p.lat, p.lng]);
+    });
+    bounds.length === 1 ? map.setView(bounds[0], 10) : map.fitBounds(bounds, {padding: [40, 40], maxZoom: 11});
+  } else if (points.length && $("map")) {
+    $("map").outerHTML = '<div class="map-empty">Peta tidak dapat dimuat (perlu koneksi internet).</div>';
+  }
+})();
+</script>
+{% endblock %}

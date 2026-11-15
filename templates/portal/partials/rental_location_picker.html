@@ -1,0 +1,10 @@
+<div class="rental-location-picker" id="rental-location-picker" data-search-url="{% url 'place_search' %}">
+  <div class="rental-location-search-row">
+    <input id="rental-location-search" type="search" placeholder="Cari nama PT, gedung, kota, atau area di Indonesia" aria-label="Cari nama perusahaan atau lokasi">
+    <button class="btn btn-primary" id="rental-location-search-button" type="button">Cari lokasi</button>
+  </div>
+  <div id="rental-location-results" class="rental-location-results" aria-live="polite"></div>
+  <div id="rental-location-map" class="rental-location-map" role="application" aria-label="Pilih lokasi penggunaan alat"></div>
+  <div id="rental-location-state" class="rental-location-state">Klik peta untuk menandai titik, atau cari lokasi dengan tombol di atas.</div>
+  <p class="rental-location-note">Pencarian hanya berjalan setelah tombol ditekan; nama tempat yang dicari dikirim ke OpenStreetMap. Jangan masukkan data rahasia. Peta dan hasil pencarian © OpenStreetMap contributors.</p>
+</div>

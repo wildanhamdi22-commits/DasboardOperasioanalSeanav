@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE paket_unit_item
+    ADD COLUMN IF NOT EXISTS nomor_seri VARCHAR(120);
+
+COMMIT;

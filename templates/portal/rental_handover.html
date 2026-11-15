@@ -1,0 +1,31 @@
+{% extends "portal/base.html" %}
+{% block title %}Serah Terima{% endblock %}
+{% block crumb %}Serah Terima{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Serah terima alat</h1><p>Catat saat unit diserahkan ke klien atau dikembalikan. Status inventaris dan rental berubah otomatis.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'rental_list' %}">Daftar rental</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:980px">
+  {% if database_error %}<div class="flash error">{{ database_error }} Tambahkan dahulu data klien, rental beserta unit fisiknya, dan PIC internal.</div>{% endif %}
+  {% if form %}
+    {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-grid">
+      {% for field in form %}
+        <div class="field {% if field.name == 'notes' or field.name == 'unit_ids' or field.name == 'units' %}full{% endif %} {% if field.field.widget.input_type == 'checkbox' %}check-list{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+          {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+      {% endfor %}
+      </div>
+      <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit">Simpan serah terima</button><a class="btn btn-ghost" href="{% url 'rental_list' %}">Batal</a></div>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

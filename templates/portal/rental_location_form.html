@@ -1,0 +1,33 @@
+{% extends "portal/base.html" %}
+{% load static portal_extras %}
+{% block title %}Lokasi Rental{% endblock %}
+{% block crumb %}Rental Alat{% endblock %}
+{% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Lokasi penggunaan alat</h1><p><b class="mono">{{ rental.number }}</b> · {{ rental.client }} · <span class="st st-{{ rental.status }}">{{ rental.status|label }}</span></p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'rental_list' %}">← Kembali</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:980px">
+  <div class="note"><b>Alat:</b> {{ rental.units }}</div>
+  {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.location_name.id_for_label }}">{{ form.location_name.label }}</label>
+      {{ form.location_name }}
+      {% if form.location_name.help_text %}<span class="help">{{ form.location_name.help_text }}</span>{% endif %}
+      {% for error in form.location_name.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+    </div>
+    {{ form.latitude }}{{ form.longitude }}
+    {% include "portal/partials/rental_location_picker.html" %}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Simpan lokasi</button><a class="btn btn-ghost" href="{% url 'rental_list' %}">Batal</a></div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'portal/rental_location_picker.js' %}?v=20261115"></script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "portal/base.html" %}
+{% block title %}{% if is_edit %}Edit Unit{% else %}Tambah Unit{% endif %}{% endblock %}
+{% block crumb %}Inventaris Alat{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>{% if is_edit %}Edit unit alat{% else %}Tambah unit alat{% endif %}</h1><p>{% if is_edit %}Perbarui data unit pada inventaris bersama.{% else %}Unit baru masuk ke inventaris bersama PT Oseana Prawira Persada dan PT Seanav.{% endif %}</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'inventory' %}">← Kembali ke inventaris</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel">
+  {% if current_photo %}<div class="note" style="display:flex;gap:14px;align-items:center"><a href="{{ current_photo }}" target="_blank" rel="noopener"><img class="thumb" src="{{ current_photo }}" alt="Foto saat ini"></a><span>Foto saat ini. Pilih file baru hanya jika ingin menggantinya.</span></div>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <div class="form-grid three">
+      {% for field in form %}
+        <div class="field {% if field.name == 'photo' or field.name == 'notes' %}full{% endif %}">
+          {{ field.label_tag }}{{ field }}
+          {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+          {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <section class="form-section" id="accessory-formset">
+      <h2>Aksesori / kelengkapan</h2>
+      <p>Isi serial number bila aksesori memilikinya. Jika tiap unit aksesori punya nomor seri berbeda, masukkan satu baris per unit dengan jumlah 1.</p>
+      {{ accessory_formset.management_form }}
+      {% if accessory_formset.non_form_errors %}<div class="flash error">{{ accessory_formset.non_form_errors|join:" " }}</div>{% endif %}
+      <div id="accessory-rows" style="display:grid;gap:10px">
+        {% for accessory in accessory_formset %}
+          <div class="accessory-row form-grid" style="grid-template-columns:2fr 1.5fr .7fr auto;align-items:end">
+            {% for hidden in accessory.hidden_fields %}{{ hidden }}{% endfor %}
+            <div class="field">{{ accessory.name.label_tag }}{{ accessory.name }}{% for error in accessory.name.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+            <div class="field">{{ accessory.serial_number.label_tag }}{{ accessory.serial_number }}{% for error in accessory.serial_number.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+            <div class="field">{{ accessory.quantity.label_tag }}{{ accessory.quantity }}{% for error in accessory.quantity.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+            {{ accessory.DELETE.as_hidden }}
+            <button type="button" class="btn btn-danger-outline btn-sm remove-accessory" style="margin-bottom:5px">Hapus</button>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" id="add-accessory" style="margin-top:12px">+ Tambah aksesori</button>
+      <template id="empty-accessory-row">
+        <div class="accessory-row form-grid" style="grid-template-columns:2fr 1.5fr .7fr auto;align-items:end">
+          <div class="field"><label for="id_accessories-__prefix__-name">Jenis aksesoris</label><input type="text" name="accessories-__prefix__-name" maxlength="180" id="id_accessories-__prefix__-name"></div>
+          <div class="field"><label for="id_accessories-__prefix__-serial_number">Serial Number (opsional)</label><input type="text" name="accessories-__prefix__-serial_number" maxlength="120" id="id_accessories-__prefix__-serial_number"></div>
+          <div class="field"><label for="id_accessories-__prefix__-quantity">Jumlah</label><input type="number" name="accessories-__prefix__-quantity" value="1" min="0.01" step="0.01" id="id_accessories-__prefix__-quantity"></div>
+          <input type="hidden" name="accessories-__prefix__-DELETE" id="id_accessories-__prefix__-DELETE">
+          <button type="button" class="btn btn-danger-outline btn-sm remove-accessory" style="margin-bottom:5px">Hapus</button>
+        </div>
+      </template>
+    </section>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">{% if is_edit %}Simpan perubahan{% else %}Simpan unit{% endif %}</button>
+      <a class="btn btn-ghost" href="{% url 'inventory' %}">Batal</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const rows = document.getElementById("accessory-rows");
+  const total = document.getElementById("id_accessories-TOTAL_FORMS");
+  const template = document.getElementById("empty-accessory-row");
+  document.getElementById("add-accessory").addEventListener("click", () => {
+    const index = Number(total.value);
+    rows.insertAdjacentHTML("beforeend", template.innerHTML.replaceAll("__prefix__", index));
+    total.value = index + 1;
+  });
+  rows.addEventListener("click", (event) => {
+    if (!event.target.classList.contains("remove-accessory")) return;
+    const row = event.target.closest(".accessory-row");
+    const deleteField = row.querySelector('input[name$="-DELETE"]');
+    if (deleteField) { deleteField.value = "on"; row.hidden = true; } else { row.remove(); }
+  });
+})();
+</script>
+{% endblock %}

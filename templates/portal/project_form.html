@@ -1,0 +1,101 @@
+{% extends "portal/base.html" %}
+{% block title %}{% if is_edit %}Edit Proyek{% else %}Tambah Proyek{% endif %}{% endblock %}
+{% block crumb %}Rekap Proyek{% endblock %}
+{% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>{% if is_edit %}Edit proyek{% else %}Tambah proyek{% endif %}</h1><p>{% if is_edit %}Perbarui informasi proyek, titik lokasi, dan unit rental yang ditugaskan.{% else %}Catat proyek baru, tandai lokasi pada peta, dan hubungkan unit rental di area proyek.{% endif %}</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'project_list' %}">← Kembali</a></div>
+</div>
+{% endblock %}
+{% block content %}
+{% if database_error %}<div class="flash error">{{ database_error }}</div>{% endif %}
+{% if form %}
+<form method="post">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-sand"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></span><div><h2>Informasi proyek</h2></div></div></div>
+    <div class="form-grid">
+      {% for field in form %}
+        {% if field.name == "latitude" or field.name == "longitude" or field.name == "rented_unit_ids" or field.name == "notes" or field.name == "start" or field.name == "end" or field.name == "status" %}
+        {% else %}
+          <div class="field {% if field.name == 'location_text' %}full{% endif %}">
+            {{ field.label_tag }}{{ field }}
+            {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+            {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+      <div class="field">{{ form.start.label_tag }}{{ form.start }}{% for error in form.start.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+      <div class="field">{{ form.end.label_tag }}{{ form.end }}{% for error in form.end.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+      <div class="field">{{ form.status.label_tag }}{{ form.status }}{% for error in form.status.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+    </div>
+  </section>
+  <section class="panel mt">
+    <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div><h2>Titik lokasi proyek</h2><p>Klik peta untuk mengisi koordinat, atau ketik manual. Penanda bisa digeser.</p></div></div></div>
+    <div id="project-picker-map" class="map-box" style="height:360px" role="application" aria-label="Pilih titik lokasi proyek"></div>
+    <div class="form-grid three" style="margin-top:14px;align-items:end">
+      <div class="field">{{ form.latitude.label_tag }}{{ form.latitude }}{% for error in form.latitude.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+      <div class="field">{{ form.longitude.label_tag }}{{ form.longitude }}{% for error in form.longitude.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+      <div><button class="btn btn-outline" type="button" id="clear-project-point">Hapus titik</button></div>
+    </div>
+  </section>
+  <section class="panel mt">
+    <div class="ph"><div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span><div><h2>Alat rental di area proyek</h2><p>Pilih unit rental aktif yang berada di lokasi ini.</p></div></div></div>
+    {% if form.rented_unit_ids.field.choices %}<div class="check-list">{{ form.rented_unit_ids }}</div>{% else %}<div class="empty">Belum ada unit rental aktif. Daftarkan rental dan serah terima alat terlebih dahulu.</div>{% endif %}
+    {% for error in form.rented_unit_ids.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+    <div class="field mt">{{ form.notes.label_tag }}{{ form.notes }}{% for error in form.notes.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+  </section>
+  <div class="form-actions" style="border:0">
+    <button class="btn btn-primary btn-lg" type="submit">{% if is_edit %}Simpan perubahan{% else %}Simpan proyek{% endif %}</button>
+    <a class="btn btn-ghost" href="{% url 'project_list' %}">Batal</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    (() => {
+      const element = document.getElementById("project-picker-map");
+      if (!element || !window.L) return;
+      const latitude = document.getElementById("id_latitude");
+      const longitude = document.getElementById("id_longitude");
+      const map = L.map(element, {scrollWheelZoom: false}).setView([-2.5, 118], 5);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+      }).addTo(map);
+      let marker = null;
+      const updateCoordinates = (point) => {
+        latitude.value = point.lat.toFixed(7);
+        longitude.value = point.lng.toFixed(7);
+      };
+      const placeMarker = (lat, lng, zoom = false) => {
+        const point = L.latLng(lat, lng);
+        if (!marker) {
+          marker = L.marker(point, {draggable: true}).addTo(map);
+          marker.on("dragend", () => updateCoordinates(marker.getLatLng()));
+        } else marker.setLatLng(point);
+        updateCoordinates(point);
+        if (zoom) map.setView(point, 13);
+      };
+      map.on("click", (event) => placeMarker(event.latlng.lat, event.latlng.lng));
+      if (latitude.value && longitude.value) placeMarker(Number(latitude.value), Number(longitude.value), true);
+      const updateFromInputs = () => {
+        if (latitude.value === "" || longitude.value === "") return;
+        const lat = Number(latitude.value), lng = Number(longitude.value);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) placeMarker(lat, lng, true);
+      };
+      latitude.addEventListener("change", updateFromInputs);
+      longitude.addEventListener("change", updateFromInputs);
+      document.getElementById("clear-project-point").addEventListener("click", () => {
+        if (marker) map.removeLayer(marker);
+        marker = null;
+        latitude.value = "";
+        longitude.value = "";
+      });
+    })();
+  </script>
+{% endblock %}

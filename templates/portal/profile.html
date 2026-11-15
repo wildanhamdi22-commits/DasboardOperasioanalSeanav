@@ -1,0 +1,38 @@
+{% extends "portal/base.html" %}
+{% block title %}Profil Saya{% endblock %}
+{% block crumb %}Profil Saya{% endblock %}
+{% block page_head %}<div class="page-head"><div><h1>Profil Saya</h1><p>Informasi akun dan pengaturan kata sandi.</p></div></div>{% endblock %}
+{% block content %}
+<div class="grid g-1-1" style="margin-top:0">
+  <section class="panel">
+    <div style="display:flex;gap:16px;align-items:center">
+      <span class="avatar" style="width:64px;height:64px;font-size:24px">{{ shell_user_initial }}</span>
+      <div><h2 style="margin:0;font-size:20px;color:var(--ink)">{{ shell_user_name }}</h2><p class="muted" style="margin:4px 0 0">{{ shell_user_role }}</p></div>
+    </div>
+    <dl class="kv">
+      <dt>Username</dt><dd>{{ request.user.username }}</dd>
+      <dt>Email</dt><dd>{{ request.user.email|default:"Belum diisi" }}</dd>
+      <dt>Bergabung</dt><dd>{{ request.user.date_joined|date:"d M Y" }}</dd>
+      <dt>Login terakhir</dt><dd>{{ request.user.last_login|date:"d M Y H:i"|default:"—" }}</dd>
+      <dt>Hak khusus</dt><dd>{% if request.user.is_superuser %}Super admin{% elif is_approver %}Penyetuju izin &amp; rekap absensi{% else %}Staf{% endif %}</dd>
+    </dl>
+    {% if not request.user.email %}<div class="flash warning" style="margin-top:14px">Email akun belum diisi. Role perusahaan dihubungkan lewat email — minta admin mengisinya di menu Akun Staf.</div>{% endif %}
+    <div class="counters three">
+      <div class="counter"><b style="color:var(--green)">{{ month_present }}</b><span>Hadir {{ month_label }}</span></div>
+      <div class="counter"><b style="color:var(--amber)">{{ month_late }}</b><span>Terlambat</span></div>
+      <div class="counter"><b style="color:#0f86a3">{{ leave_pending }}</b><span>Izin menunggu</span></div>
+    </div>
+    <div class="row-actions mt"><a class="btn btn-primary btn-sm" href="{% url 'attendance' %}">Buka absensi</a><a class="btn btn-outline btn-sm" href="{% url 'leave_list' %}">Riwayat izin</a></div>
+  </section>
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><div><h2>Ganti kata sandi</h2><p>Minimal 8 karakter, jangan hanya angka.</p></div></div></div>
+    <form method="post">{% csrf_token %}
+      {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+      {% for field in form %}
+        <div class="field" style="margin-bottom:14px">{{ field.label_tag }}{{ field }}{% for e in field.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+      {% endfor %}
+      <button class="btn btn-primary" type="submit">Simpan kata sandi baru</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

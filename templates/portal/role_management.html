@@ -1,0 +1,35 @@
+{% extends "portal/base.html" %}
+{% block title %}Akses & Role{% endblock %}
+{% block crumb %}Akses &amp; Role{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Akses &amp; Role Staf</h1><p>Tetapkan role perusahaan untuk akun staf. Akun dibuat dulu di menu <a class="link" href="/admin/auth/user/">Akun Staf</a>; akun dihubungkan ke data pengguna perusahaan lewat <b>email yang sama</b>.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="/admin/auth/user/add/">+ Buat akun staf</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="grid g-1-1" style="margin-top:0">
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><div><h2>Tetapkan role</h2><p>Satu akun satu role</p></div></div></div>
+    {% if database_error %}<div class="flash error">{{ database_error }}</div>{% elif form %}
+      {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+      <form method="post">{% csrf_token %}
+        <div class="field" style="margin-bottom:14px"><label for="{{ form.staff_user_id.id_for_label }}">{{ form.staff_user_id.label }}</label>{{ form.staff_user_id }}{% for e in form.staff_user_id.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+        <div class="field" style="margin-bottom:14px"><label for="{{ form.role_code.id_for_label }}">{{ form.role_code.label }}</label>{{ form.role_code }}{% for e in form.role_code.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</div>
+        <button class="btn btn-primary" type="submit">Simpan role</button>
+      </form>
+    {% endif %}
+    <div class="note mt small"><b>Hak tiap role:</b><br>
+      Direktur Utama &amp; Manajer — lihat semua data, setujui quotation, setujui izin &amp; rekap absensi.<br>
+      Business Development — klien, quotation, proyek.<br>
+      Business Support — inventaris, rental, serah terima, quotation.<br>
+      Technical Sales — model alat, quotation, penugasan &amp; serah terima alat.</div>
+  </section>
+  <section class="panel flush">
+    <div class="panel-pad ph" style="margin:0"><div class="ph-l"><span class="qi t-green"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg></span><div><h2>Role yang sudah ditetapkan</h2><p>{{ assignments|length }} akun</p></div></div></div>
+    {% if assignments %}
+      <div class="table-wrap"><table class="data"><thead><tr><th>Nama staf</th><th>Email akun</th><th>Role</th></tr></thead><tbody>{% for a in assignments %}<tr><td><b>{{ a.name }}</b></td><td>{{ a.email }}</td><td><span class="st st-DITERBITKAN">{{ a.role }}</span></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<div class="panel-pad"><div class="empty">Belum ada akun yang ditautkan dengan role perusahaan.</div></div>{% endif %}
+  </section>
+</div>
+{% endblock %}

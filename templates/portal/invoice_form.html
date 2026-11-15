@@ -1,0 +1,30 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Buat Invoice{% endblock %}
+{% block crumb %}Invoice{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Buat invoice</h1><p>{% if quote %}Dari quotation <b class="mono">{{ quote.2 }}</b> · {{ quote.3 }} · {{ quote.11 }}{% else %}Invoice dari quotation yang disetujui klien.{% endif %}</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'quotation_list' %}">← Kembali</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:980px">
+  {% if database_error %}<div class="flash error">{{ database_error }}</div>{% endif %}
+  {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="form-grid">
+      {% for field in form %}<div class="field {% if field.name == 'payment_terms' or field.name == 'notes' %}full{% endif %}">
+        {{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+        {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+      </div>{% endfor %}
+    </div>
+    {% if quote %}<div class="sum-box">
+      <div><span>Subtotal</span><b>{{ quote.5|rupiah }}</b></div>
+      {% if quote.8 %}<div><span>{{ quote.6 }} {{ quote.7|floatformat:0 }}%</span><b>{{ quote.8|rupiah }}</b></div>{% endif %}
+      <div class="grand"><span>Total invoice</span><span>{{ quote.9|rupiah }}</span></div>
+    </div>{% endif %}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Simpan draft invoice</button><a class="btn btn-ghost" href="{% url 'quotation_list' %}">Batal</a></div>
+  </form>
+</section>
+{% endblock %}

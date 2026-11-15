@@ -1,0 +1,20 @@
+{% extends "portal/base.html" %}
+{% block title %}Riwayat Alat{% endblock %}
+{% block crumb %}Inventaris Alat{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Riwayat alat keluar</h1>{% if unit %}<p><b>{{ unit.brand|default:"" }} {{ unit.model }}</b> · {{ unit.category }} · Serial: <span class="mono">{{ unit.serial|default:"—" }}</span></p>{% endif %}</div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'inventory' %}">← Kembali ke inventaris</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<section class="panel flush">
+  {% if database_error %}<div class="panel-pad"><div class="flash error">{{ database_error }}</div></div>
+  {% elif exits %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Tanggal keluar</th><th>Nomor rental</th><th>Klien</th><th>Penerima</th></tr></thead>
+      <tbody>{% for item in exits %}<tr><td><b>{{ item.date|date:"d M Y" }}</b><small>{{ item.date|date:"H:i" }}</small></td><td class="mono">{{ item.rental_number }}</td><td>{{ item.client }}</td><td>{{ item.recipient|default:"—" }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  {% else %}<div class="panel-pad"><div class="empty">Belum ada serah-terima keluar yang tercatat untuk unit ini.</div></div>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Rental Alat{% endblock %}
+{% block crumb %}Rental Alat{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Rental Alat</h1><p>Rekap kontrak rental PT Oseana Prawira Persada dan PT Seanav dalam satu halaman.</p></div>
+  <div class="page-actions">
+    <a class="btn btn-outline" href="{% url 'rental_handover' %}">Serah terima / pengembalian</a>
+    <a class="btn btn-primary" href="{% url 'rental_create' %}">+ Buat rental dari invoice</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<form class="toolbar" method="get">
+  <label class="grow" for="rental-search">Cari nomor, klien, atau perusahaan
+    <input id="rental-search" type="search" name="q" value="{{ search }}" placeholder="Contoh: RNT-2026 atau PT Advanced Offshore">
+  </label>
+  <label for="rental-status">Status
+    <select id="rental-status" name="status" onchange="this.form.submit()">
+      <option value="" {% if not status_filter %}selected{% endif %}>Semua status</option>
+      <option value="BERJALAN" {% if status_filter == "BERJALAN" %}selected{% endif %}>Berjalan</option>
+      <option value="SELESAI" {% if status_filter == "SELESAI" %}selected{% endif %}>Selesai</option>
+      <option value="DIBATALKAN" {% if status_filter == "DIBATALKAN" %}selected{% endif %}>Dibatalkan</option>
+      <option value="DIPROSES" {% if status_filter == "DIPROSES" %}selected{% endif %}>Diproses</option>
+    </select>
+  </label>
+  <button class="btn btn-primary" type="submit">Terapkan</button>
+  {% if search or status_filter %}<a class="btn btn-ghost" href="{% url 'rental_list' %}">Reset</a>{% endif %}
+</form>
+<section class="panel flush">
+  {% if database_error %}<div class="panel-pad"><div class="flash error">{{ database_error }}</div></div>
+  {% elif rentals %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Rental</th><th>Klien</th><th>Periode</th><th>Lokasi penggunaan</th><th>Unit</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody>
+        {% for rental in rentals %}
+          <tr>
+            <td><b class="mono">{{ rental.number }}</b> <span class="co">{{ rental.company }}</span>
+              {% if rental.quotation_number %}<small>Quotation: {{ rental.quotation_number }}</small>{% endif %}
+              {% if rental.invoice_number %}<small>Invoice: {{ rental.invoice_number }}</small>{% endif %}</td>
+            <td><b>{{ rental.client }}</b></td>
+            <td style="white-space:nowrap">{{ rental.start|date:"d M Y" }}<small>s.d. {{ rental.end|date:"d M Y" }}</small></td>
+            <td>{{ rental.location|default:"Belum ditandai di peta" }}{% if rental.latitude != None and rental.longitude != None %}<small class="mono">{{ rental.latitude }}, {{ rental.longitude }}</small>{% endif %}</td>
+            <td><b>{{ rental.unit_count }} unit</b><small>{{ rental.units|default:"Belum ada unit"|truncatechars:90 }}</small></td>
+            <td><span class="st st-{{ rental.status }}">{{ rental.status|label }}</span></td>
+            <td>
+              <div class="row-actions">
+                {% if rental.status == "BERJALAN" and rental.unit_count %}<a class="btn btn-red btn-sm" href="{% url 'rental_handover' %}?kind=KEMBALI&amp;rental_id={{ rental.id }}">Catat kembali</a>{% endif %}
+                <a class="btn btn-outline btn-sm" href="{% url 'rental_location_edit' rental.id %}">{% if rental.map_edit %}Tandai lokasi{% else %}Lokasi{% endif %}</a>
+                {% if rental.quotation_id %}<a class="btn btn-ghost btn-sm" href="{% url 'quotation_document' rental.quotation_id %}?format=pdf">Quotation</a>{% endif %}
+                {% if rental.invoice_id %}<a class="btn btn-ghost btn-sm" href="{% url 'invoice_document' rental.invoice_id %}?format=pdf">Invoice</a>{% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  {% elif search or status_filter %}<div class="panel-pad"><div class="empty">Tidak ada rental yang cocok dengan pencarian atau filter ini.</div></div>
+  {% else %}<div class="panel-pad"><div class="empty">Belum ada transaksi rental. Terbitkan invoice dari quotation yang disetujui, lalu klik <b>+ Buat rental dari invoice</b> agar data klien, periode, item, dan tarif terhubung otomatis.<br><a href="{% url 'rental_create' %}">+ Buat rental</a></div></div>{% endif %}
+</section>
+{% endblock %}

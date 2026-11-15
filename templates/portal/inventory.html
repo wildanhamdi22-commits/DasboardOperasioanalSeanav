@@ -1,0 +1,73 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Inventaris Alat{% endblock %}
+{% block crumb %}Inventaris Alat{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Inventaris Alat</h1><p>Pool inventaris rental bersama PT Oseana Prawira Persada dan PT Seanav Maritim Indonesia.</p></div>
+  <div class="page-actions">
+    {% if include_archived %}<a class="btn btn-outline" href="{% url 'inventory' %}?{% if search %}q={{ search|urlencode }}&amp;{% endif %}{% if category %}kategori={{ category|urlencode }}{% endif %}">Sembunyikan arsip</a>{% else %}<a class="btn btn-outline" href="?arsip=1{% if search %}&amp;q={{ search|urlencode }}{% endif %}{% if category %}&amp;kategori={{ category|urlencode }}{% endif %}">Lihat arsip</a>{% endif %}
+    <a class="btn btn-primary" href="{% url 'inventory_add' %}">+ Tambah unit</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<form class="toolbar" method="get" action="">
+  {% if include_archived %}<input type="hidden" name="arsip" value="1">{% endif %}
+  <label class="grow">Cari<input type="search" name="q" value="{{ search }}" placeholder="Model, serial number, OMSN, kode, lokasi…" aria-label="Cari inventaris"></label>
+  <label>Kategori<select name="kategori" aria-label="Filter kategori" onchange="this.form.submit()">
+    <option value="">Semua kategori</option>
+    {% for item in categories %}<option value="{{ item }}" {% if category == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+  </select></label>
+  <button class="btn btn-primary" type="submit">Cari</button>
+  {% if search or category %}<a class="btn btn-ghost" href="{% url 'inventory' %}{% if include_archived %}?arsip=1{% endif %}">Reset</a>{% endif %}
+</form>
+
+<section class="panel flush">
+  {% if database_error %}
+    <div class="panel-pad"><div class="flash error">{{ database_error }}</div></div>
+  {% elif units %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Foto</th><th>Nama alat</th><th>Serial / OMSN</th><th>Kondisi</th><th>Status</th><th>Lokasi</th><th>Riwayat keluar</th><th>Aksi</th></tr></thead>
+      <tbody>
+        {% for unit in units %}
+          <tr>
+            <td>{% if unit.photo_url %}<a href="{{ unit.photo_url }}" target="_blank" rel="noopener"><img class="thumb" src="{{ unit.photo_url }}" alt="Foto {{ unit.model }}" loading="lazy"></a>{% else %}<span class="thumb-empty">—</span>{% endif %}</td>
+            <td style="min-width:220px">
+              <b>{{ unit.display_name }}</b><small>{{ unit.category }}</small>
+              {% if unit.accessories %}
+                <details class="mini"><summary>Kelengkapan ({{ unit.accessories|length }})</summary><ul>{% for accessory in unit.accessories %}<li>{{ accessory }}</li>{% endfor %}</ul></details>
+              {% else %}<small>Kelengkapan belum dicatat</small>{% endif %}
+            </td>
+            <td><span class="mono">{{ unit.serial|default:"—" }}</span><small>OMSN: {{ unit.om_sn|default:"—" }}</small></td>
+            <td>{{ unit.condition|label }}</td>
+            <td><span class="st st-{{ unit.status }}">{{ unit.status|label }}</span></td>
+            <td>{{ unit.location|default:"Belum ditentukan" }}</td>
+            <td><b>{{ unit.exit_count }} kali</b><small>{% if unit.clients %}{{ unit.clients|truncatechars:60 }}{% else %}Belum ada catatan keluar{% endif %}</small><a class="link small" href="{% url 'inventory_history' unit.id %}">Lihat riwayat →</a></td>
+            <td>
+              <div class="row-actions">
+                <a class="btn btn-primary btn-sm" href="{% url 'inventory_edit' unit.id %}">Edit</a>
+                {% if unit.status == "DIARSIPKAN" %}
+                  <form method="post" action="{% url 'inventory_archive' unit.id 'pulihkan' %}">{% csrf_token %}<button class="btn btn-outline btn-sm" type="submit">Pulihkan</button></form>
+                {% elif unit.status == "TERSEDIA" %}
+                  <form method="post" action="{% url 'inventory_archive' unit.id 'arsipkan' %}" data-confirm="Arsipkan unit ini? Riwayat transaksi tetap disimpan.">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Arsipkan</button></form>
+                {% else %}<span class="muted small" title="Unit hanya bisa diarsipkan saat berstatus tersedia">Arsip saat tersedia</span>{% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    <nav class="pagination" aria-label="Halaman inventaris">
+      <span>Menampilkan {{ first_result }}–{{ last_result }} dari {{ total_units }} unit</span>
+      <div class="pg">
+        {% if has_previous %}<a href="?q={{ search|urlencode }}{% if category %}&amp;kategori={{ category|urlencode }}{% endif %}{% if include_archived %}&amp;arsip=1{% endif %}&amp;page={{ previous_page }}">‹ Sebelumnya</a>{% else %}<span class="pg-item off">‹ Sebelumnya</span>{% endif %}
+        <span class="pg-item">{{ page_number }} / {{ page_count }}</span>
+        {% if has_next %}<a href="?q={{ search|urlencode }}{% if category %}&amp;kategori={{ category|urlencode }}{% endif %}{% if include_archived %}&amp;arsip=1{% endif %}&amp;page={{ next_page }}">Berikutnya ›</a>{% else %}<span class="pg-item off">Berikutnya ›</span>{% endif %}
+      </div>
+    </nav>
+  {% else %}
+    <div class="panel-pad"><div class="empty">Belum ada unit alat yang cocok.<br><a href="{% url 'inventory_add' %}">+ Tambah unit</a></div></div>
+  {% endif %}
+</section>
+{% endblock %}

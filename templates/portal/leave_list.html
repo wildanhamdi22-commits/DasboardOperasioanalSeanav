@@ -1,0 +1,54 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Izin & Cuti{% endblock %}
+{% block crumb %}Izin &amp; Cuti{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Izin, Sakit &amp; Cuti</h1><p>{% if approver %}Tinjau dan putuskan pengajuan staf. Pengajuan yang disetujui otomatis tercatat di rekap absensi.{% else %}Ajukan izin, sakit, cuti, atau dinas luar. Atasan akan meninjau pengajuan Anda.{% endif %}</p></div>
+  <div class="page-actions"><a class="btn btn-primary" href="{% url 'leave_create' %}">+ Ajukan izin / cuti</a></div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="tabs">
+  {% if approver %}
+    <a class="{% if scope == 'semua' %}on{% endif %}" href="?lingkup=semua{% if status %}&amp;status={{ status }}{% endif %}">Semua staf{% if pending_all %} ({{ pending_all }} menunggu){% endif %}</a>
+    <a class="{% if scope == 'saya' %}on{% endif %}" href="?lingkup=saya{% if status %}&amp;status={{ status }}{% endif %}">Pengajuan saya</a>
+    <span style="width:1px;background:var(--line);margin:0 4px"></span>
+  {% endif %}
+  <a class="{% if not status %}on{% endif %}" href="?lingkup={{ scope }}">Semua status</a>
+  {% for value, text in status_choices %}<a class="{% if status == value %}on{% endif %}" href="?lingkup={{ scope }}&amp;status={{ value }}">{{ text }}</a>{% endfor %}
+</div>
+<section class="panel flush">
+  {% if items %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr>{% if scope == 'semua' %}<th>Staf</th>{% endif %}<th>Jenis</th><th>Tanggal</th><th>Alasan</th><th>Status</th><th>Aksi</th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      <tr>
+        {% if scope == 'semua' %}<td><b>{{ it.user.get_full_name|default:it.user.username }}</b><small>Diajukan {{ it.dibuat_pada|date:"d M Y H:i" }}</small></td>{% endif %}
+        <td><span class="st st-{{ it.jenis }}">{{ it.get_jenis_display }}</span></td>
+        <td><b>{{ it.tanggal_mulai|date:"d M Y" }}</b>{% if it.tanggal_selesai != it.tanggal_mulai %} – <b>{{ it.tanggal_selesai|date:"d M Y" }}</b>{% endif %}<small>{{ it.jumlah_hari }} hari kalender</small></td>
+        <td style="max-width:320px">{{ it.alasan|linebreaksbr }}{% if it.lampiran %}<br><a class="link small" href="{{ it.lampiran.url }}" target="_blank" rel="noopener">Lihat lampiran</a>{% endif %}</td>
+        <td><span class="st st-{{ it.status }}">{{ it.get_status_display }}</span>{% if it.diputuskan_oleh %}<small>oleh {{ it.diputuskan_oleh.get_full_name|default:it.diputuskan_oleh.username }} · {{ it.diputuskan_pada|date:"d/m H:i" }}</small>{% endif %}{% if it.catatan_keputusan %}<small>“{{ it.catatan_keputusan }}”</small>{% endif %}</td>
+        <td>
+          <div class="row-actions">
+          {% if it.status == 'MENUNGGU' %}
+            {% if approver and it.user_id != request.user.id or approver and request.user.is_superuser %}
+              <form method="post" action="{% url 'leave_decide' it.pk 'setujui' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-green btn-sm" type="submit">Setujui</button></form>
+              <form method="post" action="{% url 'leave_decide' it.pk 'tolak' %}" data-confirm="Tolak pengajuan ini?">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-danger-outline btn-sm" type="submit">Tolak</button></form>
+            {% endif %}
+            {% if it.user_id == request.user.id %}
+              <form method="post" action="{% url 'leave_decide' it.pk 'batalkan' %}" data-confirm="Batalkan pengajuan ini?">{% csrf_token %}<button class="btn btn-outline btn-sm" type="submit">Batalkan</button></form>
+            {% endif %}
+          {% else %}<span class="muted small">—</span>{% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="panel-pad"><div class="empty">Belum ada pengajuan{% if status %} dengan status ini{% endif %}.<br><a href="{% url 'leave_create' %}">+ Ajukan izin / cuti</a></div></div>
+  {% endif %}
+</section>
+{% endblock %}

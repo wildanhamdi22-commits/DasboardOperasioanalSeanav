@@ -1,0 +1,166 @@
+{% extends "portal/base.html" %}
+{% block title %}Buat Quotation{% endblock %}
+{% block crumb %}Quotation{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Buat quotation</h1><p>Penawaran disimpan sebagai draft. Unit inventaris belum dicadangkan pada tahap ini.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'quotation_list' %}">← Kembali</a></div>
+</div>
+{% endblock %}
+{% block content %}
+{% if database_error %}<div class="flash error">{{ database_error }}</div>{% endif %}
+{% if form %}
+<form method="post">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span><div><h2>Informasi penawaran</h2><p>Perusahaan penawar, klien, dan jadwal</p></div></div></div>
+    <div class="form-grid">
+      {% for field in form %}
+        {% if field.name != 'apply_tax' %}
+          <div class="field {% if field.name == 'notes' or field.name == 'client_address' %}full{% endif %}">
+            {{ field.label_tag }}{{ field }}
+            {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+            {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+      <div class="inline-check full">
+        {{ form.apply_tax }}
+        <div>{{ form.apply_tax.label_tag }}{% if form.apply_tax.help_text %}<div class="help">{{ form.apply_tax.help_text }}</div>{% endif %}{% for error in form.apply_tax.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel mt" id="quote-item-formset">
+    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><div><h2>Item quotation</h2><p>Satu alat satu baris. Total baris dan total quotation dihitung otomatis.</p></div></div></div>
+    {% if catalog_error %}<div class="flash warning">Belum dapat membaca katalog alat. Muat ulang halaman atau periksa koneksi database.</div>{% elif not equipment_catalog %}<div class="flash warning">Belum ada model alat aktif di inventaris. Item tetap bisa diisi manual.</div>{% endif %}
+    {{ item_formset.management_form }}
+    {% if item_formset.non_form_errors %}<div class="flash error">{{ item_formset.non_form_errors|join:" " }}</div>{% endif %}
+    <div class="table-wrap">
+      <table class="quote-items-table">
+        <thead><tr><th style="width:44px">No.</th><th style="min-width:280px">Nama alat / deskripsi</th><th style="width:110px">Jumlah unit</th><th style="width:100px">Hari</th><th style="width:160px">Tarif / hari (Rp)</th><th class="num" style="width:150px">Total</th><th style="width:70px"></th></tr></thead>
+        <tbody id="quote-items">
+          {% for item in item_formset %}
+            <tr class="item-row">
+              <td class="row-number mono">{{ forloop.counter }}{% for hidden in item.hidden_fields %}{{ hidden }}{% endfor %}{{ item.DELETE.as_hidden }}{{ item.unit.as_hidden }}</td>
+              <td>
+                <label class="sr-only" for="{{ item.equipment_id.id_for_label }}">Nama alat</label>{{ item.equipment_id }}
+                <label class="sr-only" for="{{ item.description.id_for_label }}">Deskripsi manual</label><div style="margin-top:6px">{{ item.description }}</div>
+                {% for error in item.equipment_id.errors %}<span class="field-error">{{ error }}</span>{% endfor %}{% for error in item.description.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+              </td>
+              <td>{{ item.quantity }}{% for error in item.quantity.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>
+              <td>{{ item.days }}{% for error in item.days.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>
+              <td>{{ item.unit_price }}{% for error in item.unit_price.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>
+              <td class="num"><b class="item-total">Rp 0</b></td>
+              <td><button type="button" class="btn btn-danger-outline btn-sm remove-item">Hapus</button></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" id="add-item" style="margin-top:12px">+ Tambah item</button>
+    <div class="sum-box" aria-live="polite">
+      <div><span>Subtotal</span><b id="quote-subtotal">Rp 0</b></div>
+      <div><span>PPN 11%</span><b id="quote-tax-amount">Rp 0</b></div>
+      <div class="grand"><span>Total quotation</span><span id="quote-grand-total">Rp 0</span></div>
+    </div>
+    <template id="empty-quote-item">
+      <tr class="item-row">
+        <td class="row-number mono"></td>
+        <td>
+          <label class="sr-only" for="id_items-__prefix__-equipment_id">Nama alat</label><select class="equipment-select" name="items-__prefix__-equipment_id" id="id_items-__prefix__-equipment_id"><option value="">Pilih alat inventaris atau isi manual</option></select>
+          <label class="sr-only" for="id_items-__prefix__-description">Deskripsi manual</label><div style="margin-top:6px"><input class="description-input" type="text" name="items-__prefix__-description" maxlength="500" id="id_items-__prefix__-description" placeholder="Deskripsi manual (opsional jika pilih alat)"></div>
+        </td>
+        <td><label class="sr-only" for="id_items-__prefix__-quantity">Jumlah unit</label><input type="number" name="items-__prefix__-quantity" min="0.01" step="0.01" id="id_items-__prefix__-quantity"></td>
+        <td><label class="sr-only" for="id_items-__prefix__-days">Jumlah hari</label><input type="number" name="items-__prefix__-days" min="1" max="3650" step="1" id="id_items-__prefix__-days"></td>
+        <td><label class="sr-only" for="id_items-__prefix__-unit_price">Tarif per hari</label><input type="number" name="items-__prefix__-unit_price" min="0" step="0.01" id="id_items-__prefix__-unit_price"><input type="hidden" name="items-__prefix__-unit" value="unit" id="id_items-__prefix__-unit"></td>
+        <td class="num"><b class="item-total">Rp 0</b></td>
+        <td><input type="hidden" name="items-__prefix__-DELETE" id="id_items-__prefix__-DELETE"><button type="button" class="btn btn-danger-outline btn-sm remove-item">Hapus</button></td>
+      </tr>
+    </template>
+  </section>
+  <div class="form-actions" style="border:0">
+    <button class="btn btn-primary btn-lg" type="submit">Simpan draft quotation</button>
+    <a class="btn btn-ghost" href="{% url 'quotation_list' %}">Batal</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{{ equipment_catalog|json_script:"rental-equipment-catalog" }}
+  <script>
+    (() => {
+      const rows = document.getElementById("quote-items");
+      if (!rows) return;
+      const total = document.getElementById("id_items-TOTAL_FORMS");
+      const template = document.getElementById("empty-quote-item");
+      const taxToggle = document.getElementById("id_apply_tax");
+      const catalog = JSON.parse(document.getElementById("rental-equipment-catalog").textContent);
+      const byId = new Map(catalog.map((item) => [String(item.id), item]));
+      const formatMoney = (amount) => new Intl.NumberFormat("id-ID", {
+        style: "currency", currency: "IDR", maximumFractionDigits: 0,
+      }).format(amount || 0);
+      const addEquipmentOptions = (select) => {
+        catalog.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = `${item.category} · ${item.name}`;
+          select.appendChild(option);
+        });
+      };
+      const updateTotals = () => {
+        let subtotal = 0;
+        rows.querySelectorAll(".item-row:not([hidden])").forEach((row) => {
+          const selector = row.querySelector('select[name$="-equipment_id"]');
+          const description = row.querySelector('input[name$="-description"]');
+          const quantity = row.querySelector('input[name$="-quantity"]');
+          const unit = row.querySelector('input[name$="-unit"]');
+          const price = row.querySelector('input[name$="-unit_price"]');
+          const daysInput = row.querySelector('input[name$="-days"]');
+          const days = Number(daysInput.value) || 0;
+          const equipment = selector ? byId.get(selector.value) : null;
+          if (equipment) {
+            description.value = equipment.name;
+            description.readOnly = true;
+            unit.value = "unit";
+            if (!quantity.value) quantity.value = "1";
+          } else if (selector) {
+            description.readOnly = false;
+            price.readOnly = false;
+          }
+          const lineTotal = (Number(quantity.value) || 0) * days * (Number(price.value) || 0);
+          row.querySelector(".item-total").textContent = formatMoney(lineTotal);
+          subtotal += lineTotal;
+        });
+        const taxAmount = taxToggle.checked ? Math.round(subtotal * 0.11) : 0;
+        document.getElementById("quote-subtotal").textContent = formatMoney(subtotal);
+        document.getElementById("quote-tax-amount").textContent = formatMoney(taxAmount);
+        document.getElementById("quote-grand-total").textContent = formatMoney(subtotal + taxAmount);
+      };
+      rows.addEventListener("input", updateTotals);
+      taxToggle.addEventListener("change", updateTotals);
+      rows.addEventListener("change", (event) => {
+        if (event.target.matches('select[name$="-equipment_id"]')) updateTotals();
+      });
+      document.getElementById("add-item").addEventListener("click", () => {
+        const index = Number(total.value);
+        rows.insertAdjacentHTML("beforeend", template.innerHTML.replaceAll("__prefix__", index));
+        const newRow = rows.lastElementChild;
+        newRow.querySelector(".row-number").textContent = index + 1;
+        addEquipmentOptions(newRow.querySelector('select[name$="-equipment_id"]'));
+        total.value = index + 1;
+        updateTotals();
+      });
+      rows.addEventListener("click", (event) => {
+        if (!event.target.classList.contains("remove-item")) return;
+        const row = event.target.closest(".item-row");
+        const deletion = row.querySelector('input[name$="-DELETE"]');
+        deletion.value = "on";
+        row.hidden = true;
+        updateTotals();
+      });
+      updateTotals();
+    })();
+  </script>
+{% endblock %}

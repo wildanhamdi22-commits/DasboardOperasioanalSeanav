@@ -1,0 +1,24 @@
+# Rahasia & lingkungan lokal
+.env
+.venv/
+.venv*/
+# Python
+__pycache__/
+*.py[cod]
+# Data unggahan & hasil build
+media/
+staticfiles/
+db.sqlite3
+# Backup database & dokumen klien
+backup_*.sql
+*.bak
+*.log
+# Cadangan versi lama (hanya di komputer lokal)
+_cadangan_sebelum_rombak/
+*_lama_backup*
+*.py.txt
+templates/portal/partials/brand_header.html
+templates/portal/partials/main_nav.html
+portal/static/portal/theme.css
+portal/static/portal/rental_location.css
+.venv_laptop_lama_*/

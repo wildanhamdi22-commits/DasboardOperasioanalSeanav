@@ -1,0 +1,174 @@
+{% load static %}<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0b2a4a">
+  <title>{% block title %}Seanav Operations{% endblock %} · Seanav Operations</title>
+  <link rel="icon" href="{% static 'portal/seanav-logo-trim.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  {% block leaflet_css %}{% endblock %}
+  <script>try{if(localStorage.getItem("snv-theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}</script>
+  <link rel="stylesheet" href="{% static 'portal/app.css' %}?v=20261115b">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+{% with b=nav_badges %}
+<aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+  <div class="sb-brand">
+    <span class="logo"><img src="{% static 'portal/seanav-logo-trim.png' %}" alt="Seanav"></span>
+    <div><b>Operations</b><small>Seanav Group</small></div>
+  </div>
+  <a class="sb-profile" href="{% url 'profile' %}" title="Profil saya">
+    <span class="avatar">{{ shell_user_initial }}</span>
+    <div><b>{{ shell_user_name }}</b><small>{{ shell_user_role }}</small><span class="online">Online</span></div>
+  </a>
+
+  <nav class="sb-nav">
+    <div class="sb-label">Menu utama</div>
+    {% if business_access.dashboard %}
+    <a class="sb-link {% if nav_active == 'dashboard' %}on{% endif %}" href="{% url 'dashboard' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+      <span><b>Dashboard</b><small>Ringkasan &amp; analitik</small></span>
+    </a>
+    {% endif %}
+    <a class="sb-link {% if nav_active == 'attendance' %}on{% endif %}" href="{% url 'attendance' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      <span><b>Absensi</b><small>Masuk &amp; pulang</small></span>
+    </a>
+
+    {% if business_access.inventory or business_access.quotation or business_access.invoice or business_access.rental or business_access.project %}
+    <div class="sb-label">Operasional</div>
+    {% endif %}
+    {% if business_access.inventory %}
+    <a class="sb-link {% if nav_active == 'inventory' %}on{% endif %}" href="{% url 'inventory' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span>
+      <span><b>Inventaris Alat</b><small>Unit, S/N &amp; kondisi</small></span>
+      <span class="badge green">{{ b.units }}</span>
+    </a>
+    {% endif %}
+    {% if business_access.quotation %}
+    <a class="sb-link {% if nav_active == 'quotation' %}on{% endif %}" href="{% url 'quotation_list' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></span>
+      <span><b>Quotation</b><small>Penawaran klien</small></span>
+      {% if b.quotations %}<span class="badge">{{ b.quotations }}</span>{% endif %}
+    </a>
+    {% endif %}
+    {% if business_access.invoice %}
+    <a class="sb-link {% if nav_active == 'invoice' %}on{% endif %}" href="{% url 'invoice_list' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>
+      <span><b>Invoice</b><small>Penagihan &amp; pembayaran</small></span>
+      {% if b.invoices_overdue %}<span class="badge red">{{ b.invoices_overdue }}</span>{% elif b.invoices_open %}<span class="badge">{{ b.invoices_open }}</span>{% endif %}
+    </a>
+    {% endif %}
+    {% if business_access.rental %}
+    <a class="sb-link {% if nav_active == 'rental' %}on{% endif %}" href="{% url 'rental_list' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span>
+      <span><b>Rental Alat</b><small>Kontrak sewa</small></span>
+      {% if b.rentals %}<span class="badge">{{ b.rentals }}</span>{% endif %}
+    </a>
+    <a class="sb-link {% if nav_active == 'handover' %}on{% endif %}" href="{% url 'rental_handover' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l-4-4 4-4"/><path d="M3 13h13"/><path d="M17 7l4 4-4 4"/></svg></span>
+      <span><b>Serah Terima</b><small>Alat keluar &amp; kembali</small></span>
+    </a>
+    {% endif %}
+    {% if business_access.project %}
+    <a class="sb-link {% if nav_active == 'project' %}on{% endif %}" href="{% url 'project_list' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+      <span><b>Rekap Proyek</b><small>Proyek &amp; peta</small></span>
+      {% if b.projects %}<span class="badge">{{ b.projects }}</span>{% endif %}
+    </a>
+    {% endif %}
+
+    <div class="sb-label">SDM</div>
+    <a class="sb-link {% if nav_active == 'leave' %}on{% endif %}" href="{% url 'leave_list' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 15l2 2 4-4"/></svg></span>
+      <span><b>Izin &amp; Cuti</b><small>{% if can_approve_attendance %}Persetujuan{% else %}Pengajuan saya{% endif %}</small></span>
+      {% if b.leave_pending %}<span class="badge {% if can_approve_attendance %}red{% endif %}">{{ b.leave_pending }}</span>{% endif %}
+    </a>
+    {% if can_approve_attendance %}
+    <a class="sb-link {% if nav_active == 'attendance_report' %}on{% endif %}" href="{% url 'attendance_report' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-6"/></svg></span>
+      <span><b>Rekap Absensi</b><small>Laporan &amp; ekspor</small></span>
+    </a>
+    {% endif %}
+
+    {% if request.user.is_superuser %}
+    <div class="sb-label">Administrasi</div>
+    <a class="sb-link {% if nav_active == 'roles' %}on{% endif %}" href="{% url 'role_management' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+      <span><b>Akses &amp; Role</b><small>Hak akses staf</small></span>
+    </a>
+    <a class="sb-link" href="/admin/">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
+      <span><b>Akun Staf</b><small>Admin Django</small></span>
+    </a>
+    {% endif %}
+  </nav>
+
+  <div class="sb-status">
+    <div><span>Database</span>{% if shell_db_ok %}<span class="dot ok">Terhubung</span>{% else %}<span class="dot bad">Gangguan</span>{% endif %}</div>
+    <div><span>Waktu server</span><span class="dot info mono">{% now "H:i" %}</span></div>
+  </div>
+  <div class="sb-foot">
+    <a class="sb-link {% if nav_active == 'profile' %}on{% endif %}" href="{% url 'profile' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
+      <span><b>Profil Saya</b><small>Akun &amp; kata sandi</small></span>
+    </a>
+    <a class="sb-link" href="{% url 'landing' %}">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>
+      <span><b>Halaman Utama</b><small>Website perusahaan</small></span>
+    </a>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+      <button class="sb-link logout" type="submit">
+        <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></span>
+        <span><b>Keluar</b><small>Akhiri sesi</small></span>
+      </button>
+    </form>
+  </div>
+</aside>
+<div class="scrim" id="scrim"></div>
+
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Buka menu"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <form class="search" id="search" role="search">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="search" name="q" placeholder="Cari alat, nomor seri, rental, klien…" aria-label="Cari">
+      <select name="scope" aria-label="Cari di">
+        {% if business_access.inventory %}<option value="{% url 'inventory' %}">Inventaris</option>{% endif %}
+        {% if business_access.rental %}<option value="{% url 'rental_list' %}">Rental</option>{% endif %}
+      </select>
+    </form>
+    <div class="top-actions">
+      <a class="btn btn-sm btn-primary hide-sm" href="{% url 'attendance' %}" title="Absen sekarang"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Absen</a>
+      <button class="icon-btn" id="theme-btn" type="button" aria-label="Ganti tema terang/gelap" title="Tema terang/gelap"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      {% if business_access.dashboard %}
+      <a class="icon-btn" href="{% url 'dashboard' %}#peringatan" aria-label="Peringatan" title="Peringatan &amp; tindakan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>{% if b.alerts %}<span class="count">{{ b.alerts }}</span>{% endif %}</a>
+      {% endif %}
+      <a class="user-chip" href="{% url 'profile' %}"><div><b>{{ shell_user_name }}</b><small>{{ shell_user_role }}</small></div><span class="avatar">{{ shell_user_initial }}</span></a>
+    </div>
+  </header>
+
+  <main class="content">
+    {% block breadcrumb %}<div class="crumb"><span><b>{% block crumb %}{% endblock %}</b> · Seanav Operations</span><span class="upd">{% now "l, d F Y" %}</span></div>{% endblock %}
+    {% block page_head %}{% endblock %}
+    {% if messages %}
+      {% for message in messages %}<div class="flash {% if message.tags %}{{ message.tags }}{% endif %}" role="status">{{ message }}</div>{% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="foot">
+    <span><b>Seanav Operations</b> · Portal internal PT Oseana Prawira Persada &amp; PT Seanav Maritim Indonesia</span>
+    <span><a href="{% url 'landing' %}">Website</a> · © {% now "Y" %} Seanav Group · {% if shell_db_ok %}<span class="dot ok">Sistem normal</span>{% else %}<span class="dot bad">Database gangguan</span>{% endif %}</span>
+  </footer>
+</div>
+{% endwith %}
+<script src="{% static 'portal/app.js' %}?v=20261115b"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,10 @@
+{% load static %}<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ code }} · {{ title }} · Seanav Operations</title>
+<link rel="stylesheet" href="{% static 'portal/app.css' %}">
+<style>body{display:grid;place-items:center;min-height:100vh;padding:24px}.box{max-width:560px;text-align:center;padding:40px 32px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}.code{font-size:64px;font-weight:800;letter-spacing:-.04em;background:linear-gradient(90deg,#174b7d,#c8102e);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1}h1{margin:12px 0 0;font-size:22px;color:var(--ink)}p{margin:10px 0 24px;color:var(--muted);line-height:1.6}.box img{height:34px;margin-bottom:22px}.acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}</style>
+</head><body><div class="box">
+<img src="{% static 'portal/seanav-logo-trim.png' %}" alt="Seanav">
+<div class="code">{{ code }}</div><h1>{{ title }}</h1><p>{{ message }}</p>
+<div class="acts"><a class="btn btn-primary" href="/dashboard/">Ke dashboard</a><a class="btn btn-outline" href="/">Halaman utama</a></div>
+</div></body></html>

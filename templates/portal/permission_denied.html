@@ -1,0 +1,13 @@
+{% extends "portal/base.html" %}
+{% block title %}Akses Dibatasi{% endblock %}
+{% block crumb %}Akses dibatasi{% endblock %}
+{% block content %}
+<section class="state">
+  <div>
+    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+    <h1>{% if database_error %}Role belum dapat diperiksa{% else %}Akses halaman belum diberikan{% endif %}</h1>
+    <p>{% if database_error %}Terjadi kendala saat membaca hak akses. Coba lagi setelah koneksi database pulih.{% else %}Akun <b>{{ request.user.get_full_name|default:request.user.username }}</b> belum memiliki izin <b>{{ action }}</b> untuk bagian <b>{{ source }}</b>. Minta administrator menetapkan role sesuai bagian pekerjaan Anda.{% endif %}</p>
+    <div class="page-actions"><a class="btn btn-primary" href="{% url 'attendance' %}">Ke absensi</a>{% if request.user.is_superuser %}<a class="btn btn-outline" href="{% url 'role_management' %}">Kelola role staf</a>{% endif %}</div>
+  </div>
+</section>
+{% endblock %}

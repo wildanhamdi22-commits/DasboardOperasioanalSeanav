@@ -1,0 +1,49 @@
+# Jalankan di VPS: docker compose up -d   (isi .env dulu — lihat README)
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-seanav}
+      POSTGRES_USER: ${DB_USER:-seanav}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Isi DB_PASSWORD di .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-seanav} -d ${DB_NAME:-seanav}"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-seanav}:${DB_PASSWORD}@db:5432/${DB_NAME:-seanav}
+      DJANGO_DEBUG: "False"
+      DJANGO_SECURE_SSL_REDIRECT: "False"   # HTTPS ditangani Caddy
+    volumes:
+      - media:/app/media
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [web]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:

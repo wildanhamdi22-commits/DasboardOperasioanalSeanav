@@ -1,0 +1,76 @@
+{% extends "portal/base.html" %}
+{% load portal_extras l10n %}
+{% block title %}Rekap Proyek{% endblock %}
+{% block crumb %}Rekap Proyek{% endblock %}
+{% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Rekap Proyek</h1><p>Lokasi proyek dan alat rental yang sedang ditugaskan di setiap area.</p></div>
+  <div class="page-actions">
+    {% if include_archived %}<a class="btn btn-outline" href="{% url 'project_list' %}">Sembunyikan arsip</a>{% else %}<a class="btn btn-outline" href="?arsip=1">Lihat arsip</a>{% endif %}
+    <a class="btn btn-primary" href="{% url 'project_create' %}">+ Tambah proyek</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+{% if database_error %}<div class="flash error">{{ database_error }}</div>{% else %}
+<section class="panel">
+  <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4z"/><path d="M8 2v16M16 6v16"/></svg></span><div><h2>Peta proyek &amp; penggunaan alat</h2><p>Klik kartu proyek untuk memusatkan peta. Titik tanpa koordinat tidak muncul.</p></div></div></div>
+  <div id="project-map" class="map-box" role="application" aria-label="Peta proyek"></div>
+  <div class="map-legend"><span><i style="background:#2a81cb"></i>Lokasi proyek</span><span><i style="background:#c8102e"></i>Rental berjalan</span><span><i style="background:#16a3c4"></i>Rental selesai</span></div>
+</section>
+
+<section class="panel mt">
+  <div class="ph"><div class="ph-l"><span class="qi t-sand"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div><h2>Daftar proyek</h2><p>{{ projects|length }} proyek</p></div></div></div>
+  {% if projects %}
+    <div class="cards">
+      {% for project in projects %}
+        <article class="item-card project-card" {% if project.latitude != None and project.longitude != None %}data-project-lat="{{ project.latitude|unlocalize }}" data-project-lng="{{ project.longitude|unlocalize }}" data-project-id="{{ project.id }}" style="cursor:pointer"{% endif %}>
+          <div class="ic-head"><div><div class="code">{{ project.company }} · {{ project.code }}</div><h3>{{ project.name }}</h3></div><span class="st st-{{ project.status }}">{{ project.status|label }}</span></div>
+          <dl>
+            <dt>Klien</dt><dd>{{ project.client }}</dd>
+            <dt>Layanan</dt><dd>{{ project.service }}</dd>
+            <dt>Lokasi</dt><dd>{{ project.location|default:"Belum diisi" }}</dd>
+            <dt>Koordinat</dt><dd class="mono small">{% if project.latitude != None and project.longitude != None %}{{ project.latitude }}, {{ project.longitude }}{% else %}Belum ditandai{% endif %}</dd>
+            <dt>Periode</dt><dd>{{ project.start|date:"d M Y"|default:"-" }} – {{ project.end|date:"d M Y"|default:"-" }}</dd>
+          </dl>
+          <div class="note small" style="margin:14px 0 0">
+            <b>Alat rental aktif</b>
+            {% if project.equipment %}<ul style="margin:6px 0 0;padding-left:16px">{% for item in project.equipment %}<li>{{ item.name }} · S/N {{ item.serial }} · {{ item.rental_number }}</li>{% endfor %}</ul>{% else %}<div class="muted">Belum ada unit rental aktif yang ditautkan.</div>{% endif %}
+          </div>
+          <div class="ic-foot">
+            <a class="btn btn-primary btn-sm" href="{% url 'project_edit' project.id %}">Edit proyek / alat</a>
+            {% if project.status == "DIARSIPKAN" %}
+              <form method="post" action="{% url 'project_archive' project.id 'pulihkan' %}">{% csrf_token %}<button class="btn btn-outline btn-sm" type="submit">Pulihkan</button></form>
+            {% else %}
+              <form method="post" action="{% url 'project_archive' project.id 'arsipkan' %}" data-confirm="Arsipkan proyek ini? Riwayat proyek tetap disimpan.">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Arsipkan</button></form>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}<div class="empty">Belum ada proyek. Tambahkan proyek untuk menyimpan lokasi, menandai titik di peta, dan menautkan alat rental di area tersebut.<br><a href="{% url 'project_create' %}">+ Tambah proyek</a></div>{% endif %}
+</section>
+
+<section class="panel flush mt">
+  <div class="panel-pad ph" style="margin:0"><div class="ph-l"><span class="qi t-red"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span><div><h2>Riwayat wilayah penggunaan alat</h2><p>{{ rental_usages|length }} rental berjalan/selesai yang sudah ditandai lokasinya</p></div></div></div>
+  {% if rental_usages %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Rental</th><th>Klien &amp; lokasi</th><th>Periode</th><th>Alat</th><th></th></tr></thead>
+      <tbody>{% for rental in rental_usages %}
+        <tr><td><b class="mono">{{ rental.number }}</b><br><span class="st st-{{ rental.status }}">{{ rental.status|label }}</span></td>
+          <td><b>{{ rental.client }}</b><small>{{ rental.location }}</small></td>
+          <td style="white-space:nowrap">{{ rental.start|date:"d M Y" }}<small>s.d. {{ rental.end|date:"d M Y" }}</small></td>
+          <td class="small">{{ rental.units|truncatechars:90 }}</td>
+          <td><a class="btn btn-outline btn-sm" href="{{ rental.edit_url }}">Lokasi</a></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  {% else %}<div class="panel-pad"><div class="empty">Belum ada lokasi rental yang ditandai. Tandai lokasi penggunaan pada transaksi Rental Alat agar muncul di peta.</div></div>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{{ project_map_data|json_script:"project-map-data" }}
+  {{ rental_map_data|json_script:"rental-map-data" }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
