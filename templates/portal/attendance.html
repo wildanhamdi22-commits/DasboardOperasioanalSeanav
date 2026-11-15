@@ -158,7 +158,7 @@
   let stream = null;
   const stop = () => { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } };
   startBtn.addEventListener("click", async () => {
-    if (!secure || !navigator.mediaDevices) { msg.textContent = "Kamera hanya tersedia lewat https:// atau localhost."; return; }
+    if (!secure || !navigator.mediaDevices) { msg.innerHTML = "Kamera &amp; GPS hanya bisa lewat <b>https://</b> atau localhost.<br>Buka alamat <b>https://" + location.hostname + ":8443" + location.pathname + "</b> (jalankan server HTTPS di laptop server)."; return; }
     try {
       stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: "user", width: {ideal: 960}}, audio: false});
       video.srcObject = stream; video.hidden = false; preview.hidden = true; msg.hidden = true;
