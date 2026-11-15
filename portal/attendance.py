@@ -26,6 +26,7 @@ from django.utils._os import safe_join
 from django.views.decorators.http import require_POST
 
 from .models import Absensi, PengajuanIzin
+from portal.utm import fmt_utm, parse_utm
 
 BULAN = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
          "Agustus", "September", "Oktober", "November", "Desember"]
@@ -102,14 +103,35 @@ def _haversine_m(lat1, lng1, lat2, lng2):
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def _office():
+def _offices():
+    """Semua titik absensi aktif: [{id, nama, lat, lng, r}]. Fallback ke .env bila tabel kosong."""
+    rows = []
     try:
-        lat = float(_setting("KANTOR_LAT", ""))
-        lng = float(_setting("KANTOR_LNG", ""))
-        radius = int(_setting("KANTOR_RADIUS_M", 200))
-        return lat, lng, radius
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id, nama, latitude, longitude, radius_m FROM titik_absensi WHERE aktif ORDER BY id")
+            rows = [{"id": r[0], "nama": r[1], "lat": float(r[2]), "lng": float(r[3]), "r": int(r[4])}
+                    for r in cursor.fetchall()]
+    except DatabaseError:
+        rows = []
+    for row in rows:
+        row["utm"] = fmt_utm(row["lat"], row["lng"])
+    if rows:
+        return rows
+    try:
+        lat, lng = float(_setting("KANTOR_LAT", "")), float(_setting("KANTOR_LNG", ""))
+        return [{"id": None, "nama": "Kantor", "lat": lat, "lng": lng, "utm": fmt_utm(lat, lng),
+                 "r": int(_setting("KANTOR_RADIUS_M", 200))}]
     except (TypeError, ValueError):
-        return None
+        return []
+
+
+def _nearest_office(lat, lng):
+    best = None
+    for o in _offices():
+        d = _haversine_m(lat, lng, o["lat"], o["lng"])
+        if best is None or d < best[1]:
+            best = (o, d)
+    return best
 
 
 def _decimal(value, lo, hi):
@@ -123,15 +145,15 @@ def _decimal(value, lo, hi):
 def _location_label(lat, lng):
     if lat is None or lng is None:
         return "Lokasi tidak tersedia"
-    office = _office()
-    if not office:
+    near = _nearest_office(float(lat), float(lng))
+    if not near:
         return "Lokasi tercatat"
-    dist = _haversine_m(float(lat), float(lng), office[0], office[1])
-    if dist <= office[2]:
-        return f"Di kantor ({int(dist)} m)"
-    if dist < 1000:
-        return f"Di luar kantor ({int(dist)} m)"
-    return f"Di luar kantor ({dist / 1000:.1f} km)"
+    office, dist = near
+    pos = fmt_utm(lat, lng)
+    if dist <= office["r"]:
+        return f"Di {office['nama']} ({int(dist)} m) · {pos}"[:200]
+    jarak = f"{int(dist)} m" if dist < 1000 else f"{dist / 1000:.1f} km"
+    return f"Di luar kantor ({jarak} dari {office['nama']}) · {pos}"[:200]
 
 
 def _photo_from_data_url(data_url, user_id, kind):
@@ -297,11 +319,12 @@ def attendance(request):
         d += timedelta(days=1)
 
     history = Absensi.objects.filter(user=user).order_by("-tanggal")[:10]
-    office = _office()
+    offices = _offices()
     return render(request, "portal/attendance.html", {
         "record": record, "today": today, "hari": HARI[today.weekday()], "bulan": BULAN[today.month],
         "jam_masuk_kantor": jam_masuk_kantor(), "toleransi": _setting("ABSENSI_TOLERANSI_MENIT", 15),
-        "require_photo": require_photo, "office": office, "calendar": cal, "stats": stats,
+        "require_photo": require_photo, "offices": offices,
+        "offices_json": __import__("json").dumps(offices).replace("<", "\\u003c").replace(">", "\\u003e"), "calendar": cal, "stats": stats,
         "history": history, "day_names": [h[:3] for h in HARI],
         "pending_leave": PengajuanIzin.objects.filter(user=user, status=PengajuanIzin.MENUNGGU).count(),
     })
@@ -579,3 +602,81 @@ def protected_media(request, path):
     response["X-Content-Type-Options"] = "nosniff"
     response["Cache-Control"] = "private, max-age=3600"
     return response
+
+
+# ---------------------------------------------------------------- titik lokasi absensi
+def parse_maps_coordinates(text):
+    """Ambil (lat, lng) dari link Google Maps atau teks '-6.2, 106.8'. Link pendek diikuti redirect-nya."""
+    import re
+    import urllib.parse
+    import urllib.request
+
+    text = (text or "").strip()
+    if not text:
+        return None
+    candidates = [text]
+    if re.match(r"https?://(maps\.app\.goo\.gl|goo\.gl|g\.co)/", text):
+        try:
+            req = urllib.request.Request(text, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                candidates.insert(0, resp.geturl())
+        except Exception:
+            pass
+    patterns = [r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", r"@(-?\d+\.\d+),(-?\d+\.\d+)",
+                r"[?&](?:q|query|ll|destination)=(-?\d+\.\d+),\s*(-?\d+\.\d+)",
+                r"^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$"]
+    for c in candidates:
+        c = urllib.parse.unquote(c)
+        for pat in patterns:
+            m = re.search(pat, c)
+            if m:
+                lat, lng = float(m.group(1)), float(m.group(2))
+                if -90 <= lat <= 90 and -180 <= lng <= 180:
+                    return lat, lng
+    return None
+
+
+def attendance_locations(request):
+    if not request.user.is_authenticated:
+        return redirect("login")
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    if request.method == "POST":
+        action = request.POST.get("action")
+        with connection.cursor() as cursor:
+            if action == "delete":
+                cursor.execute("DELETE FROM titik_absensi WHERE id = %s", [request.POST.get("id")])
+                messages.success(request, "Titik lokasi dihapus.")
+            elif action == "toggle":
+                cursor.execute("UPDATE titik_absensi SET aktif = NOT aktif WHERE id = %s", [request.POST.get("id")])
+            else:
+                nama = (request.POST.get("nama") or "").strip()[:120]
+                coords = None
+                lat, lng = request.POST.get("lat"), request.POST.get("lng")
+                if lat and lng:
+                    try:
+                        coords = (float(lat), float(lng))
+                    except ValueError:
+                        coords = None
+                if not coords:
+                    coords = parse_utm(request.POST.get("utm"))
+                if not coords:
+                    coords = parse_maps_coordinates(request.POST.get("link"))
+                try:
+                    radius = max(20, min(5000, int(request.POST.get("radius") or 150)))
+                except ValueError:
+                    radius = 150
+                if not nama or not coords:
+                    messages.error(request, "Isi nama lokasi dan Easting/Northing, link Google Maps, atau koordinat yang valid "
+                                            "(atau tekan \"Pakai lokasi saya sekarang\").")
+                else:
+                    cursor.execute(
+                        "INSERT INTO titik_absensi (nama, latitude, longitude, radius_m) VALUES (%s, %s, %s, %s)",
+                        [nama, round(coords[0], 7), round(coords[1], 7), radius])
+                    messages.success(request, f"Titik \"{nama}\" ditambahkan: {fmt_utm(*coords)}.")
+        return redirect("attendance_locations")
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT id, nama, latitude, longitude, radius_m, aktif FROM titik_absensi ORDER BY id")
+        items = [{"id": r[0], "nama": r[1], "lat": float(r[2]), "lng": float(r[3]), "r": r[4], "aktif": r[5],
+                  "utm": fmt_utm(r[2], r[3])} for r in cursor.fetchall()]
+    return render(request, "portal/attendance_locations.html", {"items": items})

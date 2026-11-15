@@ -94,6 +94,7 @@ urlpatterns = [
     # ---------------- SDM: absensi, izin/cuti, rekap, profil
     path("absensi/", sdm.attendance, name="attendance"),
     path("absensi/rekap/", sdm.attendance_report, name="attendance_report"),
+    path("absensi/lokasi-kantor/", sdm.attendance_locations, name="attendance_locations"),
     path("absensi/rekap/ekspor/", sdm.attendance_export, name="attendance_export"),
     path("izin/", sdm.leave_list, name="leave_list"),
     path("izin/ajukan/", sdm.leave_create, name="leave_create"),

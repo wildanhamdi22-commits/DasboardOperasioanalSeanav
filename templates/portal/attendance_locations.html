@@ -1,0 +1,97 @@
+{% extends "portal/base.html" %}
+{% block title %}Lokasi Kantor Absensi{% endblock %}
+{% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Lokasi kantor untuk absensi</h1>
+  <p class="muted">Absensi dalam radius salah satu titik ini tercatat "Di kantor". Di luar semua titik tercatat sebagai lapangan.</p></div>
+  <a class="btn btn-outline" href="{% url 'attendance' %}">Kembali ke absensi</a>
+</div>
+
+<div class="grid-2 wide-left">
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><div><h2>Titik terdaftar</h2><p>{{ items|length }} lokasi</p></div></div></div>
+    {% if items %}
+    <div id="loc-map" style="height:300px;border-radius:14px;margin-bottom:16px"></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Nama</th><th>Koordinat (UTM)</th><th>Radius</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for it in items %}
+        <tr>
+          <td><b>{{ it.nama }}</b></td>
+          <td class="small"><a href="https://www.google.com/maps?q={{ it.lat|stringformat:'.7f' }},{{ it.lng|stringformat:'.7f' }}" target="_blank" rel="noopener">{{ it.utm }}</a><br><span class="muted">{{ it.lat|stringformat:".6f" }}, {{ it.lng|stringformat:".6f" }}</span></td>
+          <td>{{ it.r }} m</td>
+          <td>{% if it.aktif %}<span class="st st-AKTIF">Aktif</span>{% else %}<span class="st">Nonaktif</span>{% endif %}</td>
+          <td class="row-actions">
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ it.id }}"><button class="btn btn-outline btn-sm">{% if it.aktif %}Nonaktifkan{% else %}Aktifkan{% endif %}</button></form>
+            <form method="post" onsubmit="return confirm('Hapus titik {{ it.nama|escapejs }}?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ it.id }}"><button class="btn btn-outline btn-sm" style="color:var(--red)">Hapus</button></form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="muted">Belum ada titik. Tambahkan lokasi kantor di samping.</p>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><div><h2>Tambah lokasi</h2><p>Kantor, workshop, gudang, atau site</p></div></div></div>
+    <form method="post" id="loc-form">{% csrf_token %}
+      <input type="hidden" name="action" value="add">
+      <input type="hidden" name="lat" id="l-lat"><input type="hidden" name="lng" id="l-lng">
+      <div class="field"><label>Nama lokasi *</label><input class="input" name="nama" required placeholder="Workshop Office - Tebet"></div>
+      <div class="field"><label>Easting / Northing (UTM)</label>
+        <input class="input" name="utm" id="l-utm" placeholder="E 704215  N 9311837  (zona 48S, otomatis untuk Jakarta)">
+        <p class="help">Tulis Easting lalu Northing dalam meter, misalnya <code>704215, 9311837</code>. Zona lain: awali dengan zona, contoh <code>49S 250000 9200000</code>.</p></div>
+      <div class="field"><label>atau Link Google Maps / lintang-bujur</label>
+        <input class="input" name="link" id="l-link" placeholder="https://maps.app.goo.gl/... atau -6.2290, 106.8530">
+        <p class="help">Di Google Maps: tekan lama titik lokasi → salin koordinat yang muncul, atau Bagikan → Salin link.</p></div>
+      <div class="field"><button type="button" class="btn btn-outline" id="use-here">📍 Pakai lokasi saya sekarang</button>
+        <p class="help" id="here-msg">Paling akurat: tekan tombol ini saat Anda berdiri di lokasi tersebut (butuh https/localhost).</p></div>
+      <div class="field"><label>Radius (meter)</label><input class="input" type="number" name="radius" value="250" min="20" max="5000">
+        <p class="help">Saran: 150–300 m. GPS HP di dalam ruangan bisa meleset 20–80 m; lokasi laptop (berbasis WiFi) bisa meleset hingga ratusan meter.</p></div>
+      <button class="btn btn-primary" type="submit">Simpan lokasi</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ block.super }}
+{{ items|json_script:"loc-items" }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  const el = document.getElementById("loc-map");
+  if (!el || !window.L) { if (el) el.remove(); return; }
+  const items = JSON.parse(document.getElementById("loc-items").textContent);
+  const map = L.map(el, {scrollWheelZoom: false}).setView([-6.22, 106.83], 12);
+  if (window.SeanavBasemap) window.SeanavBasemap(map);
+  const b = [];
+  items.forEach(it => {
+    const c = L.circle([it.lat, it.lng], {radius: it.r, color: it.aktif ? "#c8102e" : "#94a3b8", weight: 2, fillOpacity: .15}).addTo(map);
+    L.circleMarker([it.lat, it.lng], {radius: 6, color: "#fff", weight: 2, fillColor: "#17365d", fillOpacity: 1}).addTo(map).bindTooltip(it.nama, {permanent: true, direction: "top", offset: [0, -6]});
+    b.push(c.getBounds());
+  });
+  if (b.length) map.fitBounds(b.reduce((a, x) => a.extend(x)), {padding: [30, 30], maxZoom: 17});
+})();
+</script>
+<script>
+(function () {
+  const btn = document.getElementById("use-here"), msg = document.getElementById("here-msg");
+  btn.addEventListener("click", () => {
+    if (!window.isSecureContext || !navigator.geolocation) { msg.textContent = "GPS hanya tersedia lewat https:// atau localhost."; return; }
+    msg.textContent = "Mengambil lokasi…";
+    navigator.geolocation.getCurrentPosition((p) => {
+      const {latitude, longitude, accuracy} = p.coords;
+      document.getElementById("l-lat").value = latitude.toFixed(7);
+      document.getElementById("l-lng").value = longitude.toFixed(7);
+      document.getElementById("l-link").value = latitude.toFixed(6) + ", " + longitude.toFixed(6);
+      document.getElementById("l-utm").value = "";
+      msg.textContent = `Lokasi didapat (akurasi ±${Math.round(accuracy)} m). Isi nama lalu Simpan.`;
+    }, (e) => { msg.textContent = e.code === 1 ? "Izin lokasi ditolak browser." : "Lokasi belum didapat, coba lagi."; },
+    {enableHighAccuracy: true, timeout: 20000, maximumAge: 0});
+  });
+  document.getElementById("l-utm").addEventListener("input", () => { document.getElementById("l-lat").value = ""; document.getElementById("l-lng").value = ""; });
+  document.getElementById("l-link").addEventListener("input", () => { document.getElementById("l-lat").value = ""; document.getElementById("l-lng").value = ""; });
+})();
+</script>
+{% endblock %}

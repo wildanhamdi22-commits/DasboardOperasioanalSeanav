@@ -75,6 +75,7 @@ _NAV_GROUPS = {
     "attendance": {"attendance"},
     "leave": {"leave_list", "leave_create", "leave_decide"},
     "attendance_report": {"attendance_report", "attendance_export"},
+    "attendance_locations": {"attendance_locations"},
     "roles": {"role_management"},
     "profile": {"profile"},
 }

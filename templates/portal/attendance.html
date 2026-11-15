@@ -71,7 +71,7 @@
       {% if record.foto_pulang %}<a class="btn btn-outline btn-sm" href="{{ record.foto_pulang.url }}" target="_blank" rel="noopener">Foto pulang</a>{% endif %}
     </div>
     {% endif %}
-    {% if office %}<p class="help" style="margin-top:14px">Titik kantor: {{ office.0|floatformat:5 }}, {{ office.1|floatformat:5 }} · radius {{ office.2 }} m.</p>{% endif %}
+    {% if offices %}<p class="help" style="margin-top:14px">Titik kantor: {% for o in offices %}<b>{{ o.nama }}</b> — {{ o.utm }}, radius {{ o.r }} m{% if not forloop.last %}<br>{% endif %}{% endfor %}{% if request.user.is_superuser %} · <a href="{% url 'attendance_locations' %}">atur lokasi</a>{% endif %}</p>{% endif %}
 
     <div class="counters four" style="margin-top:18px">
       <div class="counter"><b style="color:var(--green)">{{ stats.hadir }}</b><span>Hadir</span></div>
@@ -130,7 +130,18 @@
 
   /* ---- GPS ---- */
   const geo = document.getElementById("geo"), geoText = document.getElementById("geo-text");
-  const office = {% if office %}{% localize off %}{lat: {{ office.0 }}, lng: {{ office.1 }}, r: {{ office.2 }}}{% endlocalize %}{% else %}null{% endif %};
+  const offices = {{ offices_json|safe }};
+  const toUtm = (lat, lng) => { /* WGS84 -> UTM (Transverse Mercator) */
+    const a = 6378137, f = 1 / 298.257223563, e2 = f * (2 - f), ep2 = e2 / (1 - e2), k0 = 0.9996, r = x => x * Math.PI / 180;
+    const zone = Math.floor((lng + 180) / 6) + 1, lon0 = r((zone - 1) * 6 - 180 + 3), phi = r(lat);
+    const N = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2), T = Math.tan(phi) ** 2, C = ep2 * Math.cos(phi) ** 2, A = Math.cos(phi) * (r(lng) - lon0);
+    const M = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * phi - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * phi)
+      + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * phi) - (35 * e2 ** 3 / 3072) * Math.sin(6 * phi));
+    const E = k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120) + 500000;
+    let Nn = k0 * (M + N * Math.tan(phi) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
+    if (lat < 0) Nn += 10000000;
+    const d = v => Math.round(v).toLocaleString("id-ID");
+    return `E ${d(E)} · N ${d(Nn)} (UTM ${zone}${lat < 0 ? "S" : "N"})`; };
   const dist = (a, b, c, d) => { const R = 6371000, r = x => x * Math.PI / 180;
     const h = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
   if (!("geolocation" in navigator) || !secure) {
@@ -142,8 +153,14 @@
       document.getElementById("f-lng").value = longitude.toFixed(7);
       document.getElementById("f-acc").value = Math.round(accuracy);
       let label = `Lokasi terkunci (akurasi ±${Math.round(accuracy)} m)`;
-      if (office) { const m = dist(latitude, longitude, office.lat, office.lng);
-        label = m <= office.r ? `Di kantor · ${Math.round(m)} m dari titik kantor` : `Di luar kantor · ${m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(1) + " km"} (lapangan)`; }
+      const posUtm = toUtm(latitude, longitude);
+      if (offices.length) {
+        let best = null;
+        offices.forEach(o => { const m = dist(latitude, longitude, o.lat, o.lng); if (!best || m < best.m) best = {o, m}; });
+        const fmt = m => m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(1) + " km";
+        label = best.m <= best.o.r ? `Di ${best.o.nama} · ${Math.round(best.m)} m dari titik` : `Di luar kantor · ${fmt(best.m)} dari ${best.o.nama} (lapangan)`;
+        label += ` · akurasi ±${Math.round(accuracy)} m`; }
+      label += ` — posisi Anda: ${posUtm}`;
       geo.classList.remove("bad"); geo.classList.add("ok"); geoText.textContent = label;
     }, (err) => {
       geo.classList.add("bad");
