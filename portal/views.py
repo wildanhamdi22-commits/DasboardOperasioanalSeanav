@@ -105,10 +105,16 @@ def business_permission_required(source, action):
 # dengan nama yang sama di portal/static/portal/foto/ (mis. survey.jpg) —
 # file lokal otomatis dipakai menggantikan foto contoh dari Unsplash.
 LANDING_PHOTOS = {
-    "hero": "https://images.unsplash.com/photo-1510601229148-d11d81569a97?auto=format&fit=crop&w=2000&q=70",
+    "hero": "https://images.unsplash.com/photo-1419965400876-8a41b926dc4b?auto=format&fit=crop&w=2200&q=70",
+    "about": "https://images.unsplash.com/photo-1682663810771-89d21838530f?auto=format&fit=crop&w=1400&q=70",
     "survey": "https://images.unsplash.com/photo-1582032951374-314efb7ccb76?auto=format&fit=crop&w=1200&q=70",
     "rental": "https://images.unsplash.com/photo-1563544389473-a4ff95d75926?auto=format&fit=crop&w=1200&q=70",
     "sales": "https://images.unsplash.com/photo-1573483387033-3121eaa077d7?auto=format&fit=crop&w=1200&q=70",
+    "galeri-1": "https://images.unsplash.com/photo-1770099172083-724c91d9ccf6?auto=format&fit=crop&w=1600&q=70",
+    "galeri-2": "https://images.unsplash.com/photo-1582032951374-314efb7ccb76?auto=format&fit=crop&w=900&q=70",
+    "galeri-3": "https://images.unsplash.com/photo-1682663810771-89d21838530f?auto=format&fit=crop&w=900&q=70",
+    "galeri-4": "https://images.unsplash.com/photo-1563544389473-a4ff95d75926?auto=format&fit=crop&w=900&q=70",
+    "galeri-5": "https://images.unsplash.com/photo-1510601229148-d11d81569a97?auto=format&fit=crop&w=900&q=70",
 }
 
 
@@ -118,7 +124,7 @@ def _landing_photos():
     photos = {}
     for key, fallback in LANDING_PHOTOS.items():
         local = f"portal/foto/{key}.jpg"
-        photos[key] = static(local) if finders.find(local) else fallback
+        photos[key.replace("-", "_")] = static(local) if finders.find(local) else fallback
     return photos
 
 

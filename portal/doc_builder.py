@@ -51,9 +51,9 @@ BRANDS = {
         tint="EAF5F7",
         logo="oseana-logo.png",
         logo_width_mm=52,
-        address=["Indonesia Stock Exchange Tower II, Lt. 17",
-                 "Jl. Jend. Sudirman Kav. 52–53, Jakarta Selatan 12190"],
-        contact="+62 819-9316-4828  ·  sales@oseanaprawirapersada.com || oseanaprawirapersada.com",
+        address=["Indonesia Stock Exchange Tower II, 17th Floor",
+                 "Jl. Jend. Sudirman Kav. 52-53, Jakarta Selatan, Indonesia 12190"],
+        contact="Tel: +62 21 5291 7489  ·  Fax: +62 21 5157799 || NPWP: 86.208.779.8-012.000 || sales@oseanaprawirapersada.com  ·  www.oseanaprawirapersada.com",
         bank=["BANK MANDIRI — KCP Jakarta Bursa Efek",
               "Gd. Bursa Efek Jakarta Tower II, Lt. 17",
               "A/C 104-00-017-01189 (IDR)  ·  A/C 104-000-592-9042 (USD)",
@@ -69,8 +69,9 @@ BRANDS = {
         tint="EEF2FA",
         logo="seanav-logo.png",
         logo_width_mm=40,
-        address=["Jakarta Selatan, DKI Jakarta, Indonesia"],
-        contact="+62 21 5799 8020  ·  sales@seanavgroup.co.id || seanavgroup.co.id",
+        address=["Sahid Sudirman Center, 56th Floor",
+                 "Jl. Jenderal Sudirman No. 86, Jakarta 10220, Indonesia"],
+        contact="Tel: +62 21 5799 8020  ·  Fax: +62 21 8063 1999 || NPWP: 1000 0000 0711 8487 || sales@seanavgroup.co.id  ·  www.seanavgroup.co.id",
         bank=["BANK MANDIRI — Cabang Jakarta Sahardjo",
               "Komplek Gajah Unit F&G, Jl. Dr. Saharjo No. 111, Jakarta Selatan 12810",
               "A/C 1240016082928 (IDR)",
@@ -376,8 +377,8 @@ class DocBuilder:
             left.paragraphs[0].add_run().add_picture(str(logo), width=Mm(self.b.logo_width_mm))
         left.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
         lines = [(self.b.legal_name, {"bold": True, "size": 10, "color": self.b.primary, "spacing": 0.6})]
-        lines += [(a, {"size": 7.5, "color": GREY}) for a in self.b.address]
-        lines += [(c.strip(), {"size": 7.5, "color": GREY}) for c in self.b.contact.split("||")]
+        lines += [(a, {"size": 7, "color": GREY}) for a in self.b.address]
+        lines += [(c.strip(), {"size": 7, "color": GREY}) for c in self.b.contact.split("||")]
         self.cell_text(right, lines, align=WD_ALIGN_PARAGRAPH.RIGHT)
         right.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
         # garis brand: tebal warna utama + tipis aksen

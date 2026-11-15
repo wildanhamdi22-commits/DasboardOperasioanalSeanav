@@ -339,8 +339,26 @@
     }
   
     /* ---- foto & solusi ---- */
-    .hero-photo{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.28;mix-blend-mode:luminosity;pointer-events:none}
-    .hero-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,22,40,.55) 0%,rgba(6,22,40,.2) 45%,var(--deep) 100%)}
+    .hero-photo{position:absolute;inset:0;background-size:cover;background-position:center 40%;opacity:.62;pointer-events:none;animation:heroZoom 24s ease-in-out infinite alternate}
+    .hero-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,22,40,.94) 0%,rgba(6,22,40,.78) 38%,rgba(6,22,40,.35) 70%,rgba(6,22,40,.55) 100%),linear-gradient(180deg,rgba(6,22,40,.35) 0%,transparent 30%,transparent 72%,var(--deep) 100%)}
+    @keyframes heroZoom{from{transform:scale(1)}to{transform:scale(1.07)}}
+    @media (prefers-reduced-motion:reduce){.hero-photo{animation:none}}
+    /* about photo */
+    .about-photo{position:relative;border-radius:22px;overflow:hidden;min-height:440px;background:#0e3358 center/cover no-repeat;box-shadow:0 30px 60px -30px rgba(6,22,40,.6)}
+    .about-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(6,22,40,.75))}
+    .about-photo .about-card{position:absolute;left:18px;right:18px;bottom:18px;z-index:1}
+    .about-photo .photo-tag{position:absolute;top:16px;left:16px;z-index:1;background:rgba(255,255,255,.92);color:var(--navy);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px}
+    /* gallery */
+    .gallery{display:grid;grid-template-columns:1.6fr 1fr 1fr;grid-template-rows:240px 240px;gap:14px;margin-top:36px}
+    .g-item{margin:0;position:relative;border-radius:18px;overflow:hidden;background:#0e3358 center/cover no-repeat;transition:transform .35s ease}
+    .g-item:hover{transform:translateY(-3px)}
+    .g-item:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(6,22,40,.82))}
+    .g-item.big{grid-row:span 2}
+    .g-item figcaption{position:absolute;left:16px;right:16px;bottom:14px;z-index:1;color:#fff}
+    .g-item figcaption b{display:block;font-size:15px}
+    .g-item figcaption span{font-size:12.5px;opacity:.85}
+    @media (max-width:900px){.gallery{grid-template-columns:1fr 1fr;grid-template-rows:auto}.g-item{min-height:200px}.g-item.big{grid-column:span 2;grid-row:auto;min-height:260px}}
+    @media (max-width:560px){.gallery{grid-template-columns:1fr}.g-item.big{grid-column:auto}}
     .hero #sonar,.hero .container{position:relative;z-index:1}
     .head-note{max-width:440px;color:var(--muted);margin:0;line-height:1.6}
     .solusi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:40px}
@@ -376,7 +394,7 @@
       <a href="#operasi">Area Operasi</a>
       <a href="#spesifikasi">Spesifikasi</a>
       <a href="#peralatan">Produk &amp; Sewa</a>
-      <a href="#ekosistem">Grup</a>
+      <a href="#galeri">Galeri</a>
       <a href="#kontak">Kontak</a>
       {% if request.user.is_authenticated %}<a class="btn btn-red btn-sm" href="{% url 'dashboard' %}">Portal →</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'login' %}">Login →</a>{% endif %}
     </nav>
@@ -518,17 +536,8 @@
 <section class="section" id="tentang">
   <div class="container">
     <div class="about">
-      <div class="about-visual reveal" aria-hidden="true">
-        <svg viewBox="0 0 500 500">
-          <defs><radialGradient id="glow" cx=".5" cy=".42" r=".55"><stop offset="0" stop-color="#16a3c4" stop-opacity=".35"/><stop offset="1" stop-color="#16a3c4" stop-opacity="0"/></radialGradient></defs>
-          <rect width="500" height="500" fill="url(#glow)"/>
-          <g fill="none" stroke="#fff" stroke-opacity=".12">
-            <circle cx="250" cy="210" r="60"/><circle cx="250" cy="210" r="110"/><circle cx="250" cy="210" r="160"/><circle cx="250" cy="210" r="210"/>
-            <line x1="250" y1="0" x2="250" y2="420"/><line x1="40" y1="210" x2="460" y2="210"/>
-          </g>
-          <g transform="translate(250 210)"><path d="M0 0 L0 -210 A210 210 0 0 1 148 -149 Z" fill="#16a3c4" opacity=".18"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="7s" repeatCount="indefinite"/></path></g>
-          <g fill="#c8102e"><circle cx="320" cy="150" r="5"/><circle cx="180" cy="270" r="5"/><circle cx="330" cy="290" r="4" fill="#16a3c4"/><circle cx="200" cy="120" r="4" fill="#a9682b"/></g>
-        </svg>
+      <div class="about-photo reveal" style="background-image:url('{{ photos.about }}')" role="img" aria-label="Surveyor dan peralatan survei di lapangan">
+        <span class="photo-tag">Field operations</span>
         <div class="about-card"><b>Precision · Safety · Reliable data</b><p>Metode, instrumen, dan kru disesuaikan dengan kondisi area serta tujuan pekerjaan Anda.</p></div>
       </div>
       <div class="about-copy reveal">
@@ -769,6 +778,23 @@
   </div>
 </section>
 
+<!-- ================= GALERI LAPANGAN ================= -->
+<section class="section soft" id="galeri">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Di lapangan</span><h2>Dari dek kapal hingga titik kontrol di darat.</h2></div>
+      <p class="head-note">Dokumentasi pekerjaan survei, mobilisasi alat, dan operasi lapangan tim Oseana &amp; Seanav.</p>
+    </div>
+    <div class="gallery reveal">
+      <figure class="g-item big" style="background-image:url('{{ photos.galeri_1 }}')"><figcaption><b>Operasi offshore</b><span>Dukungan survei di area platform &amp; jalur pipa</span></figcaption></figure>
+      <figure class="g-item" style="background-image:url('{{ photos.galeri_2 }}')"><figcaption><b>Survey launch</b><span>Akuisisi data hidrografi nearshore</span></figcaption></figure>
+      <figure class="g-item" style="background-image:url('{{ photos.galeri_3 }}')"><figcaption><b>Survei darat</b><span>Titik kontrol &amp; topografi</span></figcaption></figure>
+      <figure class="g-item" style="background-image:url('{{ photos.galeri_4 }}')"><figcaption><b>Aerial mapping</b><span>Drone LiDAR &amp; fotogrametri</span></figcaption></figure>
+      <figure class="g-item" style="background-image:url('{{ photos.galeri_5 }}')"><figcaption><b>Pesisir &amp; pulau</b><span>Pemetaan wilayah pesisir Indonesia</span></figcaption></figure>
+    </div>
+  </div>
+</section>
+
 <!-- ================= ECOSYSTEM ================= -->
 <section class="section dark" id="ekosistem">
   <div class="container">
@@ -806,14 +832,16 @@
       <p class="lead" style="margin-top:14px">Tim teknis dan sales kami siap membantu menyusun solusi yang tepat.</p>
       <div class="info">
         <div class="info-card"><h3>PT Oseana Prawira Persada</h3>
+          <div class="info-row"><i>⌖</i><span>Indonesia Stock Exchange Tower II, 17th Floor, Jl. Jend. Sudirman Kav. 52-53, Jakarta Selatan 12190</span></div>
+          <div class="info-row"><i>☏</i><span><a href="tel:+622152917489">+62 21 5291 7489</a> · Faks +62 21 5157799</span></div>
           <div class="info-row"><i>✉</i><a href="mailto:sales@oseanaprawirapersada.com">sales@oseanaprawirapersada.com</a></div>
-          <div class="info-row"><i>☏</i><a href="https://wa.me/6281993164828" target="_blank" rel="noopener">+62 819-9316-4828 (Telepon / WhatsApp)</a></div>
-          <div class="info-row"><i>⌖</i><span>Indonesia Stock Exchange Tower II, Lt. 17, Jl. Jend. Sudirman Kav. 52–53, Jakarta Selatan 12190</span></div>
+          <div class="info-row"><i>↗</i><a href="https://www.oseanaprawirapersada.com" target="_blank" rel="noopener">www.oseanaprawirapersada.com</a></div>
         </div>
-        <div class="info-card"><h3>Seanav Group</h3>
+        <div class="info-card"><h3>PT Seanav Maritim Indonesia</h3>
+          <div class="info-row"><i>⌖</i><span>Sahid Sudirman Center 56th Floor, Jl. Jenderal Sudirman No. 86, Jakarta 10220</span></div>
+          <div class="info-row"><i>☏</i><span><a href="tel:+622157998020">+62 21 5799 8020</a> · Faks +62 21 8063 1999</span></div>
           <div class="info-row"><i>✉</i><a href="mailto:sales@seanavgroup.co.id">sales@seanavgroup.co.id</a></div>
-          <div class="info-row"><i>☏</i><a href="tel:+622157998020">+62 21 5799 8020</a> · Faks +62 21 8063 1999</div>
-          <div class="info-row"><i>↗</i><a href="https://seanavgroup.co.id/" target="_blank" rel="noopener">seanavgroup.co.id</a></div>
+          <div class="info-row"><i>↗</i><a href="https://www.seanavgroup.co.id" target="_blank" rel="noopener">www.seanavgroup.co.id</a></div>
         </div>
       </div>
     </div>

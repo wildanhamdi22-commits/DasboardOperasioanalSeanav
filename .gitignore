@@ -26,3 +26,4 @@ portal/static/portal/rental_location.css
 # Vercel
 .vercel/
 .env.local
+backup_reset_*/
