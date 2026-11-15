@@ -50,7 +50,7 @@ def business_access(request):
 _NAV_GROUPS = {
     "dashboard": {"dashboard"},
     "inventory": {"inventory", "inventory_add", "inventory_edit", "inventory_history", "inventory_archive"},
-    "quotation": {"quotation_list", "quotation_create", "quotation_status", "quotation_document"},
+    "quotation": {"quotation_list", "quotation_create", "quotation_status", "quotation_document", "sale_delivery"},
     "invoice": {"invoice_list", "invoice_create", "invoice_status", "invoice_document"},
     "rental": {"rental_list", "rental_create", "rental_location_edit"},
     "handover": {"rental_handover"},

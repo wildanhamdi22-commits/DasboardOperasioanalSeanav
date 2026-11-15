@@ -25,6 +25,7 @@ from django.core.files.storage import default_storage
 from django.db import DatabaseError, connection, transaction
 from django.http import Http404, HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from .pdf import PdfConversionError, docx_to_pdf
 from .forms import (
@@ -38,9 +39,16 @@ from .forms import (
     RentalHandoverForm,
     RentalLocationForm,
     RoleAssignmentForm,
+    SaleDeliveryForm,
 )
 
 logger = logging.getLogger(__name__)
+
+QUOTATION_KIND_LABELS = {
+    "RENTAL": "Rental alat",
+    "PENJUALAN": "Penjualan produk",
+    "JASA_SURVEY": "Jasa survey",
+}
 _place_search_lock = threading.Lock()
 _place_search_last_request = 0.0
 
@@ -91,8 +99,29 @@ def business_permission_required(source, action):
     return decorator
 
 
+# Foto landing page. Untuk memakai foto perusahaan sendiri, simpan file JPG
+# dengan nama yang sama di portal/static/portal/foto/ (mis. survey.jpg) —
+# file lokal otomatis dipakai menggantikan foto contoh dari Unsplash.
+LANDING_PHOTOS = {
+    "hero": "https://images.unsplash.com/photo-1510601229148-d11d81569a97?auto=format&fit=crop&w=2000&q=70",
+    "survey": "https://images.unsplash.com/photo-1582032951374-314efb7ccb76?auto=format&fit=crop&w=1200&q=70",
+    "rental": "https://images.unsplash.com/photo-1563544389473-a4ff95d75926?auto=format&fit=crop&w=1200&q=70",
+    "sales": "https://images.unsplash.com/photo-1573483387033-3121eaa077d7?auto=format&fit=crop&w=1200&q=70",
+}
+
+
+def _landing_photos():
+    from django.contrib.staticfiles import finders
+    from django.templatetags.static import static
+    photos = {}
+    for key, fallback in LANDING_PHOTOS.items():
+        local = f"portal/foto/{key}.jpg"
+        photos[key] = static(local) if finders.find(local) else fallback
+    return photos
+
+
 def landing(request):
-    return render(request, "portal/landing.html")
+    return render(request, "portal/landing.html", {"photos": _landing_photos()})
 
 
 class StaffLoginView(LoginView):
@@ -102,7 +131,7 @@ class StaffLoginView(LoginView):
 
     def form_valid(self, form):
         if not form.get_user().is_staff:
-            form.add_error(None, "Akun ini belum memiliki akses staf untuk Seanav Operations.")
+            form.add_error(None, "Akun ini belum memiliki akses untuk Oseana · Seanav Operations.")
             return self.form_invalid(form)
         return super().form_valid(form)
 
@@ -166,6 +195,9 @@ def role_management(request):
 def quotation_list(request):
     quotations = []
     database_error = None
+    kind_filter = request.GET.get("jenis", "").upper()
+    if kind_filter not in QUOTATION_KIND_LABELS:
+        kind_filter = ""
     try:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -175,7 +207,9 @@ def quotation_list(request):
                        q.jenis_pajak, q.tarif_pajak, q.total_pajak,
                        COALESCE(items.jumlah_item, 0), items.daftar_item,
                        EXISTS (SELECT 1 FROM rental r WHERE r.quotation_id = q.id),
-                       EXISTS (SELECT 1 FROM invoice i WHERE i.quotation_id = q.id)
+                       EXISTS (SELECT 1 FROM invoice i WHERE i.quotation_id = q.id),
+                       q.jenis,
+                       EXISTS (SELECT 1 FROM pesanan_penjualan pp WHERE pp.quotation_id = q.id)
                 FROM quotation q
                 JOIN perusahaan p ON p.id = q.perusahaan_id
                 JOIN klien kl ON kl.id = q.klien_id
@@ -185,10 +219,11 @@ def quotation_list(request):
                                       ', ' ORDER BY qi.id) AS daftar_item
                     FROM quotation_item qi WHERE qi.quotation_id = q.id
                 ) items ON TRUE
-                WHERE q.jenis = 'RENTAL'
+                WHERE (%s = '' OR q.jenis = %s)
                 ORDER BY q.dibuat_pada DESC, q.id DESC
                 LIMIT 500
-                """
+                """,
+                [kind_filter, kind_filter],
             )
             quotations = [
                 {
@@ -197,7 +232,9 @@ def quotation_list(request):
                     "status": row[6], "total": row[7], "subtotal": row[8],
                     "tax_name": row[9], "tax_rate": row[10], "tax_amount": row[11],
                     "item_count": row[12], "items": row[13], "rental_created": row[14],
-                    "invoice_created": row[15],
+                    "invoice_created": row[15], "kind": row[16],
+                    "kind_label": QUOTATION_KIND_LABELS.get(row[16], row[16]),
+                    "delivered": row[17],
                 }
                 for row in cursor.fetchall()
             ]
@@ -205,7 +242,8 @@ def quotation_list(request):
         database_error = "Belum dapat membaca quotation. Pastikan skema quotation sudah tersedia di database."
     return render(
         request, "portal/quotation_list.html",
-        {"quotations": quotations, "database_error": database_error},
+        {"quotations": quotations, "database_error": database_error,
+         "kind_filter": kind_filter, "kind_choices": QUOTATION_KIND_LABELS.items()},
     )
 
 
@@ -234,12 +272,12 @@ def quotation_document(request, quotation_id):
                        COALESCE((SELECT kk.nama FROM kontak_klien kk
                                  WHERE kk.klien_id = kl.id ORDER BY kk.utama DESC, kk.id LIMIT 1), ''),
                        COALESCE(bd.nama, ''), COALESCE(bd.email, ''),
-                       q.subtotal, q.tarif_pajak, q.total_pajak, q.jenis_pajak
+                       q.subtotal, q.tarif_pajak, q.total_pajak, q.jenis_pajak, q.jenis
                 FROM quotation q
                 JOIN perusahaan p ON p.id = q.perusahaan_id
                 JOIN klien kl ON kl.id = q.klien_id
                 LEFT JOIN pengguna bd ON bd.id = q.pic_pengguna_id
-                WHERE q.id = %s AND q.jenis = 'RENTAL'
+                WHERE q.id = %s
                 """,
                 [quotation_id],
             )
@@ -297,6 +335,14 @@ def quotation_document(request, quotation_id):
         return redirect("quotation_list")
 
     date_text = quote[1].strftime("%d %B %Y") if quote[1] else "-"
+    quote_kind = quote[18] or "RENTAL"
+    period_word = {"RENTAL": "Rental", "JASA_SURVEY": "Survey"}.get(quote_kind, "Delivery")
+
+    def quantity_text(quantity, unit, start, end):
+        if start and end:
+            days = (end - start).days + 1
+            return f"{quantity:g} {unit} x {days} day{'s' if days != 1 else ''}"
+        return f"{quantity:g} {unit}"
 
     def add_equipment_photo(cell, photo_path):
         """Embed the first available inventory photo for this quotation model."""
@@ -481,13 +527,13 @@ def quotation_document(request, quotation_id):
             return redirect("quotation_list")
         info_table = items_table
         for cell_index, label in ((0, "Valid Until"), (1, "Valid Until"),
-                                  (2, "Rental Starts"), (3, "Commercial Terms"),
+                                  (2, {"RENTAL": "Rental Starts", "JASA_SURVEY": "Survey Starts"}.get(quote_kind, "Delivery")), (3, "Commercial Terms"),
                                   (4, "Commercial Terms"), (5, "P.O.C.")):
             info_table.cell(0, cell_index).text = label
         start_dates = [item[5] for item in quote_items if item[5]]
         start_date = min(start_dates) if start_dates else None
         expiry_text = quote[2].strftime("%d %B %Y") if quote[2] else "-"
-        start_text = start_date.strftime("%d %B %Y") if start_date else "-"
+        start_text = start_date.strftime("%d %B %Y") if start_date else ("Upon PO confirmation" if quote_kind == "PENJUALAN" else "-")
         info_table.cell(1, 0).text = expiry_text
         info_table.cell(1, 1).text = expiry_text
         info_table.cell(1, 2).text = start_text
@@ -516,13 +562,13 @@ def quotation_document(request, quotation_id):
             if category:
                 detail_lines.append(f"Category: {category}")
             if start and end:
-                detail_lines.append(f"Rental period: {start:%d %b %Y} to {end:%d %b %Y}")
+                detail_lines.append(f"{period_word} period: {start:%d %b %Y} to {end:%d %b %Y}")
             if accessories:
                 detail_lines.extend(["Accessories included:", *[f"- {line}" for line in accessories.splitlines()]])
             values = [
                 (0, f"{index}."), (1, description),
                 (2, "\n".join(detail_lines)),
-                (3, f"{quantity:g} {unit} x {days} day{'s' if days != 1 else ''}"),
+                (3, quantity_text(quantity, unit, start, end)),
                 (4, f"{Decimal(unit_price or 0):,.0f}"),
                 (5, f"{Decimal(line_total or 0):,.0f}"),
             ]
@@ -642,7 +688,7 @@ def quotation_document(request, quotation_id):
                 detail_lines.append(f"Category: {category}")
             if start and end:
                 days = (end - start).days + 1
-                detail_lines.append(f"Rental period: {start:%d %b %Y} to {end:%d %b %Y} ({days} day{'s' if days != 1 else ''})")
+                detail_lines.append(f"{period_word} period: {start:%d %b %Y} to {end:%d %b %Y} ({days} day{'s' if days != 1 else ''})")
             if accessories:
                 detail_lines.extend(["Include:", *[f"- {line.split('x ', 1)[-1]}" for line in accessories.splitlines()]])
             values = [
@@ -717,12 +763,12 @@ def quotation_document(request, quotation_id):
             if category:
                 detail_lines.append(f"Category: {category}")
             if start and end:
-                detail_lines.append(f"Rental period: {start:%d/%m/%Y} to {end:%d/%m/%Y}")
+                detail_lines.append(f"{period_word} period: {start:%d/%m/%Y} to {end:%d/%m/%Y}")
             if accessories:
                 detail_lines.extend(["Include:", *[f"- {line.split('x ', 1)[-1]}" for line in accessories.splitlines()]])
             values = [
                 (0, f"{index}."), (1, "\n".join(detail_lines)),
-                (3, f"{quantity:g} {unit} Ã— {days} days"),
+                (3, quantity_text(quantity, unit, start, end)),
                 (4, f"{Decimal(unit_price or 0):,.0f}"),
                 (5, f"{Decimal(subtotal or 0):,.0f}"),
             ]
@@ -791,7 +837,11 @@ def quotation_document(request, quotation_id):
 def quotation_create(request):
     database_error = None
     try:
-        form = QuotationForm(request.POST or None, user_email=request.user.email)
+        initial_kind = request.GET.get("jenis", "RENTAL").upper()
+        form = QuotationForm(
+            request.POST or None, user_email=request.user.email,
+            initial={"kind": initial_kind if initial_kind in QUOTATION_KIND_LABELS else "RENTAL"},
+        )
     except DatabaseError:
         form = None
         database_error = "Belum dapat membaca daftar perusahaan dari database."
@@ -809,6 +859,7 @@ def quotation_create(request):
         equipment_catalog = {
             int(item["id"]): item for item in item_formset.equipment_catalog
         }
+        kind = data.get("kind") or "RENTAL"
         items = []
         for raw_item in raw_items:
             equipment_id = int(raw_item["equipment_id"]) if raw_item.get("equipment_id") else None
@@ -826,16 +877,28 @@ def quotation_create(request):
                 unit_price = raw_item["unit_price"]
                 model_id = None
                 unit = raw_item["unit"] or "unit"
+            days = raw_item.get("days")
+            if kind == "RENTAL" and not days:
+                form.add_error(None, f"Isi jumlah hari rental untuk item \"{description}\".")
+                break
+            if kind == "PENJUALAN":
+                days = None
+            multiplier = days or 1
+            start_date = None
+            end_date = None
+            if days and (data.get("rental_start") or kind == "JASA_SURVEY"):
+                start_date = data.get("rental_start") or data["date"]
+                end_date = start_date + timedelta(days=days - 1)
             items.append({
                 "model_id": model_id,
                 "description": description,
                 "quantity": raw_item["quantity"],
-                "days": raw_item["days"],
+                "days": days,
                 "unit": unit,
                 "unit_price": unit_price,
-                "subtotal": raw_item["quantity"] * unit_price * raw_item["days"],
-                "start_date": data["rental_start"],
-                "end_date": data["rental_start"] + timedelta(days=raw_item["days"] - 1),
+                "subtotal": raw_item["quantity"] * unit_price * multiplier,
+                "start_date": start_date,
+                "end_date": end_date,
             })
         subtotal = sum((item["subtotal"] for item in items), Decimal("0")).quantize(Decimal("0.01"))
         tax_rate = Decimal("11.0000") if data["apply_tax"] else Decimal("0.0000")
@@ -944,10 +1007,10 @@ def quotation_create(request):
                             (perusahaan_id, nomor, jenis, klien_id, tanggal, berlaku_sampai,
                              pic_pengguna_id, status, subtotal, jenis_pajak, tarif_pajak,
                              total_pajak, total, catatan, dibuat_oleh)
-                        VALUES (%s, %s, 'RENTAL', %s, %s, %s, %s, 'DRAFT', %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, 'DRAFT', %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id
                         """,
-                        [data["company_id"], data["number"], client_id, data["date"],
+                        [data["company_id"], data["number"], kind, client_id, data["date"],
                          data["valid_until"], representative_id, subtotal,
                          "PPN" if data["apply_tax"] else None, tax_rate, tax_amount, grand_total,
                          data["notes"] or None, user_id],
@@ -966,7 +1029,7 @@ def quotation_create(request):
                              item["unit"], item["unit_price"], item["subtotal"],
                              item["start_date"], item["end_date"]],
                         )
-            messages.success(request, "Draft quotation rental berhasil dibuat.")
+            messages.success(request, f"Draft quotation {QUOTATION_KIND_LABELS.get(kind, kind).lower()} berhasil dibuat.")
             return redirect("quotation_list")
         except DatabaseError:
             form.add_error(None, "Quotation belum tersimpan. Periksa nomor quotation dan database.")
@@ -990,7 +1053,7 @@ def invoice_list(request):
                 SELECT i.id, i.quotation_id, co.kode, i.nomor, kl.nama_perusahaan,
                        i.tanggal, i.jatuh_tempo, i.status, i.subtotal, i.total,
                        i.jenis_pajak, i.tarif_pajak, i.total_pajak, q.nomor,
-                       EXISTS (SELECT 1 FROM rental r WHERE r.invoice_id = i.id)
+                       EXISTS (SELECT 1 FROM rental r WHERE r.invoice_id = i.id), q.jenis
                 FROM invoice i
                 JOIN quotation q ON q.id = i.quotation_id
                 JOIN perusahaan co ON co.id = i.perusahaan_id
@@ -1006,7 +1069,8 @@ def invoice_list(request):
                     "due_date": row[6], "status": row[7], "subtotal": row[8],
                     "total": row[9], "tax_name": row[10], "tax_rate": row[11],
                     "tax_amount": row[12], "quotation_number": row[13],
-                    "rental_created": row[14],
+                    "rental_created": row[14], "kind": row[15],
+                    "kind_label": QUOTATION_KIND_LABELS.get(row[15], row[15]),
                 }
                 for row in cursor.fetchall()
             ]
@@ -1031,7 +1095,7 @@ def invoice_create(request, quotation_id):
                 FROM quotation q
                 JOIN perusahaan co ON co.id = q.perusahaan_id
                 JOIN klien kl ON kl.id = q.klien_id
-                WHERE q.id = %s AND q.jenis = 'RENTAL'
+                WHERE q.id = %s
                   AND q.status = 'DITERIMA_KLIEN'
                   AND NOT EXISTS (SELECT 1 FROM invoice i WHERE i.quotation_id = q.id)
                 """,
@@ -1062,7 +1126,7 @@ def invoice_create(request, quotation_id):
                         SELECT q.perusahaan_id, q.status, q.subtotal, q.jenis_pajak,
                                q.tarif_pajak, q.total_pajak, q.total, q.pic_pengguna_id
                         FROM quotation q
-                        WHERE q.id = %s AND q.jenis = 'RENTAL'
+                        WHERE q.id = %s
                         FOR UPDATE
                         """,
                         [quotation_id],
@@ -1166,7 +1230,7 @@ def invoice_document(request, invoice_id):
                        COALESCE(kl.email, ''), COALESCE(kl.telepon, ''),
                        COALESCE((SELECT kk.nama FROM kontak_klien kk WHERE kk.klien_id = kl.id
                                  ORDER BY kk.utama DESC, kk.id LIMIT 1), ''),
-                       COALESCE(pic.nama, ''), COALESCE(pic.email, '')
+                       COALESCE(pic.nama, ''), COALESCE(pic.email, ''), q.jenis
                 FROM invoice i
                 JOIN quotation q ON q.id = i.quotation_id
                 JOIN perusahaan co ON co.id = i.perusahaan_id
@@ -1244,9 +1308,10 @@ def invoice_document(request, invoice_id):
 
     if len(document.paragraphs) > 1:
         document.paragraphs[1].text = invoice[1]
+    invoice_kind = invoice[23] or "RENTAL"
     for p in document.paragraphs:
         if p.text.strip() == "Sale for:":
-            p.text = "Rental for:"
+            p.text = {"RENTAL": "Rental for:", "JASA_SURVEY": "Service for:"}.get(invoice_kind, "Sale for:")
 
     quote_table = tables[0]
     # Keep the template's six-column grid, but close excess gaps around the
@@ -1289,7 +1354,7 @@ def invoice_document(request, invoice_id):
     if invoice[19]:
         address_lines.append(f"Tel: {invoice[19]}")
     quote_table.cell(2, 2).text = "\n".join(address_lines) or "-"
-    quote_table.cell(2, 5).text = "For Rent"
+    quote_table.cell(2, 5).text = {"RENTAL": "For Rent", "JASA_SURVEY": "Survey Service"}.get(invoice_kind, "For Sale")
     quote_table.cell(3, 5).text = invoice[4] or "-"
     quote_table.cell(5, 2).text = invoice[20] or "-"
     quote_table.cell(5, 5).text = invoice[14]
@@ -1309,9 +1374,12 @@ def invoice_document(request, invoice_id):
             row_xml = deepcopy(exemplar)
             summary_anchor.addprevious(row_xml)
             row = items_table.rows[index]
-            days = (end - start).days + 1 if start and end else 1
             row.cells[0].text = f"{index}."
-            row.cells[1].text = f"{quantity:g} {unit} x {days} day{'s' if days != 1 else ''}"
+            if start and end:
+                days = (end - start).days + 1
+                row.cells[1].text = f"{quantity:g} {unit} x {days} day{'s' if days != 1 else ''}"
+            else:
+                row.cells[1].text = f"{quantity:g} {unit}"
             row.cells[2].text = description
             row.cells[3].text = format_idr(unit_price)
             row.cells[4].text = format_idr(line_total)
@@ -1465,7 +1533,7 @@ def quotation_status(request, quotation_id, action):
         with transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT status, pic_pengguna_id FROM quotation WHERE id = %s AND jenis = 'RENTAL' FOR UPDATE",
+                    "SELECT status, pic_pengguna_id FROM quotation WHERE id = %s FOR UPDATE",
                     [quotation_id],
                 )
                 quote = cursor.fetchone()
@@ -1488,6 +1556,224 @@ def quotation_status(request, quotation_id, action):
     except DatabaseError:
         messages.error(request, "Status quotation belum berhasil diperbarui.")
     return redirect("quotation_list")
+
+
+def _current_pengguna_id(cursor, request):
+    """Map the Django user to a pengguna row, creating one when it is missing."""
+    user_email = (request.user.email or "").strip().lower()
+    if not user_email:
+        user_email = f"{request.user.get_username()}@local.invalid"
+    cursor.execute("SELECT id FROM pengguna WHERE lower(email) = lower(%s)", [user_email])
+    row = cursor.fetchone()
+    if row:
+        return row[0]
+    cursor.execute(
+        "INSERT INTO pengguna (nama, email, password_hash) VALUES (%s, %s, %s) RETURNING id",
+        [request.user.get_full_name() or request.user.get_username(), user_email, make_password(None)],
+    )
+    return cursor.fetchone()[0]
+
+
+@business_permission_required("SERAH_TERIMA", "BUAT")
+def sale_delivery(request, quotation_id):
+    """Record delivery of sold products: creates the sales order, the handover,
+    marks the chosen inventory units as TERJUAL and logs stock movement."""
+    database_error = None
+    quote = None
+    items = []
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT q.id, q.nomor, q.status, q.perusahaan_id, co.kode, q.klien_id,
+                       kl.nama_perusahaan, q.total, q.tanggal,
+                       EXISTS (SELECT 1 FROM pesanan_penjualan pp WHERE pp.quotation_id = q.id),
+                       COALESCE((SELECT kk.nama FROM kontak_klien kk WHERE kk.klien_id = kl.id
+                                 ORDER BY kk.utama DESC, kk.id LIMIT 1), '')
+                FROM quotation q
+                JOIN perusahaan co ON co.id = q.perusahaan_id
+                JOIN klien kl ON kl.id = q.klien_id
+                WHERE q.id = %s AND q.jenis = 'PENJUALAN'
+                """,
+                [quotation_id],
+            )
+            quote = cursor.fetchone()
+            if quote:
+                cursor.execute(
+                    """
+                    SELECT qi.id, qi.model_alat_id, qi.deskripsi_item, qi.kuantitas, qi.satuan,
+                           qi.harga_satuan, qi.subtotal
+                    FROM quotation_item qi WHERE qi.quotation_id = %s ORDER BY qi.id
+                    """,
+                    [quotation_id],
+                )
+                for row in cursor.fetchall():
+                    units = []
+                    if row[1]:
+                        cursor.execute(
+                            """
+                            SELECT u.id, COALESCE(u.nomor_seri, '-'), COALESCE(u.kode_inventaris, ''),
+                                   u.kondisi, u.dapat_dijual, COALESCE(l.nama, '')
+                            FROM unit_alat u LEFT JOIN lokasi l ON l.id = u.lokasi_id
+                            WHERE u.model_alat_id = %s AND u.status = 'TERSEDIA'
+                            ORDER BY u.dapat_dijual DESC, u.id
+                            """,
+                            [row[1]],
+                        )
+                        units = [
+                            {"id": u[0], "serial": u[1], "code": u[2], "condition": u[3],
+                             "for_sale": u[4], "location": u[5]}
+                            for u in cursor.fetchall()
+                        ]
+                    qty = Decimal(row[3])
+                    items.append({
+                        "id": row[0], "model_id": row[1], "description": row[2],
+                        "quantity": qty, "unit": row[4], "price": row[5], "subtotal": row[6],
+                        "tracked": bool(row[1]),
+                        "needed": int(qty) if row[1] and qty == qty.to_integral_value() else None,
+                        "units": units,
+                    })
+    except DatabaseError:
+        database_error = "Belum dapat membaca quotation penjualan. Periksa database."
+
+    if not database_error:
+        if not quote:
+            raise Http404("Quotation penjualan tidak ditemukan.")
+        if quote[9]:
+            messages.info(request, "Barang untuk quotation ini sudah tercatat terkirim.")
+            return redirect("quotation_list")
+        if quote[2] != "DITERIMA_KLIEN":
+            messages.error(request, "Barang hanya bisa dikirim setelah quotation disetujui klien.")
+            return redirect("quotation_list")
+
+    initial = {"received_by": quote[10] if quote else "",
+               "delivered_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M")}
+    form = SaleDeliveryForm(request.POST or None, initial=initial)
+    selected = {}
+    if request.method == "POST" and quote:
+        for item in items:
+            chosen = [int(v) for v in request.POST.getlist(f"units_{item['id']}") if v.isdigit()]
+            selected[item["id"]] = chosen
+            available = {u["id"] for u in item["units"]}
+            if item["tracked"] and any(c not in available for c in chosen):
+                form.add_error(None, f"Unit untuk \"{item['description']}\" tidak lagi tersedia. Muat ulang halaman.")
+            elif item["tracked"] and item["needed"] is not None and len(chosen) != item["needed"]:
+                form.add_error(None, f"Pilih tepat {item['needed']} unit untuk \"{item['description']}\" (dipilih {len(chosen)}).")
+        all_chosen = [c for values in selected.values() for c in values]
+        if len(all_chosen) != len(set(all_chosen)):
+            form.add_error(None, "Satu unit tidak boleh dipilih untuk dua item.")
+    if request.method == "POST" and quote and form.is_valid():
+        data = form.cleaned_data
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT status FROM quotation WHERE id = %s FOR UPDATE", [quotation_id])
+                    if cursor.fetchone()[0] != "DITERIMA_KLIEN":
+                        raise DatabaseError("quotation status changed")
+                    cursor.execute("SELECT 1 FROM pesanan_penjualan WHERE quotation_id = %s", [quotation_id])
+                    if cursor.fetchone():
+                        raise DatabaseError("already delivered")
+                    user_id = _current_pengguna_id(cursor, request)
+                    order_number = f"SO/{quote[1]}"[:80]
+                    cursor.execute(
+                        """
+                        INSERT INTO pesanan_penjualan
+                            (perusahaan_id, nomor_pesanan, quotation_id, klien_id, tanggal_pesanan,
+                             status, total, catatan, dibuat_oleh)
+                        VALUES (%s, %s, %s, %s, %s, 'DIKIRIM', %s, %s, %s) RETURNING id
+                        """,
+                        [quote[3], order_number, quotation_id, quote[5], data["delivered_at"].date(),
+                         quote[7], data["notes"] or None, user_id],
+                    )
+                    order_id = cursor.fetchone()[0]
+                    cursor.execute(
+                        """
+                        INSERT INTO serah_terima_penjualan
+                            (pesanan_id, tanggal, diserahkan_oleh, diterima_oleh, catatan)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id
+                        """,
+                        [order_id, data["delivered_at"], user_id, data["received_by"], data["notes"] or None],
+                    )
+                    handover_id = cursor.fetchone()[0]
+                    for item in items:
+                        cursor.execute(
+                            """
+                            INSERT INTO pesanan_penjualan_item
+                                (pesanan_id, quotation_item_id, model_alat_id, deskripsi_snapshot,
+                                 kuantitas, harga_satuan, subtotal)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                            """,
+                            [order_id, item["id"], item["model_id"], item["description"],
+                             item["quantity"], item["price"], item["subtotal"]],
+                        )
+                        order_item_id = cursor.fetchone()[0]
+                        chosen = selected.get(item["id"], [])
+                        if not chosen:
+                            cursor.execute(
+                                """
+                                INSERT INTO serah_terima_penjualan_item
+                                    (serah_terima_id, pesanan_item_id, kuantitas)
+                                VALUES (%s, %s, %s)
+                                """,
+                                [handover_id, order_item_id, item["quantity"]],
+                            )
+                        for unit_id in chosen:
+                            cursor.execute(
+                                "SELECT status FROM unit_alat WHERE id = %s FOR UPDATE", [unit_id]
+                            )
+                            if cursor.fetchone()[0] != "TERSEDIA":
+                                raise DatabaseError("unit no longer available")
+                            cursor.execute(
+                                """
+                                INSERT INTO serah_terima_penjualan_item
+                                    (serah_terima_id, pesanan_item_id, unit_alat_id, kuantitas)
+                                VALUES (%s, %s, %s, 1)
+                                """,
+                                [handover_id, order_item_id, unit_id],
+                            )
+                            cursor.execute("UPDATE unit_alat SET status = 'TERJUAL' WHERE id = %s", [unit_id])
+                            cursor.execute(
+                                """
+                                INSERT INTO riwayat_unit
+                                    (unit_alat_id, jenis, nilai_lama, nilai_baru,
+                                     referensi_tipe, referensi_id, dicatat_oleh, catatan)
+                                VALUES (%s, 'STATUS', 'TERSEDIA', 'TERJUAL', 'PENJUALAN', %s, %s, %s)
+                                """,
+                                [unit_id, order_id, user_id, f"Terjual ke {quote[6]} ({order_number})"],
+                            )
+                            cursor.execute(
+                                """
+                                INSERT INTO audit_perubahan
+                                    (jenis_entitas, entitas_id, aksi, pengguna_id, alasan,
+                                     nilai_sebelum, nilai_sesudah, metadata)
+                                VALUES ('unit_alat', %s, 'UBAH_STATUS', %s, %s,
+                                        %s::jsonb, %s::jsonb, %s::jsonb)
+                                """,
+                                [unit_id, user_id, f"Unit dijual melalui {order_number}.",
+                                 json.dumps({"status": "TERSEDIA"}), json.dumps({"status": "TERJUAL"}),
+                                 json.dumps({"django_user": request.user.get_username()})],
+                            )
+                        if item["model_id"] and (chosen or item["quantity"]):
+                            cursor.execute(
+                                """
+                                INSERT INTO pergerakan_stok
+                                    (perusahaan_id, model_alat_id, jenis, kuantitas,
+                                     referensi_tipe, referensi_id, dicatat_oleh, catatan)
+                                VALUES (%s, %s, 'KELUAR', %s, 'PENJUALAN', %s, %s, %s)
+                                """,
+                                [quote[3], item["model_id"], len(chosen) or item["quantity"],
+                                 order_id, user_id, f"Penjualan {order_number}"],
+                            )
+            messages.success(request, f"Serah terima penjualan {order_number} tercatat; unit terpilih ditandai TERJUAL.")
+            return redirect("quotation_list")
+        except DatabaseError:
+            logger.exception("Sale delivery failed for quotation %s", quotation_id)
+            form.add_error(None, "Pengiriman belum tersimpan. Status quotation atau unit mungkin sudah berubah; muat ulang halaman.")
+
+    return render(request, "portal/sale_delivery.html", {
+        "form": form, "quote": quote, "items": items, "database_error": database_error,
+        "selected": selected,
+    })
 
 
 def _sync_unit_accessories(cursor, unit_id, accessories):
@@ -1619,7 +1905,7 @@ def dashboard(request):
                        COUNT(*) FILTER (WHERE status = 'DISEWA'),
                        COUNT(*) FILTER (WHERE status = 'PERAWATAN'),
                        COUNT(*)
-                FROM unit_alat WHERE status <> 'DIARSIPKAN'
+                FROM unit_alat WHERE status NOT IN ('DIARSIPKAN', 'TERJUAL')
             """)
             if rows is None:
                 raise DatabaseError("unit_alat")
@@ -1734,7 +2020,7 @@ def dashboard(request):
                 FROM unit_alat u
                 JOIN model_alat m ON m.id = u.model_alat_id
                 LEFT JOIN kategori_alat k ON k.id = m.kategori_alat_id
-                WHERE u.status <> 'DIARSIPKAN'
+                WHERE u.status NOT IN ('DIARSIPKAN', 'TERJUAL')
                 GROUP BY 1 ORDER BY 3 DESC, 1 LIMIT 6
             """) or []
             category_usage = [
@@ -1850,7 +2136,7 @@ def dashboard(request):
             for r in _dashboard_query(cursor, """
                 SELECT concat_ws(' ', m.merek, m.nama_model), u.nomor_seri, pw.kalibrasi_berlaku_sampai
                 FROM perawatan pw
-                JOIN unit_alat u ON u.id = pw.unit_alat_id AND u.status <> 'DIARSIPKAN'
+                JOIN unit_alat u ON u.id = pw.unit_alat_id AND u.status NOT IN ('DIARSIPKAN', 'TERJUAL')
                 JOIN model_alat m ON m.id = u.model_alat_id
                 WHERE pw.kalibrasi_berlaku_sampai IS NOT NULL
                   AND pw.kalibrasi_berlaku_sampai <= %s
@@ -1998,7 +2284,7 @@ def inventory(request):
                 JOIN model_alat AS m ON m.id = u.model_alat_id
                 JOIN kategori_alat AS k ON k.id = m.kategori_alat_id
                 LEFT JOIN lokasi AS l ON l.id = u.lokasi_id
-                WHERE (%s = TRUE OR u.status <> 'DIARSIPKAN')
+                WHERE (%s = TRUE OR u.status NOT IN ('DIARSIPKAN', 'TERJUAL'))
                   AND (%s = '' OR k.nama = %s)
                   AND (%s = '' OR
                        concat_ws(' ', k.nama, m.merek, m.nama_model,
@@ -2050,7 +2336,7 @@ def inventory(request):
                     JOIN paket_alat_item pai ON pai.id = pui.paket_alat_item_id
                     WHERE pu.unit_utama_id = u.id
                 ) AS aksesori ON TRUE
-                WHERE (%s = TRUE OR u.status <> 'DIARSIPKAN')
+                WHERE (%s = TRUE OR u.status NOT IN ('DIARSIPKAN', 'TERJUAL'))
                   AND (%s = '' OR k.nama = %s)
                   AND (%s = '' OR
                        concat_ws(' ', k.nama, m.merek, m.nama_model,

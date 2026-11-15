@@ -3,7 +3,7 @@
 {% block crumb %}Quotation{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Buat quotation</h1><p>Penawaran disimpan sebagai draft. Unit inventaris belum dicadangkan pada tahap ini.</p></div>
+  <div><h1>Buat quotation</h1><p>Rental alat, penjualan produk, atau jasa survey. Penawaran disimpan sebagai draft; unit inventaris belum dicadangkan pada tahap ini.</p></div>
   <div class="page-actions"><a class="btn btn-outline" href="{% url 'quotation_list' %}">← Kembali</a></div>
 </div>
 {% endblock %}
@@ -15,9 +15,18 @@
   {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
   <section class="panel">
     <div class="ph"><div class="ph-l"><span class="qi t-cyan"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span><div><h2>Informasi penawaran</h2><p>Perusahaan penawar, klien, dan jadwal</p></div></div></div>
+    <div class="field full" style="margin-bottom:14px">
+      <label>{{ form.kind.label }}</label>
+      <div class="kind-picker" id="kind-picker">
+        {% for radio in form.kind %}
+          <label for="{{ radio.id_for_label }}">{{ radio.tag }}<span><b>{{ radio.choice_label }}</b><small>{% if radio.data.value == "RENTAL" %}Tarif per unit per hari{% elif radio.data.value == "PENJUALAN" %}Harga per unit, tanpa durasi{% else %}Harga paket / per hari survey{% endif %}</small></span></label>
+        {% endfor %}
+      </div>
+      {% for error in form.kind.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+    </div>
     <div class="form-grid">
       {% for field in form %}
-        {% if field.name != 'apply_tax' %}
+        {% if field.name != 'apply_tax' and field.name != 'kind' %}
           <div class="field {% if field.name == 'notes' or field.name == 'client_address' %}full{% endif %}">
             {{ field.label_tag }}{{ field }}
             {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
@@ -33,13 +42,13 @@
   </section>
 
   <section class="panel mt" id="quote-item-formset">
-    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><div><h2>Item quotation</h2><p>Satu alat satu baris. Total baris dan total quotation dihitung otomatis.</p></div></div></div>
+    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><div><h2>Item quotation</h2><p id="items-hint">Satu alat satu baris. Total baris dan total quotation dihitung otomatis.</p></div></div></div>
     {% if catalog_error %}<div class="flash warning">Belum dapat membaca katalog alat. Muat ulang halaman atau periksa koneksi database.</div>{% elif not equipment_catalog %}<div class="flash warning">Belum ada model alat aktif di inventaris. Item tetap bisa diisi manual.</div>{% endif %}
     {{ item_formset.management_form }}
     {% if item_formset.non_form_errors %}<div class="flash error">{{ item_formset.non_form_errors|join:" " }}</div>{% endif %}
     <div class="table-wrap">
       <table class="quote-items-table">
-        <thead><tr><th style="width:44px">No.</th><th style="min-width:280px">Nama alat / deskripsi</th><th style="width:110px">Jumlah unit</th><th style="width:100px">Hari</th><th style="width:160px">Tarif / hari (Rp)</th><th class="num" style="width:150px">Total</th><th style="width:70px"></th></tr></thead>
+        <thead><tr><th style="width:44px">No.</th><th style="min-width:280px">Nama alat / deskripsi</th><th style="width:110px">Jumlah unit</th><th style="width:100px" class="col-days">Hari</th><th style="width:160px" id="price-head">Tarif / hari (Rp)</th><th class="num" style="width:150px">Total</th><th style="width:70px"></th></tr></thead>
         <tbody id="quote-items">
           {% for item in item_formset %}
             <tr class="item-row">
@@ -50,7 +59,7 @@
                 {% for error in item.equipment_id.errors %}<span class="field-error">{{ error }}</span>{% endfor %}{% for error in item.description.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
               </td>
               <td>{{ item.quantity }}{% for error in item.quantity.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>
-              <td>{{ item.days }}{% for error in item.days.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>
+              <td class="col-days">{{ item.days }}{% for error in item.days.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>
               <td>{{ item.unit_price }}{% for error in item.unit_price.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</td>
               <td class="num"><b class="item-total">Rp 0</b></td>
               <td><button type="button" class="btn btn-danger-outline btn-sm remove-item">Hapus</button></td>
@@ -73,7 +82,7 @@
           <label class="sr-only" for="id_items-__prefix__-description">Deskripsi manual</label><div style="margin-top:6px"><input class="description-input" type="text" name="items-__prefix__-description" maxlength="500" id="id_items-__prefix__-description" placeholder="Deskripsi manual (opsional jika pilih alat)"></div>
         </td>
         <td><label class="sr-only" for="id_items-__prefix__-quantity">Jumlah unit</label><input type="number" name="items-__prefix__-quantity" min="0.01" step="0.01" id="id_items-__prefix__-quantity"></td>
-        <td><label class="sr-only" for="id_items-__prefix__-days">Jumlah hari</label><input type="number" name="items-__prefix__-days" min="1" max="3650" step="1" id="id_items-__prefix__-days"></td>
+        <td class="col-days"><label class="sr-only" for="id_items-__prefix__-days">Jumlah hari</label><input type="number" name="items-__prefix__-days" min="1" max="3650" step="1" id="id_items-__prefix__-days"></td>
         <td><label class="sr-only" for="id_items-__prefix__-unit_price">Tarif per hari</label><input type="number" name="items-__prefix__-unit_price" min="0" step="0.01" id="id_items-__prefix__-unit_price"><input type="hidden" name="items-__prefix__-unit" value="unit" id="id_items-__prefix__-unit"></td>
         <td class="num"><b class="item-total">Rp 0</b></td>
         <td><input type="hidden" name="items-__prefix__-DELETE" id="id_items-__prefix__-DELETE"><button type="button" class="btn btn-danger-outline btn-sm remove-item">Hapus</button></td>
@@ -118,7 +127,8 @@
           const unit = row.querySelector('input[name$="-unit"]');
           const price = row.querySelector('input[name$="-unit_price"]');
           const daysInput = row.querySelector('input[name$="-days"]');
-          const days = Number(daysInput.value) || 0;
+          const kind = currentKind();
+          const days = kind === "PENJUALAN" ? 1 : (Number(daysInput.value) || (kind === "JASA_SURVEY" ? 1 : 0));
           const equipment = selector ? byId.get(selector.value) : null;
           if (equipment) {
             description.value = equipment.name;
@@ -138,6 +148,19 @@
         document.getElementById("quote-tax-amount").textContent = formatMoney(taxAmount);
         document.getElementById("quote-grand-total").textContent = formatMoney(subtotal + taxAmount);
       };
+      const kindPicker = document.getElementById("kind-picker");
+      const currentKind = () => (kindPicker.querySelector("input:checked") || {}).value || "RENTAL";
+      const applyKind = () => {
+        const kind = currentKind();
+        document.querySelectorAll(".col-days").forEach((el) => { el.hidden = kind === "PENJUALAN"; });
+        document.getElementById("price-head").textContent = kind === "RENTAL" ? "Tarif / hari (Rp)" : kind === "PENJUALAN" ? "Harga / unit (Rp)" : "Harga (Rp)";
+        document.getElementById("items-hint").textContent = kind === "RENTAL"
+          ? "Satu alat satu baris: jumlah unit × hari × tarif per hari."
+          : kind === "PENJUALAN" ? "Satu produk satu baris: jumlah unit × harga per unit. Pilih dari inventaris atau isi manual."
+          : "Isi item jasa survey. Kolom hari opsional — kosongkan untuk harga paket/lump sum.";
+        updateTotals();
+      };
+      kindPicker.addEventListener("change", applyKind);
       rows.addEventListener("input", updateTotals);
       taxToggle.addEventListener("change", updateTotals);
       rows.addEventListener("change", (event) => {
@@ -148,6 +171,7 @@
         rows.insertAdjacentHTML("beforeend", template.innerHTML.replaceAll("__prefix__", index));
         const newRow = rows.lastElementChild;
         newRow.querySelector(".row-number").textContent = index + 1;
+        newRow.querySelectorAll(".col-days").forEach((el) => { el.hidden = currentKind() === "PENJUALAN"; });
         addEquipmentOptions(newRow.querySelector('select[name$="-equipment_id"]'));
         total.value = index + 1;
         updateTotals();
@@ -160,7 +184,7 @@
         row.hidden = true;
         updateTotals();
       });
-      updateTotals();
+      applyKind();
     })();
   </script>
 {% endblock %}

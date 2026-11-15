@@ -8,7 +8,7 @@ from portal.views import (
     add_inventory, archive_project, archive_unit, dashboard, edit_inventory,
     inventory, inventory_history, project_form, project_list, rental_create,
     invoice_create, invoice_document, invoice_list, invoice_status, place_search,
-    quotation_create, quotation_document, quotation_list, quotation_status,
+    quotation_create, quotation_document, quotation_list, quotation_status, sale_delivery,
     rental_handover, rental_list, rental_location_edit, landing, role_management,
     StaffLoginView,
 )
@@ -31,6 +31,7 @@ urlpatterns = [
     path("quotation/", quotation_list, name="quotation_list"),
     path("quotation/tambah/", quotation_create, name="quotation_create"),
     path("quotation/<int:quotation_id>/dokumen/", quotation_document, name="quotation_document"),
+    path("quotation/<int:quotation_id>/kirim-barang/", sale_delivery, name="sale_delivery"),
     path("quotation/<int:quotation_id>/<str:action>/", quotation_status, name="quotation_status"),
     path("invoice/", invoice_list, name="invoice_list"),
     path("invoice/tambah/<int:quotation_id>/", invoice_create, name="invoice_create"),

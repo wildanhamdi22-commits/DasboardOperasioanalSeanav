@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Dashboard{% endblock %}
 {% block leaflet_css %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">{% endblock %}
-{% block breadcrumb %}<div class="crumb"><span><b>Dashboard</b> · Seanav Operations</span><span class="upd">Terakhir diperbarui <span class="mono">{% now "H:i" %}</span><a href="?periode={{ period_key }}" aria-label="Muat ulang"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></a></span></div>{% endblock %}
+{% block breadcrumb %}<div class="crumb"><span><b>Dashboard</b> · Oseana · Seanav Operations</span><span class="upd">Terakhir diperbarui <span class="mono">{% now "H:i" %}</span><a href="?periode={{ period_key }}" aria-label="Muat ulang"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></a></span></div>{% endblock %}
 {% block content %}{% with name=request.user.get_full_name|default:request.user.username %}
 
     <!-- ================= HERO ================= -->

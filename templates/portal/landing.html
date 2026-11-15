@@ -36,7 +36,9 @@
     .scrolled .brand-text{color:var(--navy)}
     .nav{display:flex;align-items:center;gap:26px;font-size:14px;font-weight:600;color:rgba(255,255,255,.82)}
     .scrolled .nav{color:#3c4b60}
-    .nav a{text-decoration:none;position:relative}
+    .nav a{text-decoration:none;position:relative;white-space:nowrap}
+    .brand-text{white-space:nowrap}
+    @media (max-width:1240px) and (min-width:981px){.nav{gap:18px;font-size:13.5px}.brand-text small{display:none}}
     .nav a:not(.btn):after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:2px;background:var(--red);transform:scaleX(0);transition:transform .2s}
     .nav a:not(.btn):hover:after,.nav a.active:after{transform:scaleX(1)}
     .menu-toggle{display:none;width:42px;height:42px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-size:18px;cursor:pointer}
@@ -335,7 +337,27 @@
       .sectors-label{display:none}
       .console-top .mono{display:none}
     }
-  </style>
+  
+    /* ---- foto & solusi ---- */
+    .hero-photo{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.28;mix-blend-mode:luminosity;pointer-events:none}
+    .hero-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,22,40,.55) 0%,rgba(6,22,40,.2) 45%,var(--deep) 100%)}
+    .hero #sonar,.hero .container{position:relative;z-index:1}
+    .head-note{max-width:440px;color:var(--muted);margin:0;line-height:1.6}
+    .solusi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:40px}
+    .solusi{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 40px -28px rgba(10,30,60,.35);transition:transform .25s ease,box-shadow .25s ease}
+    .solusi:hover{transform:translateY(-4px);box-shadow:0 26px 50px -26px rgba(10,30,60,.45)}
+    .solusi-img{position:relative;aspect-ratio:16/10;background-color:#0e3358;background-size:cover;background-position:center;background-repeat:no-repeat}
+    .solusi-img:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(6,22,40,.55))}
+    .solusi-tag{position:absolute;left:16px;bottom:14px;z-index:1;color:#fff;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;background:rgba(200,16,46,.92);padding:6px 11px;border-radius:999px}
+    .solusi-body{padding:24px 24px 26px;display:flex;flex-direction:column;gap:12px;flex:1}
+    .solusi-body h3{margin:0;font-size:20px}
+    .solusi-body p{margin:0;color:var(--muted);line-height:1.6}
+    .solusi-body ul{margin:0;padding:0;list-style:none;display:grid;gap:7px;font-size:14px}
+    .solusi-body li{display:flex;gap:8px}.solusi-body li:before{content:"✓";color:var(--red);font-weight:800}
+    .solusi-body .btn{margin-top:auto;align-self:flex-start}
+    @media (max-width:980px){.solusi-grid{grid-template-columns:1fr 1fr}}
+    @media (max-width:640px){.solusi-grid{grid-template-columns:1fr}.head-note{max-width:none}}
+</style>
 </head>
 <body>
 
@@ -349,13 +371,14 @@
     <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Buka menu" aria-expanded="false">☰</button>
     <nav class="nav" id="site-menu" aria-label="Menu utama">
       <a href="#tentang">Tentang</a>
+      <a href="#solusi">Solusi</a>
       <a href="#layanan">Layanan</a>
       <a href="#operasi">Area Operasi</a>
       <a href="#spesifikasi">Spesifikasi</a>
-      <a href="#peralatan">Sewa Alat</a>
+      <a href="#peralatan">Produk &amp; Sewa</a>
       <a href="#ekosistem">Grup</a>
       <a href="#kontak">Kontak</a>
-      {% if request.user.is_authenticated %}<a class="btn btn-red btn-sm" href="{% url 'dashboard' %}">Portal →</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'login' %}">Login staf →</a>{% endif %}
+      {% if request.user.is_authenticated %}<a class="btn btn-red btn-sm" href="{% url 'dashboard' %}">Portal →</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'login' %}">Login →</a>{% endif %}
     </nav>
   </div>
 </header>
@@ -363,21 +386,22 @@
 <main>
 <!-- ================= HERO ================= -->
 <section class="hero" id="beranda">
+  <div class="hero-photo" aria-hidden="true" style="background-image:url('{{ photos.hero }}')"></div>
   <canvas id="sonar" aria-hidden="true"></canvas>
   <div class="container hero-grid">
     <div>
-      <span class="pill"><b>SEANAV GROUP</b> Marine · Survey · Geospatial Solutions</span>
+      <span class="pill"><b>OSEANA · SEANAV</b> Rental · Penjualan · Jasa Survey</span>
       <h1>Data survei yang presisi, dari <em>darat hingga dasar laut.</em></h1>
       <p class="hero-lead">PT Oseana Prawira Persada dan PT Seanav Maritim Indonesia menghadirkan layanan survei maritim, geospasial, inspeksi bawah air, serta penjualan dan penyewaan peralatan survei — didukung kru berpengalaman dan instrumen terkini.</p>
       <div class="hero-feats">
         <span>Survei hidrografi &amp; geofisika</span>
         <span>Met-ocean &amp; lingkungan</span>
         <span>Aerial LiDAR &amp; topografi</span>
-        <span>Sewa, jual &amp; servis alat</span>
+        <span>Rental &amp; penjualan alat survei</span>
       </div>
       <div class="hero-actions">
         <a class="btn btn-red" href="#kontak">Konsultasi proyek <span>→</span></a>
-        <a class="btn btn-ghost" href="#peralatan">Lihat peralatan sewa</a>
+        <a class="btn btn-ghost" href="#solusi">Rental · Penjualan · Jasa survey</a>
       </div>
     </div>
 
@@ -450,6 +474,45 @@
     </div></div>
   </div>
 </div>
+
+<!-- ================= SOLUSI: RENTAL / PENJUALAN / JASA SURVEY ================= -->
+<section class="section" id="solusi">
+  <div class="container">
+    <div class="head reveal">
+      <div><span class="eyebrow">Tiga cara kami membantu</span><h2>Sewa alatnya, beli produknya, atau serahkan surveinya kepada kami.</h2></div>
+      <p class="head-note">Satu tim — <b>PT Oseana Prawira Persada</b> &amp; <b>PT Seanav Maritim Indonesia</b> — untuk kebutuhan jangka pendek, investasi peralatan, maupun proyek survei penuh.</p>
+    </div>
+    <div class="solusi-grid">
+      <article class="solusi reveal">
+        <div class="solusi-img" style="background-image:url('{{ photos.rental }}')"><span class="solusi-tag">01 · Rental alat</span></div>
+        <div class="solusi-body">
+          <h3>Rental peralatan survei</h3>
+          <p>MBES, GNSS RTK, drone LiDAR, magnetometer, ROV, dan sensor met-ocean — dikalibrasi, lengkap aksesori, siap mobilisasi.</p>
+          <ul><li>Sewa harian, mingguan, hingga bulanan</li><li>Serah terima &amp; pengecekan kondisi tercatat</li><li>Opsi operator / teknisi lapangan</li></ul>
+          <a class="btn btn-red" href="#kontak" data-eq="Rental peralatan survei" data-type="Sewa peralatan">Minta penawaran sewa →</a>
+        </div>
+      </article>
+      <article class="solusi reveal">
+        <div class="solusi-img" style="background-image:url('{{ photos.sales }}')"><span class="solusi-tag">02 · Penjualan produk</span></div>
+        <div class="solusi-body">
+          <h3>Penjualan produk &amp; instrumen</h3>
+          <p>Pengadaan instrumen survei baru maupun unit siap pakai dari inventaris kami, termasuk aksesori, suku cadang, dan pelatihan penggunaan.</p>
+          <ul><li>Instrumen hidrografi, geofisika &amp; GNSS</li><li>Garansi, instalasi &amp; commissioning</li><li>Dukungan servis &amp; kalibrasi purna jual</li></ul>
+          <a class="btn btn-red" href="#kontak" data-eq="Pembelian produk / instrumen survei" data-type="Pembelian peralatan">Minta penawaran harga →</a>
+        </div>
+      </article>
+      <article class="solusi reveal">
+        <div class="solusi-img" style="background-image:url('{{ photos.survey }}')"><span class="solusi-tag">03 · Jasa survey</span></div>
+        <div class="solusi-body">
+          <h3>Jasa survei end-to-end</h3>
+          <p>Perencanaan, akuisisi data, pengolahan, hingga laporan — hidrografi, geofisika, met-ocean, topografi, aerial, dan inspeksi bawah air.</p>
+          <ul><li>Kru surveyor &amp; kapal survei</li><li>QC data sesuai standar proyek</li><li>Deliverable peta, model &amp; laporan</li></ul>
+          <a class="btn btn-red" href="#kontak" data-eq="Jasa survei" data-type="Layanan survei (hidrografi / geofisika / met-ocean)">Konsultasi proyek survei →</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
 
 <!-- ================= ABOUT ================= -->
 <section class="section" id="tentang">
@@ -796,7 +859,7 @@
       </div>
       <div><h4>Layanan</h4><ul><li><a href="#layanan">Hydrographic survey</a></li><li><a href="#layanan">Geophysical &amp; UXO</a></li><li><a href="#layanan">Met-ocean</a></li><li><a href="#layanan">Aerial &amp; land survey</a></li><li><a href="#layanan">ROV inspection</a></li></ul></div>
       <div><h4>Peralatan</h4><ul><li><a href="#peralatan">Sewa alat survei</a></li><li><a href="#peralatan">Penjualan alat</a></li><li><a href="#ekosistem">Rental &amp; repair</a></li><li><a href="#spesifikasi">Spesifikasi teknis</a></li></ul></div>
-      <div><h4>Perusahaan</h4><ul><li><a href="#tentang">Tentang kami</a></li><li><a href="https://oseanaprawirapersada.com/" target="_blank" rel="noopener">Website Oseana ↗</a></li><li><a href="https://seanavgroup.co.id/" target="_blank" rel="noopener">Website Seanav ↗</a></li><li>{% if request.user.is_authenticated %}<a href="{% url 'dashboard' %}">Portal operasional</a>{% else %}<a href="{% url 'login' %}">Login staf</a>{% endif %}</li></ul></div>
+      <div><h4>Perusahaan</h4><ul><li><a href="#tentang">Tentang kami</a></li><li><a href="https://oseanaprawirapersada.com/" target="_blank" rel="noopener">Website Oseana ↗</a></li><li><a href="https://seanavgroup.co.id/" target="_blank" rel="noopener">Website Seanav ↗</a></li><li>{% if request.user.is_authenticated %}<a href="{% url 'dashboard' %}">Portal operasional</a>{% else %}<a href="{% url 'login' %}">Login</a>{% endif %}</li></ul></div>
     </div>
     <div class="foot-bottom"><span>© 2026 PT Oseana Prawira Persada · PT Seanav Maritim Indonesia — Seanav Group</span><span>Integrity · Precision · Synergy</span></div>
   </div>
@@ -856,8 +919,11 @@
 
   /* equipment -> form prefill */
   document.querySelectorAll("[data-eq]").forEach(a => a.addEventListener("click", () => {
-    document.getElementById("f-type").value = "Sewa peralatan";
-    const m = document.getElementById("f-msg"); m.value = "Saya tertarik menyewa: " + a.dataset.eq + "\nLokasi proyek: \nPerkiraan tanggal & durasi: ";
+    const type = a.dataset.type || "Sewa peralatan";
+    document.getElementById("f-type").value = type;
+    const intro = type === "Pembelian peralatan" ? "Saya tertarik membeli: " : type.startsWith("Layanan survei") ? "Saya membutuhkan: " : "Saya tertarik menyewa: ";
+    const tail = type === "Pembelian peralatan" ? "\nJumlah unit: \nLokasi pengiriman: " : "\nLokasi proyek: \nPerkiraan tanggal & durasi: ";
+    const m = document.getElementById("f-msg"); m.value = intro + a.dataset.eq + tail;
   }));
 
   /* inquiry form */

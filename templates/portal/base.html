@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#0b2a4a">
-  <title>{% block title %}Seanav Operations{% endblock %} · Seanav Operations</title>
+  <title>{% block title %}Oseana · Seanav Operations{% endblock %} · Oseana · Seanav Operations</title>
   <link rel="icon" href="{% static 'portal/seanav-logo-trim.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   {% block leaflet_css %}{% endblock %}
   <script>try{if(localStorage.getItem("snv-theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'portal/app.css' %}?v=20261115b">
+  <link rel="stylesheet" href="{% static 'portal/app.css' %}?v=20261116a">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
 {% with b=nav_badges %}
 <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
   <div class="sb-brand">
-    <span class="logo"><img src="{% static 'portal/seanav-logo-trim.png' %}" alt="Seanav"></span>
-    <div><b>Operations</b><small>Seanav Group</small></div>
+    <span class="logo logo-duo"><img src="{% static 'portal/oseana-logo.png' %}" alt="PT Oseana Prawira Persada"><img src="{% static 'portal/seanav-logo-trim.png' %}" alt="PT Seanav Maritim Indonesia"></span>
+    <div><b>Operations Portal</b><small>Oseana Prawira Persada · Seanav Maritim</small></div>
   </div>
   <a class="sb-profile" href="{% url 'profile' %}" title="Profil saya">
     <span class="avatar">{{ shell_user_initial }}</span>
@@ -154,7 +154,7 @@
   </header>
 
   <main class="content">
-    {% block breadcrumb %}<div class="crumb"><span><b>{% block crumb %}{% endblock %}</b> · Seanav Operations</span><span class="upd">{% now "l, d F Y" %}</span></div>{% endblock %}
+    {% block breadcrumb %}<div class="crumb"><span><b>{% block crumb %}{% endblock %}</b> · Oseana · Seanav Operations</span><span class="upd">{% now "l, d F Y" %}</span></div>{% endblock %}
     {% block page_head %}{% endblock %}
     {% if messages %}
       {% for message in messages %}<div class="flash {% if message.tags %}{{ message.tags }}{% endif %}" role="status">{{ message }}</div>{% endfor %}
@@ -163,8 +163,8 @@
   </main>
 
   <footer class="foot">
-    <span><b>Seanav Operations</b> · Portal internal PT Oseana Prawira Persada &amp; PT Seanav Maritim Indonesia</span>
-    <span><a href="{% url 'landing' %}">Website</a> · © {% now "Y" %} Seanav Group · {% if shell_db_ok %}<span class="dot ok">Sistem normal</span>{% else %}<span class="dot bad">Database gangguan</span>{% endif %}</span>
+    <span><b>Oseana · Seanav Operations</b> · Portal internal PT Oseana Prawira Persada &amp; PT Seanav Maritim Indonesia</span>
+    <span><a href="{% url 'landing' %}">Website</a> · © {% now "Y" %} PT Oseana Prawira Persada &amp; PT Seanav Maritim Indonesia · {% if shell_db_ok %}<span class="dot ok">Sistem normal</span>{% else %}<span class="dot bad">Database gangguan</span>{% endif %}</span>
   </footer>
 </div>
 {% endwith %}

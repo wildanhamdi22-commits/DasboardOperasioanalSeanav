@@ -290,7 +290,18 @@ class RoleAssignmentForm(forms.Form):
             self.fields["role_code"].choices = [(row[0], row[1]) for row in cursor.fetchall()]
 
 
+QUOTATION_KINDS = (
+    ("RENTAL", "Rental alat"),
+    ("PENJUALAN", "Penjualan produk"),
+    ("JASA_SURVEY", "Jasa survey"),
+)
+
+
 class QuotationForm(forms.Form):
+    kind = forms.ChoiceField(
+        label="Jenis penawaran", choices=QUOTATION_KINDS, initial="RENTAL", required=False,
+        widget=forms.RadioSelect(attrs={"class": "kind-radio"}),
+    )
     company_id = forms.ChoiceField(label="Perusahaan penawar", choices=())
     number = forms.CharField(label="Nomor quotation", max_length=80)
     representative_id = forms.ChoiceField(
@@ -313,7 +324,9 @@ class QuotationForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}),
     )
     rental_start = forms.DateField(
-        label="Rencana mulai rental", widget=forms.DateInput(attrs={"type": "date"})
+        label="Rencana mulai (rental / survey)", required=False,
+        help_text="Wajib untuk rental. Untuk jasa survey isi bila jadwal sudah ada; penjualan boleh dikosongkan.",
+        widget=forms.DateInput(attrs={"type": "date"}),
     )
     notes = forms.CharField(label="Catatan", required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
@@ -345,6 +358,10 @@ class QuotationForm(forms.Form):
         start = cleaned.get("rental_start")
         if quote_date and valid_until and valid_until < quote_date:
             self.add_error("valid_until", "Tanggal berlaku tidak boleh sebelum tanggal quotation.")
+        if not cleaned.get("kind"):
+            cleaned["kind"] = "RENTAL"
+        if cleaned.get("kind") == "RENTAL" and not start:
+            self.add_error("rental_start", "Isi rencana tanggal mulai rental.")
         return cleaned
 
 
@@ -477,10 +494,11 @@ class QuotationItemForm(forms.Form):
     )
     days = forms.IntegerField(
         label="Jumlah hari", required=False, min_value=1, max_value=3650,
+        help_text="Wajib untuk rental; opsional untuk jasa survey; abaikan untuk penjualan.",
     )
     unit = forms.CharField(label="Satuan", max_length=40, required=False, initial="unit")
     unit_price = forms.DecimalField(
-        label="Tarif per unit per hari (Rp)", required=False,
+        label="Harga satuan (Rp)", required=False,
         min_value=Decimal("0"), max_digits=18, decimal_places=2,
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
@@ -494,16 +512,12 @@ class QuotationItemForm(forms.Form):
                 self.add_error("quantity", "Isi jumlah unit alat.")
             if cleaned.get("unit_price") is None:
                 self.add_error("unit_price", "Isi harga khusus untuk quotation ini.")
-            if cleaned.get("days") is None:
-                self.add_error("days", "Isi jumlah hari rental.")
             cleaned["unit"] = "unit"
         elif description:
             if cleaned.get("quantity") is None:
                 self.add_error("quantity", "Isi jumlah item.")
             if cleaned.get("unit_price") is None:
                 self.add_error("unit_price", "Isi harga untuk item manual.")
-            if cleaned.get("days") is None:
-                self.add_error("days", "Isi jumlah hari rental.")
             if not cleaned.get("unit"):
                 cleaned["unit"] = "unit"
         elif any(cleaned.get(name) not in (None, "") for name in ("quantity", "days", "unit_price")):
@@ -559,3 +573,13 @@ QuotationItemFormSet = formset_factory(
     QuotationItemForm, formset=QuotationItemFormSetBase,
     extra=1, can_delete=True, max_num=30, validate_max=True,
 )
+
+
+class SaleDeliveryForm(forms.Form):
+    received_by = forms.CharField(label="Diterima oleh (nama penerima klien)", max_length=180)
+    delivered_at = forms.DateTimeField(
+        label="Waktu serah terima",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"],
+    )
+    notes = forms.CharField(label="Catatan", required=False, widget=forms.Textarea(attrs={"rows": 2}))

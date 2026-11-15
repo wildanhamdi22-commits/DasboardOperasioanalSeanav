@@ -512,3 +512,23 @@ html.dark .st{filter:brightness(1.1) saturate(.9)}
   .panel.flush .table-wrap{padding:0}
   table.data .prog{min-width:0}
 }
+
+/* Jenis transaksi: rental, penjualan, jasa survey */
+.kind{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.02em;background:#e6eef8;color:var(--navy-2)}
+.kind-PENJUALAN{background:#f8eee3;color:var(--sand)}
+.kind-JASA_SURVEY{background:#e2f5f9;color:#0f86a3}
+.kind-tabs{margin-bottom:8px}
+.st-TERJUAL{background:#f8eee3;color:var(--sand)}
+.kind-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kind-picker label{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;background:var(--surface)}
+.kind-picker label:has(input:checked){border-color:var(--navy-2);box-shadow:0 0 0 3px rgba(23,54,93,.08)}
+.kind-picker b{display:block;font-size:13.5px}.kind-picker small{color:var(--muted);font-size:12px}
+@media (max-width:720px){.kind-picker{grid-template-columns:1fr}}
+.sb-brand .logo-duo{display:flex;gap:7px;padding:0 8px}
+.sb-brand .logo-duo img{height:22px}
+.sb-brand .logo-duo img+img{padding-left:7px;border-left:1px solid var(--line)}
+.sb-brand b{font-size:14.5px}
+.sb-brand{height:auto;min-height:72px;padding:12px 18px;flex-direction:column;align-items:flex-start;gap:6px}
+.sb-brand .logo-duo{height:36px}
+.sb-brand b{font-size:14px;line-height:1.2}
+.sb-brand small{font-size:11px}

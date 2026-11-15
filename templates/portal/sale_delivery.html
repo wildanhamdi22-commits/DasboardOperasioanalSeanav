@@ -1,0 +1,55 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Kirim barang{% endblock %}
+{% block crumb %}Quotation{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Serah terima penjualan</h1><p>Catat barang yang dikirim ke klien. Unit inventaris yang dipilih akan berstatus <b>TERJUAL</b> dan keluar dari stok.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'quotation_list' %}?jenis=PENJUALAN">← Kembali</a></div>
+</div>
+{% endblock %}
+{% block content %}
+{% if database_error %}<div class="flash error">{{ database_error }}</div>{% else %}
+<form method="post" data-confirm="Catat pengiriman ini? Unit terpilih akan ditandai TERJUAL.">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><span class="qi t-sand"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l5 5v5H3z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg></span>
+      <div><h2>{{ quote.1 }} · {{ quote.6 }}</h2><p>{{ quote.4 }} · Total {{ quote.7|rupiah }} · nomor pesanan otomatis <span class="mono">SO/{{ quote.1 }}</span></p></div></div></div>
+    <div class="form-grid">
+      {% for field in form %}
+        <div class="field {% if field.name == 'notes' %}full{% endif %}">{{ field.label_tag }}{{ field }}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel mt">
+    <div class="ph"><div class="ph-l"><span class="qi t-navy"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><div><h2>Barang yang dikirim</h2><p>Pilih unit (nomor seri) untuk setiap produk dari inventaris. Item manual dicatat tanpa unit.</p></div></div></div>
+    {% for item in items %}
+      <div class="note" style="margin:0 0 12px">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>{{ forloop.counter }}. {{ item.description }}</b><span class="mono">{{ item.quantity|floatformat:"-2" }} {{ item.unit }} × {{ item.price|rupiah }}</span></div>
+        {% if item.tracked %}
+          {% if item.units %}
+            <p class="small muted" style="margin:6px 0">{% if item.needed %}Pilih tepat <b>{{ item.needed }}</b> unit.{% else %}Jumlah pecahan — pilih unit yang ikut dikirim.{% endif %}</p>
+            <div class="table-wrap"><table class="data"><thead><tr><th></th><th>No. seri</th><th>Kode</th><th>Kondisi</th><th>Lokasi</th></tr></thead><tbody>
+              {% for unit in item.units %}
+                <tr><td><input type="checkbox" name="units_{{ item.id }}" value="{{ unit.id }}" {% for key, values in selected.items %}{% if key == item.id and unit.id in values %}checked{% endif %}{% endfor %}></td>
+                  <td class="mono">{{ unit.serial }}{% if unit.for_sale %} <span class="kind kind-PENJUALAN">stok jual</span>{% endif %}</td><td class="mono">{{ unit.code|default:"-" }}</td><td>{{ unit.condition|label }}</td><td>{{ unit.location|default:"-" }}</td></tr>
+              {% endfor %}
+            </tbody></table></div>
+          {% else %}
+            <div class="flash warning" style="margin:8px 0 0">Tidak ada unit berstatus TERSEDIA untuk model ini. Tambahkan unit di Inventaris atau tunggu unit kembali dari rental.</div>
+          {% endif %}
+        {% else %}
+          <p class="small muted" style="margin:6px 0 0">Item non-inventaris — dicatat sesuai jumlah di quotation.</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+  <div class="form-actions" style="border:0">
+    <button class="btn btn-primary btn-lg" type="submit">Catat barang terkirim</button>
+    <a class="btn btn-ghost" href="{% url 'quotation_list' %}?jenis=PENJUALAN">Batal</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

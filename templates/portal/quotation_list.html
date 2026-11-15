@@ -4,11 +4,14 @@
 {% block crumb %}Quotation{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Quotation</h1><p>Kelola penawaran klien. Setelah klien setuju, buat invoice sebelum rental dan pengiriman alat.</p></div>
+  <div><h1>Quotation</h1><p>Penawaran rental alat, penjualan produk, dan jasa survey. Setelah klien setuju, buat invoice lalu lanjutkan ke rental atau pengiriman barang.</p></div>
   <div class="page-actions"><a class="btn btn-primary" href="{% url 'quotation_create' %}">+ Buat quotation</a></div>
 </div>
 {% endblock %}
 {% block content %}
+<div class="tabs kind-tabs">
+  <a href="{% url 'quotation_list' %}" class="{% if not kind_filter %}on{% endif %}">Semua jenis</a>{% for code, label in kind_choices %}<a href="?jenis={{ code }}" class="{% if kind_filter == code %}on{% endif %}">{{ label }}</a>{% endfor %}
+</div>
 <div class="tabs" id="q-tabs">
   <a href="#" class="on" data-f="">Semua</a><a href="#" data-f="DRAFT">Draft</a><a href="#" data-f="TERKIRIM">Terkirim</a><a href="#" data-f="DITERIMA_KLIEN">Diterima klien</a><a href="#" data-f="DITOLAK_KLIEN">Ditolak</a>
 </div>
@@ -20,7 +23,7 @@
       <tbody>
         {% for quote in quotations %}
           <tr data-status="{{ quote.status }}">
-            <td><b class="mono">{{ quote.number }}</b><small>{{ quote.company }}</small></td>
+            <td><b class="mono">{{ quote.number }}</b><small>{{ quote.company }} · <span class="kind kind-{{ quote.kind }}">{{ quote.kind_label }}</span></small></td>
             <td><b>{{ quote.client }}</b></td>
             <td>{{ quote.date|date:"d M Y" }}<small>Berlaku s.d. {{ quote.valid_until|date:"d M Y"|default:"—" }}</small></td>
             <td>{{ quote.item_count }} item<small>{{ quote.items|default:"Belum ada item"|truncatechars:70 }}</small></td>
@@ -37,6 +40,7 @@
                   <form method="post" action="{% url 'quotation_status' quote.id 'tolak' %}" data-confirm="Catat quotation ini ditolak klien?">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Klien menolak</button></form>
                 {% elif quote.status == "DITERIMA_KLIEN" %}
                   {% if quote.invoice_created %}<a class="btn btn-outline btn-sm" href="{% url 'invoice_list' %}">Lihat invoice</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'invoice_create' quote.id %}">Buat invoice</a>{% endif %}
+                  {% if quote.kind == "PENJUALAN" %}{% if quote.delivered %}<span class="st st-SELESAI">Barang terkirim</span>{% else %}<a class="btn btn-primary btn-sm" href="{% url 'sale_delivery' quote.id %}">Kirim barang</a>{% endif %}{% endif %}
                 {% endif %}
               </div>
             </td>

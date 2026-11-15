@@ -1,0 +1,12 @@
+Foto landing page Seanav / Oseana
+=================================
+Simpan foto perusahaan Anda (format JPG) di folder ini dengan nama berikut,
+lalu muat ulang halaman depan. Foto lokal otomatis menggantikan foto contoh.
+
+  hero.jpg     - latar belakang bagian paling atas (foto laut/kapal, lebar)
+  survey.jpg   - kartu "Jasa survey" (tim/kapal survei di lapangan)
+  rental.jpg   - kartu "Rental alat" (drone, GNSS, MBES, dll.)
+  sales.jpg    - kartu "Penjualan produk" (alat/produk yang dijual)
+
+Saran: lebar minimal 1600 px, ukuran file di bawah 500 KB.
+Jika server dijalankan dengan DEBUG=False, jalankan "python manage.py collectstatic" setelah menambah foto.

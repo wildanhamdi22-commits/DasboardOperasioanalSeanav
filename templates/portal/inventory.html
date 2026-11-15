@@ -6,7 +6,7 @@
 <div class="page-head">
   <div><h1>Inventaris Alat</h1><p>Pool inventaris rental bersama PT Oseana Prawira Persada dan PT Seanav Maritim Indonesia.</p></div>
   <div class="page-actions">
-    {% if include_archived %}<a class="btn btn-outline" href="{% url 'inventory' %}?{% if search %}q={{ search|urlencode }}&amp;{% endif %}{% if category %}kategori={{ category|urlencode }}{% endif %}">Sembunyikan arsip</a>{% else %}<a class="btn btn-outline" href="?arsip=1{% if search %}&amp;q={{ search|urlencode }}{% endif %}{% if category %}&amp;kategori={{ category|urlencode }}{% endif %}">Lihat arsip</a>{% endif %}
+    {% if include_archived %}<a class="btn btn-outline" href="{% url 'inventory' %}?{% if search %}q={{ search|urlencode }}&amp;{% endif %}{% if category %}kategori={{ category|urlencode }}{% endif %}">Sembunyikan arsip</a>{% else %}<a class="btn btn-outline" href="?arsip=1{% if search %}&amp;q={{ search|urlencode }}{% endif %}{% if category %}&amp;kategori={{ category|urlencode }}{% endif %}">Lihat arsip &amp; terjual</a>{% endif %}
     <a class="btn btn-primary" href="{% url 'inventory_add' %}">+ Tambah unit</a>
   </div>
 </div>
