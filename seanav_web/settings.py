@@ -194,9 +194,9 @@ ABSENSI_JAM_MASUK = os.getenv("ABSENSI_JAM_MASUK", "08:00")
 ABSENSI_TOLERANSI_MENIT = int(os.getenv("ABSENSI_TOLERANSI_MENIT", "15"))
 ABSENSI_WAJIB_FOTO = env_bool("ABSENSI_WAJIB_FOTO", False)
 # Titik kantor (default: Indonesia Stock Exchange Tower II, Jakarta). Kosongkan untuk menonaktifkan.
-KANTOR_LAT = os.getenv("KANTOR_LAT", "-6.2237")
-KANTOR_LNG = os.getenv("KANTOR_LNG", "106.8085")
-KANTOR_RADIUS_M = int(os.getenv("KANTOR_RADIUS_M", "200"))
+KANTOR_LAT = os.getenv("KANTOR_LAT", "-6.2239423")
+KANTOR_LNG = os.getenv("KANTOR_LNG", "106.8503391")
+KANTOR_RADIUS_M = int(os.getenv("KANTOR_RADIUS_M", "250"))
 
 # Pembuatan PDF dokumen: "auto" (Word di Windows, LibreOffice di Linux), "word", atau "libreoffice"
 PDF_CONVERTER = os.getenv("PDF_CONVERTER", "auto")
