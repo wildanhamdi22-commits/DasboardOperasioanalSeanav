@@ -63,10 +63,7 @@
       const latitude = document.getElementById("id_latitude");
       const longitude = document.getElementById("id_longitude");
       const map = L.map(element, {scrollWheelZoom: false}).setView([-2.5, 118], 5);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-      }).addTo(map);
+      window.SeanavBasemap(map);
       let marker = null;
       const updateCoordinates = (point) => {
         latitude.value = point.lat.toFixed(7);

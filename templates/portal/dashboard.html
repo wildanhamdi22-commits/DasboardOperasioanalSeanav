@@ -252,7 +252,7 @@
   const points = JSON.parse($("map-data").textContent);
   if (points.length && window.L && $("map")) {
     const map = L.map("map", {scrollWheelZoom: false});
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 18, attribution: "&copy; OpenStreetMap"}).addTo(map);
+    window.SeanavBasemap(map);
     const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
     const bounds = [];
     points.forEach(p => {

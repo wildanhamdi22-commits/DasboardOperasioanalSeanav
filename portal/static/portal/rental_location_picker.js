@@ -12,10 +12,7 @@
   const mapElement = document.getElementById("rental-location-map");
   const map = L.map(mapElement, {scrollWheelZoom: false}).setView([-2.5, 118], 5);
 
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-  }).addTo(map);
+  window.SeanavBasemap(map);
 
   let marker = null;
   let lastSearch = 0;
