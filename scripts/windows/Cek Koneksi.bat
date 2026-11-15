@@ -7,8 +7,8 @@ powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 | Where-Obj
 echo ===== 2. Adapter yang dipakai untuk internet =====
 powershell -NoProfile -Command "Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.Status -eq 'Up' } | ForEach-Object { '{0}  ->  {1}' -f $_.InterfaceAlias, $_.IPv4Address[0].IPAddress }"
 echo.
-echo ===== 3. Apakah server menjawab di port 8000? =====
-powershell -NoProfile -Command "foreach($ip in @('127.0.0.1') + (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' }).IPAddress){ $ok = Test-NetConnection -ComputerName $ip -Port 8000 -InformationLevel Quiet -WarningAction SilentlyContinue; '{0,-16} : {1}' -f $ip, $(if($ok){'TERHUBUNG'}else{'GAGAL'}) }"
+echo ===== 3. Apakah server menjawab di port 443 (https)? =====
+powershell -NoProfile -Command "foreach($ip in @('127.0.0.1') + (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' }).IPAddress){ $ok = Test-NetConnection -ComputerName $ip -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue; '{0,-16} : {1}' -f $ip, $(if($ok){'TERHUBUNG'}else{'GAGAL'}) }"
 echo.
 echo ===== 4. Pengaturan proxy Windows =====
 powershell -NoProfile -Command "$p = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'; 'Proxy aktif : ' + [bool]$p.ProxyEnable; 'Server     : ' + $p.ProxyServer; 'Pengecualian: ' + $p.ProxyOverride; 'Skrip PAC  : ' + $p.AutoConfigURL"

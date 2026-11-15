@@ -66,7 +66,7 @@ jadi aman dijalankan berulang.
    memasang PostgreSQL 17 otomatis bila belum ada, membuat virtual environment, mengisi `.env`,
    membuat database, dan memuat data awal.
 3. Klik **`3. Buat Super Admin.bat`** → username `admin` + password acak tampil di layar (catat).
-4. Klik **`2. Jalankan Seanav.bat`** → browser terbuka ke `http://<IP-komputer>:8000/`.
+4. Klik **`JALANKAN SEANAV.bat`** di folder `webapp` (atau shortcut **Seanav Operations** di Desktop) → browser terbuka ke `https://localhost`. Perangkat lain membuka `https://<IP-laptop>` (tanpa port). Kamera & GPS absensi aktif karena memakai HTTPS.
    Komputer lain di jaringan yang sama bisa membuka alamat yang tampil di jendela.
 
 > Kamera & GPS di browser hanya aktif lewat **https://** atau **localhost**. Di jaringan kantor (http://IP),

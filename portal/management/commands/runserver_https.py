@@ -5,6 +5,9 @@ atau laptop lain perlu mode ini. Sertifikat self-signed dibuat otomatis di folde
 Saat pertama kali dibuka, browser menampilkan peringatan; pilih "Lanjutkan / Advanced -> Proceed".
 """
 import ipaddress
+import os
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import socket
 import ssl
 from datetime import datetime, timedelta, timezone
@@ -83,6 +86,9 @@ class HttpsHandler(WSGIRequestHandler):
 
 
 class HttpsServer(ThreadedWSGIServer):
+    # Di Windows SO_REUSEADDR membuat dua server bisa "berebut" port yang sama; matikan supaya bentrok terdeteksi.
+    allow_reuse_address = os.name != "nt"
+
     def handle_error(self, request, client_address):
         import sys
         if isinstance(sys.exc_info()[1], (ssl.SSLError, ConnectionError, TimeoutError)):
@@ -95,14 +101,59 @@ class HttpsServer(ThreadedWSGIServer):
         super().handle_error(request, client_address)
 
 
+def already_running(ports):
+    """Port tempat Seanav sudah berjalan (mencegah dua jendela server sekaligus)."""
+    import urllib.request
+    ctx = ssl._create_unverified_context()
+    for port in (443, 8443) if not ports else ports:
+        try:
+            with urllib.request.urlopen(f"https://127.0.0.1:{port}/login/", context=ctx, timeout=2) as resp:
+                if b"Oseana" in resp.read(200000) or b"Seanav" in resp.read():
+                    return port
+        except Exception:
+            continue
+    return None
+
+
+def start_redirect(ports, https_port):
+    """Server http:// kecil yang mengalihkan semua alamat lama ke https://."""
+    suffix = "" if https_port == 443 else f":{https_port}"
+
+    class Redirect(BaseHTTPRequestHandler):
+        def _go(self):
+            host = (self.headers.get("Host") or "localhost").split(":")[0]
+            self.send_response(301)
+            self.send_header("Location", f"https://{host}{suffix}{self.path}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        do_GET = do_HEAD = do_POST = _go
+
+        def log_message(self, *args):
+            pass
+
+    started = []
+    for port in ports:
+        try:
+            srv = ThreadingHTTPServer(("0.0.0.0", port), Redirect)
+        except OSError:
+            continue
+        srv.daemon_threads = True
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        started.append(port)
+    return started
+
+
 class Command(BaseCommand):
     help = "Jalankan server HTTPS untuk jaringan kantor (kamera & GPS absensi di HP)."
 
     def add_arguments(self, parser):
-        parser.add_argument("--port", type=int, default=8443)
+        parser.add_argument("--port", type=int, default=0, help="0 = otomatis: 443, atau 8443 bila 443 terpakai")
+        parser.add_argument("--no-redirect", action="store_true")
+        parser.add_argument("--open", action="store_true", help="Buka browser setelah server siap")
 
     def handle(self, *args, **opts):
-        port = opts["port"]
+        ports = [opts["port"]] if opts["port"] else [443, 8443]
         ips = local_ips()
         cert, key = ensure_certificate(Path(settings.BASE_DIR) / "sertifikat", ips)
         for ip in ips:
@@ -111,22 +162,50 @@ class Command(BaseCommand):
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(str(cert), str(key))
-        try:
-            httpd = HttpsServer(("0.0.0.0", port), HttpsHandler, ipv6=False)
-        except OSError as exc:
-            self.stderr.write(f"\n[!] Port {port} tidak bisa dipakai ({exc}).")
-            self.stderr.write("    Kemungkinan server HTTPS lain masih berjalan. Tutup jendela server lain lalu coba lagi.")
+        running = already_running(ports)
+        if running:
+            suffix = "" if running == 443 else f":{running}"
+            self.stdout.write(f"\nSeanav sudah berjalan di jendela lain. Membuka https://localhost{suffix}")
+            if opts["open"]:
+                import webbrowser
+                webbrowser.open(f"https://localhost{suffix}/")
+            raise SystemExit(3)
+        httpd, port, last_error = None, None, None
+        for candidate in ports:
+            try:
+                httpd = HttpsServer(("0.0.0.0", candidate), HttpsHandler, ipv6=False)
+                port = candidate
+                break
+            except OSError as exc:
+                last_error = exc
+        if httpd is None:
+            self.stderr.write(f"\n[!] Port {', '.join(map(str, ports))} tidak bisa dipakai ({last_error}).")
+            self.stderr.write("    Kemungkinan Seanav sudah berjalan di jendela lain. Tutup jendela itu lalu coba lagi.")
             raise SystemExit(2)
+        redirects = [] if opts["no_redirect"] else start_redirect([80, 8000], port)
         httpd.daemon_threads = True
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True, do_handshake_on_connect=False)
         httpd.set_app(StaticFilesHandler(get_internal_wsgi_application()))
 
-        self.stdout.write("\nServer HTTPS berjalan. Buka salah satu alamat ini:")
-        for ip in ips:
-            self.stdout.write(f"   https://{ip}:{port}/")
+        suffix = "" if port == 443 else f":{port}"
+        lan = [ip for ip in ips if ip != "127.0.0.1"]
+        self.stdout.write("\n  ============================================================")
+        self.stdout.write("    SEANAV OPERATIONS SUDAH BERJALAN")
+        self.stdout.write("  ============================================================")
+        for ip in lan[:1] or ["localhost"]:
+            self.stdout.write(f"    Alamat untuk semua perangkat :  https://{ip}{suffix}")
+        self.stdout.write(f"    Di laptop ini juga bisa      :  https://localhost{suffix}")
+        if len(lan) > 1:
+            self.stdout.write("    Alamat lain                  :  " + ", ".join(f"https://{ip}{suffix}" for ip in lan[1:]))
+        if redirects:
+            self.stdout.write("    Alamat lama http:// otomatis dialihkan ke https://")
+        self.stdout.write("  ============================================================")
         self.stdout.write("\nPeringatan keamanan saat pertama dibuka itu normal (sertifikat kantor sendiri).")
         self.stdout.write('Pilih "Advanced / Lanjutan" lalu "Proceed / Lanjutkan ke situs".')
         self.stdout.write("Tekan Ctrl+C untuk berhenti.\n")
+        if opts["open"]:
+            import webbrowser
+            threading.Timer(1.5, webbrowser.open, [f"https://localhost{suffix}/"]).start()
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

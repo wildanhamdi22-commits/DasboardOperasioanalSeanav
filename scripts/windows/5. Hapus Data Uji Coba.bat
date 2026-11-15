@@ -20,7 +20,7 @@ echo   Tetap ada: akun login, role, data perusahaan, kategori alat
 echo   Backup   : otomatis disalin ke folder webapp\backup_reset_...
 echo  ============================================================
 echo.
-echo  Tutup dulu jendela "Jalankan Seanav" bila sedang terbuka.
+echo  Tutup dulu jendela "Seanav Operations" bila sedang terbuka.
 echo.
 ".venv\Scripts\python.exe" manage.py migrate --noinput >nul
 
