@@ -73,4 +73,45 @@
 {{ project_map_data|json_script:"project-map-data" }}
   {{ rental_map_data|json_script:"rental-map-data" }}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+  (() => {
+    const el = document.getElementById("project-map");
+    if (!el || !window.L) return;
+    const read = id => { const n = document.getElementById(id); try { return n ? JSON.parse(n.textContent) : []; } catch (e) { return []; } };
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+    const map = L.map(el, {scrollWheelZoom: false}).setView([-2.5, 118], 5);
+    window.SeanavBasemap(map);
+    const bounds = [], byProject = {};
+    read("project-map-data").forEach(p => {
+      const ll = [Number(p.latitude), Number(p.longitude)];
+      if (!Number.isFinite(ll[0]) || !Number.isFinite(ll[1])) return;
+      const alat = (p.equipment || []).map(e => `<li>${esc(e.name)} · S/N ${esc(e.serial)}</li>`).join("");
+      const m = L.marker(ll).addTo(map).bindPopup(
+        `<b>${esc(p.code)} · ${esc(p.name)}</b><br>${esc(p.client)}` +
+        (p.location ? `<br><small>${esc(p.location)}</small>` : "") +
+        (alat ? `<ul style="margin:6px 0 0;padding-left:16px">${alat}</ul>` : "") +
+        `<br><a href="${esc(p.edit_url)}">Edit proyek</a>`);
+      byProject[p.id] = m; bounds.push(ll);
+    });
+    read("rental-map-data").forEach(r => {
+      const ll = [Number(r.latitude), Number(r.longitude)];
+      if (!Number.isFinite(ll[0]) || !Number.isFinite(ll[1])) return;
+      const color = r.status === "BERJALAN" ? "#c8102e" : "#16a3c4";
+      L.circleMarker(ll, {radius: 8, color: "#fff", weight: 2, fillColor: color, fillOpacity: .95}).addTo(map).bindPopup(
+        `<b>${esc(r.number)}</b><br>${esc(r.client)}` + (r.location ? `<br><small>${esc(r.location)}</small>` : "") +
+        (r.units ? `<br><small>${esc(r.units)}</small>` : "") + `<br><a href="${esc(r.edit_url)}">Ubah lokasi</a>`);
+      bounds.push(ll);
+    });
+    if (bounds.length === 1) map.setView(bounds[0], 13);
+    else if (bounds.length) map.fitBounds(bounds, {padding: [40, 40], maxZoom: 14});
+    document.querySelectorAll(".project-card[data-project-id]").forEach(card => card.addEventListener("click", ev => {
+      if (ev.target.closest("a,button,form")) return;
+      const m = byProject[card.dataset.projectId];
+      map.setView([Number(card.dataset.projectLat), Number(card.dataset.projectLng)], 15);
+      if (m) m.openPopup();
+      el.scrollIntoView({behavior: "smooth", block: "center"});
+    }));
+    setTimeout(() => map.invalidateSize(), 200);
+  })();
+  </script>
 {% endblock %}
