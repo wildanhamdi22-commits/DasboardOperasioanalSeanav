@@ -23,7 +23,7 @@
           <td class="num"><b>{{ invoice.total|rupiah }}</b>{% if invoice.tax_amount %}<small>PPN {{ invoice.tax_rate|floatformat:0 }}%: {{ invoice.tax_amount|rupiah }}</small>{% endif %}</td>
           <td><span class="st st-{{ invoice.status }}">{{ invoice.status|label }}</span></td>
           <td><div class="row-actions">
-            <a class="btn btn-outline btn-sm" href="{% url 'invoice_document' invoice.id %}?format=pdf">PDF</a>
+            {% if pdf_available %}<a class="btn btn-outline btn-sm" href="{% url 'invoice_document' invoice.id %}?format=pdf">PDF</a>{% endif %}
             <a class="btn btn-outline btn-sm" href="{% url 'invoice_document' invoice.id %}">DOCX</a>
             {% if invoice.status == "DRAFT" %}
               <form method="post" action="{% url 'invoice_status' invoice.id 'terbitkan' %}">{% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Terbitkan</button></form>

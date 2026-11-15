@@ -62,8 +62,8 @@
           <thead><tr><th>Nomor rental</th><th>Klien</th><th>Quotation</th><th>Invoice</th></tr></thead>
           <tbody>{% for rental in linked_rentals %}
             <tr><td class="mono"><b>{{ rental.1 }}</b></td><td>{{ rental.6 }}</td>
-              <td>{% if rental.2 %}<a class="link" href="{% url 'quotation_document' rental.2 %}?format=pdf">{{ rental.3 }}</a>{% else %}—{% endif %}</td>
-              <td>{% if rental.4 %}<a class="link" href="{% url 'invoice_document' rental.4 %}?format=pdf">{{ rental.5 }}</a>{% else %}—{% endif %}</td></tr>
+              <td>{% if rental.2 %}<a class="link" href="{% url 'quotation_document' rental.2 %}{% if pdf_available %}?format=pdf{% endif %}">{{ rental.3 }}</a>{% else %}—{% endif %}</td>
+              <td>{% if rental.4 %}<a class="link" href="{% url 'invoice_document' rental.4 %}{% if pdf_available %}?format=pdf{% endif %}">{{ rental.5 }}</a>{% else %}—{% endif %}</td></tr>
           {% endfor %}</tbody>
         </table></div>
       </section>

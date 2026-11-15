@@ -103,6 +103,10 @@ Variabel penting (lihat `.env.example`):
 Saat container start, `scripts/start.sh` menjalankan `init_database` → `migrate` → Gunicorn.
 PDF di server dibuat dengan **LibreOffice** (sudah terpasang di Dockerfile).
 
+### B0. Vercel + Supabase (gratis)
+
+Ikuti **[PANDUAN_VERCEL.md](PANDUAN_VERCEL.md)**. Database & foto disimpan di Supabase; dokumen diunduh dalam format Word.
+
 ### B1. VPS (mis. Contabo) dengan Docker — direkomendasikan
 
 ```bash

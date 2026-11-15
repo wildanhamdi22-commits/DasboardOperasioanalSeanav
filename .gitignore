@@ -22,3 +22,7 @@ templates/portal/partials/main_nav.html
 portal/static/portal/theme.css
 portal/static/portal/rental_location.css
 .venv_laptop_lama_*/
+
+# Vercel
+.vercel/
+.env.local

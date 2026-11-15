@@ -21,7 +21,9 @@ def env_list(name, default=""):
     return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
 
 
-DEBUG = env_bool("DJANGO_DEBUG", True)
+# Di Vercel (serverless) default-nya mode produksi
+ON_VERCEL = bool(os.getenv("VERCEL"))
+DEBUG = env_bool("DJANGO_DEBUG", not ON_VERCEL)
 _DEFAULT_SECRET = "local-development-only-change-before-deployment"
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", _DEFAULT_SECRET)
 if not DEBUG and (SECRET_KEY == _DEFAULT_SECRET or len(SECRET_KEY) < 32):
@@ -30,7 +32,8 @@ if not DEBUG and (SECRET_KEY == _DEFAULT_SECRET or len(SECRET_KEY) < 32):
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 # Domain bawaan platform hosting (otomatis bila tersedia)
-for _var in ("RAILWAY_PUBLIC_DOMAIN", "RENDER_EXTERNAL_HOSTNAME"):
+for _var in ("RAILWAY_PUBLIC_DOMAIN", "RENDER_EXTERNAL_HOSTNAME",
+             "VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL"):
     _host = os.getenv(_var)
     if _host:
         ALLOWED_HOSTS.append(_host)
@@ -108,9 +111,13 @@ ASGI_APPLICATION = "seanav_web.asgi.application"
 if os.getenv("DATABASE_URL"):
     import dj_database_url
 
+    # Serverless (Vercel) memakai connection pooler: koneksi tidak disimpan antar-request
+    _pooled = ON_VERCEL or env_bool("DB_POOLER", False)
     DATABASES = {"default": dj_database_url.parse(
-        os.environ["DATABASE_URL"], conn_max_age=60, conn_health_checks=True,
-        ssl_require=env_bool("DB_SSL_REQUIRE", False))}
+        os.environ["DATABASE_URL"], conn_max_age=0 if _pooled else 60, conn_health_checks=not _pooled,
+        ssl_require=env_bool("DB_SSL_REQUIRE", ON_VERCEL))}
+    if _pooled:
+        DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
 else:
     DATABASES = {
         "default": {
@@ -150,7 +157,28 @@ STORAGES = {
         else "whitenoise.storage.CompressedManifestStaticFilesStorage")},
 }
 MEDIA_URL = "/media/"
-MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
+MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", "/tmp/media" if ON_VERCEL else BASE_DIR / "media"))
+
+# Penyimpanan file di cloud (wajib untuk Vercel): Supabase Storage, Cloudflare R2, AWS S3, dll.
+S3_BUCKET = os.getenv("S3_BUCKET", "")
+if S3_BUCKET:
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": S3_BUCKET,
+            "endpoint_url": os.getenv("S3_ENDPOINT_URL") or None,
+            "region_name": os.getenv("S3_REGION", "auto"),
+            "access_key": os.getenv("S3_ACCESS_KEY_ID"),
+            "secret_key": os.getenv("S3_SECRET_ACCESS_KEY"),
+            "addressing_style": "path",
+            "signature_version": "s3v4",
+            "default_acl": None,
+            "querystring_auth": True,      # URL bertanda tangan, berlaku sementara
+            "querystring_expire": 3600,
+            "file_overwrite": False,
+            "location": os.getenv("S3_PREFIX", "media"),
+        },
+    }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Upload: foto absensi dikirim sebagai data gambar (~1 MB), lampiran izin maks. 5 MB
@@ -172,6 +200,8 @@ KANTOR_RADIUS_M = int(os.getenv("KANTOR_RADIUS_M", "200"))
 
 # Pembuatan PDF dokumen: "auto" (Word di Windows, LibreOffice di Linux), "word", atau "libreoffice"
 PDF_CONVERTER = os.getenv("PDF_CONVERTER", "auto")
+# Vercel tidak menyediakan Word/LibreOffice: dokumen tersedia dalam format Word (DOCX)
+PDF_AVAILABLE = env_bool("PDF_AVAILABLE", not ON_VERCEL)
 LIBREOFFICE_BIN = os.getenv("LIBREOFFICE_BIN", "soffice")
 
 # Keamanan saat produksi (di belakang HTTPS)

@@ -48,8 +48,8 @@
               <div class="row-actions">
                 {% if rental.status == "BERJALAN" and rental.unit_count %}<a class="btn btn-red btn-sm" href="{% url 'rental_handover' %}?kind=KEMBALI&amp;rental_id={{ rental.id }}">Catat kembali</a>{% endif %}
                 <a class="btn btn-outline btn-sm" href="{% url 'rental_location_edit' rental.id %}">{% if rental.map_edit %}Tandai lokasi{% else %}Lokasi{% endif %}</a>
-                {% if rental.quotation_id %}<a class="btn btn-ghost btn-sm" href="{% url 'quotation_document' rental.quotation_id %}?format=pdf">Quotation</a>{% endif %}
-                {% if rental.invoice_id %}<a class="btn btn-ghost btn-sm" href="{% url 'invoice_document' rental.invoice_id %}?format=pdf">Invoice</a>{% endif %}
+                {% if rental.quotation_id %}<a class="btn btn-ghost btn-sm" href="{% url 'quotation_document' rental.quotation_id %}{% if pdf_available %}?format=pdf{% endif %}">Quotation</a>{% endif %}
+                {% if rental.invoice_id %}<a class="btn btn-ghost btn-sm" href="{% url 'invoice_document' rental.invoice_id %}{% if pdf_available %}?format=pdf{% endif %}">Invoice</a>{% endif %}
               </div>
             </td>
           </tr>

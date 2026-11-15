@@ -548,21 +548,32 @@ def profile(request):
 # ---------------------------------------------------------------- media (hanya staf login)
 @staff_required
 def protected_media(request, path):
-    try:
-        full = Path(safe_join(str(settings.MEDIA_ROOT), path))
-    except Exception:
+    from django.core.files.storage import FileSystemStorage, default_storage
+
+    rel = path.replace("\\", "/").lstrip("/")
+    if ".." in rel.split("/"):
         raise Http404
-    if not full.is_file():
-        raise Http404
-    rel = path.replace("\\", "/")
     if rel.startswith("absensi/") and not is_attendance_approver(request.user):
-        owner = Absensi.objects.filter(user=request.user).filter(
-            foto_masuk=rel).exists() or Absensi.objects.filter(user=request.user, foto_pulang=rel).exists()
+        owner = Absensi.objects.filter(user=request.user, foto_masuk=rel).exists() or \
+            Absensi.objects.filter(user=request.user, foto_pulang=rel).exists()
         if not owner:
             raise PermissionDenied
     if rel.startswith("izin/") and not is_attendance_approver(request.user):
         if not PengajuanIzin.objects.filter(user=request.user, lampiran=rel).exists():
             raise PermissionDenied
+
+    if not isinstance(default_storage, FileSystemStorage):
+        # Penyimpanan cloud: arahkan ke URL bertanda tangan yang berlaku sementara
+        if not default_storage.exists(rel):
+            raise Http404
+        return redirect(default_storage.url(rel))
+
+    try:
+        full = Path(safe_join(str(settings.MEDIA_ROOT), rel))
+    except Exception:
+        raise Http404
+    if not full.is_file():
+        raise Http404
     content_type, _ = mimetypes.guess_type(str(full))
     response = FileResponse(open(full, "rb"), content_type=content_type or "application/octet-stream")
     response["X-Content-Type-Options"] = "nosniff"

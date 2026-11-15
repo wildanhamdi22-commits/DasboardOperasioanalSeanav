@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import DatabaseError, connection
 
 
@@ -134,4 +135,5 @@ def portal_shell(request):
         "shell_user_role": role_name or "Staf operasional",
         "can_approve_attendance": can_approve_attendance,
         "shell_db_ok": db_ok,
+        "pdf_available": getattr(settings, "PDF_AVAILABLE", True),
     }
