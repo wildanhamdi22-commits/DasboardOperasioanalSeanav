@@ -40,7 +40,7 @@
                   <form method="post" action="{% url 'quotation_status' quote.id 'tolak' %}" data-confirm="Catat quotation ini ditolak klien?">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Klien menolak</button></form>
                 {% elif quote.status == "DITERIMA_KLIEN" %}
                   {% if quote.invoice_created %}<a class="btn btn-outline btn-sm" href="{% url 'invoice_list' %}">Lihat invoice</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'invoice_create' quote.id %}">Buat invoice</a>{% endif %}
-                  {% if quote.kind == "PENJUALAN" %}{% if quote.delivered %}<span class="st st-SELESAI">Barang terkirim</span>{% else %}<a class="btn btn-primary btn-sm" href="{% url 'sale_delivery' quote.id %}">Kirim barang</a>{% endif %}{% endif %}
+                  {% if quote.kind == "PENJUALAN" %}{% if quote.delivered %}<a class="btn btn-outline btn-sm" href="{% url 'sale_delivery_order' quote.id %}{% if pdf_available %}?format=pdf{% endif %}" title="Unduh Delivery Order">Delivery Order</a> <span class="st st-SELESAI">Barang terkirim</span>{% else %}<a class="btn btn-primary btn-sm" href="{% url 'sale_delivery' quote.id %}">Kirim barang</a>{% endif %}{% endif %}
                 {% endif %}
               </div>
             </td>

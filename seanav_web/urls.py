@@ -3,12 +3,13 @@ from django.contrib.auth.views import LogoutView
 from django.urls import path, re_path
 
 from portal import attendance as sdm
+from portal import document_views as docs
 
 from portal.views import (
     add_inventory, archive_project, archive_unit, dashboard, edit_inventory,
     inventory, inventory_history, project_form, project_list, rental_create,
-    invoice_create, invoice_document, invoice_list, invoice_status, place_search,
-    quotation_create, quotation_document, quotation_list, quotation_status, sale_delivery,
+    invoice_create, invoice_list, invoice_status, place_search,
+    quotation_create, quotation_list, quotation_status, sale_delivery,
     rental_handover, rental_list, rental_location_edit, landing, role_management,
     StaffLoginView,
 )
@@ -26,16 +27,18 @@ urlpatterns = [
     path("rental/serah-terima/", rental_handover, name="rental_handover"),
     path("rental/lokasi/cari/", place_search, name="place_search"),
     path("rental/<int:rental_id>/lokasi/", rental_location_edit, name="rental_location_edit"),
+    path("rental/<int:rental_id>/delivery-order/", docs.rental_delivery_order, name="rental_delivery_order"),
     path("rental/tambah/", rental_create, name="rental_create"),
     path("rental/", rental_list, name="rental_list"),
     path("quotation/", quotation_list, name="quotation_list"),
     path("quotation/tambah/", quotation_create, name="quotation_create"),
-    path("quotation/<int:quotation_id>/dokumen/", quotation_document, name="quotation_document"),
+    path("quotation/<int:quotation_id>/dokumen/", docs.quotation_document, name="quotation_document"),
     path("quotation/<int:quotation_id>/kirim-barang/", sale_delivery, name="sale_delivery"),
+    path("quotation/<int:quotation_id>/delivery-order/", docs.sale_delivery_order, name="sale_delivery_order"),
     path("quotation/<int:quotation_id>/<str:action>/", quotation_status, name="quotation_status"),
     path("invoice/", invoice_list, name="invoice_list"),
     path("invoice/tambah/<int:quotation_id>/", invoice_create, name="invoice_create"),
-    path("invoice/<int:invoice_id>/dokumen/", invoice_document, name="invoice_document"),
+    path("invoice/<int:invoice_id>/dokumen/", docs.invoice_document, name="invoice_document"),
     path("invoice/<int:invoice_id>/<str:action>/", invoice_status, name="invoice_status"),
     path("inventaris/tambah/", add_inventory, name="inventory_add"),
     path("inventaris/<int:unit_id>/edit/", edit_inventory, name="inventory_edit"),
