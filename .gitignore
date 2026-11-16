@@ -28,3 +28,4 @@ portal/static/portal/rental_location.css
 .env.local
 backup_reset_*/
 sertifikat/
+portal/data_import/*.json
