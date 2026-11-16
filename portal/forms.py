@@ -337,7 +337,7 @@ class QuotationForm(forms.Form):
     )
     rental_start = forms.DateField(
         label="Rencana mulai (rental / survey)", required=False,
-        help_text="Wajib untuk rental. Untuk jasa survey isi bila jadwal sudah ada; penjualan boleh dikosongkan.",
+        help_text="Opsional. Bila kosong, jadwal rental dihitung dari tanggal quotation.",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
     notes = forms.CharField(label="Catatan", required=False, widget=forms.Textarea(attrs={"rows": 3}))
@@ -372,8 +372,6 @@ class QuotationForm(forms.Form):
             self.add_error("valid_until", "Tanggal berlaku tidak boleh sebelum tanggal quotation.")
         if not cleaned.get("kind"):
             cleaned["kind"] = "RENTAL"
-        if cleaned.get("kind") == "RENTAL" and not start:
-            self.add_error("rental_start", "Isi rencana tanggal mulai rental.")
         return cleaned
 
 
@@ -508,7 +506,7 @@ class QuotationItemForm(forms.Form):
     )
     days = forms.IntegerField(
         label="Jumlah hari", required=False, min_value=1, max_value=3650,
-        help_text="Wajib untuk rental; opsional untuk jasa survey; abaikan untuk penjualan.",
+        help_text="Wajib untuk alat rental dari daftar alat; untuk item manual boleh dikosongkan.",
     )
     unit = forms.CharField(label="Satuan", max_length=40, required=False, initial="unit")
     unit_price = forms.DecimalField(
@@ -528,12 +526,15 @@ class QuotationItemForm(forms.Form):
                 self.add_error("unit_price", "Isi harga khusus untuk quotation ini.")
             cleaned["unit"] = "unit"
         elif description:
+            # Item manual: cukup deskripsi. Jumlah kosong = 1, harga kosong = 0 (mis. termasuk / menyusul),
+            # jumlah hari boleh kosong.
             if cleaned.get("quantity") is None:
-                self.add_error("quantity", "Isi jumlah item.")
+                cleaned["quantity"] = Decimal("1")
             if cleaned.get("unit_price") is None:
-                self.add_error("unit_price", "Isi harga untuk item manual.")
+                cleaned["unit_price"] = Decimal("0")
             if not cleaned.get("unit"):
                 cleaned["unit"] = "unit"
+            cleaned["manual"] = True
         elif any(cleaned.get(name) not in (None, "") for name in ("quantity", "days", "unit_price")):
             self.add_error("description", "Isi deskripsi item.")
         cleaned["description"] = description

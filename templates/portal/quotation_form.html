@@ -22,7 +22,7 @@
           {% if field.name != 'rental_start' or kind != 'PENJUALAN' %}
           <div class="field {% if field.name == 'notes' or field.name == 'client_address' %}full{% endif %}">
             {% if field.name == 'rental_start' %}<label for="{{ field.id_for_label }}">{% if kind == 'RENTAL' %}Rencana mulai rental{% else %}Rencana mulai pekerjaan{% endif %}:</label>{% else %}{{ field.label_tag }}{% endif %}{{ field }}
-            {% if field.help_text and field.name != 'rental_start' %}<span class="help">{{ field.help_text }}</span>{% elif field.name == 'rental_start' and kind == 'JASA_SURVEY' %}<span class="help">Opsional — dipakai untuk jadwal item per hari.</span>{% endif %}
+            {% if field.help_text and field.name != 'rental_start' %}<span class="help">{{ field.help_text }}</span>{% elif field.name == 'rental_start' and kind != 'PENJUALAN' %}<span class="help">Opsional — bila kosong, jadwal dihitung dari tanggal quotation.</span>{% endif %}
             {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
           </div>
           {% endif %}

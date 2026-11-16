@@ -314,7 +314,7 @@ def quotation_create(request, kind=None):
                 model_id = None
                 unit = raw_item["unit"] or "unit"
             days = raw_item.get("days")
-            if kind == "RENTAL" and not days:
+            if kind == "RENTAL" and not days and not raw_item.get("manual"):
                 form.add_error(None, f"Isi jumlah hari rental untuk item \"{description}\".")
                 break
             if kind == "PENJUALAN":
@@ -322,7 +322,7 @@ def quotation_create(request, kind=None):
             multiplier = days or 1
             start_date = None
             end_date = None
-            if days and (data.get("rental_start") or kind == "JASA_SURVEY"):
+            if days and (data.get("rental_start") or kind in ("JASA_SURVEY", "RENTAL")):
                 start_date = data.get("rental_start") or data["date"]
                 end_date = start_date + timedelta(days=days - 1)
             items.append({
