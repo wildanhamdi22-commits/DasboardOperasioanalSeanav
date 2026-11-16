@@ -16,7 +16,8 @@ from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.http import Http404, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 
-from .doc_builder import build_generic, build_invoice, fmt_idr
+from .doc_builder import fmt_idr
+from .lpj_builder import build_lpj_bast, build_lpj_invoice, build_lpj_receipt
 from .document_views import _brand_code, _respond, file_name
 from .views import business_permission_required
 
@@ -299,7 +300,7 @@ def flag_form(request, flag_id=None):
     if not record:
         record = {"number": suggested, "doc_date": date.today(), "include_tax": True, "tax_rate": Decimal("11"),
                   "fee_percent": Decimal("3"), "company_id": default_company[0] if default_company else None,
-                  "items": [], "signer": request.user.get_full_name() or "", "signer_title": "Authorized Signature"}
+                  "items": [], "signer": request.user.get_full_name() or "", "signer_title": "Direktur"}
     return render(request, "portal/flag_form.html", {
         "record": record, "companies": companies, "errors": errors, "flag_id": flag_id,
     })
@@ -369,76 +370,40 @@ def _doc_items(record):
     return rows
 
 
-def _flag_invoice(record):
-    company = _brand_code(record["company_code"])
-    tax_rate = Decimal(record["tax_rate"])
-    data = {
-        "kind": "LPJ", "number": f"INV/{record['number']}", "date": tanggal_id(record["doc_date"]),
-        "due_date": tanggal_id(record["doc_date"]), "quotation": record["number"], "po": "-",
-        "client": {"name": record["client"], "address": [x for x in (record["institution"], *record["address"].splitlines()) if x][:3],
-                   "attn": record["client"]},
-        "project": record["research_title"] or "Jasa / sewa peralatan survei",
-        "project_lines": [f"Tanggal kegiatan: {record['activity_date']}"] if record["activity_date"] else [],
-        "items": _doc_items(record),
-        "payment_terms": ["Pembayaran melalui transfer bank ke rekening di bawah ini."],
-        "subtotal": record["dpp"], "tax": record["ppn"], "total": record["total"],
-        "tax_rate": str(tax_rate / 100), "tax_label": f"PPN {tax_rate.normalize():f}%",
-        "paid": record["total"] if record["status"] == "FEE_DITERIMA" else None,
-        "signer": record["signer"] or "Finance Department",
-        "signer_title": record["signer_title"] or "Authorized Signature",
+def _lpj_payload(record):
+    signer_title = record["signer_title"] or ""
+    if signer_title.strip().lower() in ("authorized signature", "authorized signatured"):
+        signer_title = "Direktur"
+    purpose = "; ".join(i["rincian"] for i in record["items"])
+    if record["research_title"]:
+        purpose += f", untuk kegiatan penelitian \u201c{record['research_title']}\u201d"
+    if record["activity_date"]:
+        purpose += f" ({record['activity_date']})"
+    return {
+        "brand": _brand_code(record["company_code"]), "number": record["number"],
+        "invoice_no": f"INV/{record['number']}", "receipt_no": f"KW/{record['number']}",
+        "bast_no": f"BAST/{record['number']}", "doc_date": record["doc_date"], "client": record["client"],
+        "institution": record["institution"], "address_lines": [x for x in record["address"].splitlines() if x.strip()][:3],
+        "research_title": record["research_title"], "activity_date": record["activity_date"], "items": record["items"],
+        "include_tax": record["include_tax"], "tax_rate": record["tax_rate"], "total": record["total"],
+        "dpp": record["dpp"], "ppn": record["ppn"], "terbilang": terbilang(record["total"]), "purpose": purpose,
+        "signer": record["signer"], "signer_title": signer_title,
     }
-    return company, build_invoice(company, data), data["number"]
+
+
+def _flag_invoice(record):
+    data = _lpj_payload(record)
+    return data["brand"], build_lpj_invoice(data), data["invoice_no"]
 
 
 def _flag_receipt(record):
-    company = _brand_code(record["company_code"])
-    number = f"KW/{record['number']}"
-    purpose = "; ".join(i["rincian"] for i in record["items"])
-    if record["research_title"]:
-        purpose += f" — untuk penelitian \"{record['research_title']}\""
-    if record["activity_date"]:
-        purpose += f" ({record['activity_date']})"
-    data = {
-        "title": "KWITANSI", "subtitle": "Tanda terima pembayaran", "number": number, "footer_title": "Kwitansi",
-        "meta": [("No. Kwitansi", number), ("Tanggal", tanggal_id(record["doc_date"])), ("Ref. Invoice", f"INV/{record['number']}")],
-        "parties": [("Telah terima dari", [record["client"], *[x for x in (record["institution"],) if x]]),
-                    ("Jumlah uang", [f"Rp {fmt_idr(record['total'])}", f"DPP Rp {fmt_idr(record['dpp'])} + PPN Rp {fmt_idr(record['ppn'])}"])],
-        "sections": [
-            {"box": {"title": "Terbilang", "lines": [(terbilang(record["total"]), {"size": 10, "bold": True, "italic": True})]}},
-            {"box": {"title": "Untuk pembayaran", "lines": [(purpose, {"size": 9})]}},
-        ],
-        "signatures": [None, (f"{record['company_name']}", record["signer"] or "", "Materai Rp10.000")],
-        "signature_height": 26,
-    }
-    return company, build_generic(company, data), number
+    data = _lpj_payload(record)
+    return data["brand"], build_lpj_receipt(data), data["receipt_no"]
 
 
 def _flag_bast(record):
-    company = _brand_code(record["company_code"])
-    number = f"BAST/{record['number']}"
-    rows = [{"cells": [str(i), item["rincian"],
-                       f"{_qty_text(item['banyaknya'])} {item['satuan']}",
-                       f"{_qty_text(item['volume'])} {item['satuan_volume']}", "Baik / selesai"]}
-            for i, item in enumerate(record["items"], 1)]
-    data = {
-        "title": "BERITA ACARA SERAH TERIMA", "subtitle": "Pekerjaan / penggunaan peralatan", "number": number,
-        "footer_title": "Berita Acara Serah Terima",
-        "meta": [("No. BAST", number), ("Tanggal", tanggal_id(record["doc_date"])), ("Tanggal kegiatan", record["activity_date"] or "-")],
-        "parties": [("Pihak Pertama", [record["company_name"], record["signer"] or "-"]),
-                    ("Pihak Kedua", [record["client"], *[x for x in (record["institution"],) if x]])],
-        "sections": [
-            {"text": (f"Pada hari ini, {tanggal_id(record['doc_date'])}, Pihak Pertama telah menyelesaikan dan menyerahkan "
-                      "pekerjaan / penggunaan peralatan berikut kepada Pihak Kedua dalam keadaan baik dan lengkap"
-                      + (f", untuk kegiatan penelitian \"{record['research_title']}\"." if record["research_title"] else "."))},
-            {"table": {"columns": ["No", "Uraian pekerjaan / peralatan", "Banyaknya", "Volume", "Keterangan"],
-                       "widths": [10, None, 26, 26, 30], "rows": rows, "center": (0, 2, 3, 4)}},
-            {"text": "Demikian berita acara ini dibuat dengan sebenarnya untuk dipergunakan sebagaimana mestinya."},
-        ],
-        "signatures": [("Pihak Pertama", record["signer"] or "", record["company_name"]),
-                       ("Pihak Kedua", record["client"], record["institution"] or "Ketua Peneliti")],
-        "signature_height": 24,
-    }
-    return company, build_generic(company, data), number
+    data = _lpj_payload(record)
+    return data["brand"], build_lpj_bast(data), data["bast_no"]
 
 
 DOCS = {"invoice": ("INV", _flag_invoice), "kwitansi": ("KW", _flag_receipt), "bast": ("BAST", _flag_bast)}
@@ -528,7 +493,7 @@ def flag_import(request):
                                     "doc_date": date.today(), "activity_date": g["activity_date"], "client": g["client"],
                                     "institution": "", "address": "", "research_title": g["research_title"],
                                     "include_tax": True, "tax_rate": Decimal("11"), "fee_percent": fee_percent,
-                                    "signer": request.user.get_full_name() or "", "signer_title": "Authorized Signature",
+                                    "signer": request.user.get_full_name() or "", "signer_title": "Direktur",
                                     "notes": "Diimpor dari Excel"}
                             _save(cursor, data, g["items"], request.user.get_username())
                             created += 1
