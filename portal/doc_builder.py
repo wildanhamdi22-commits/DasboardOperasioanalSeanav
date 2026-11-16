@@ -634,6 +634,29 @@ class DocBuilder:
             set_cell_margins(top, 0, 0, 0, 0)
             set_cell_margins(mid, 0, 0, 0, 0)
 
+    def signature_right(self, name, title="Authorized Signature", height_mm=24, width_mm=60):
+        """Satu tanda tangan perusahaan di pojok kanan bawah: ruang ttd/stempel, nama (tebal, bergaris bawah), jabatan."""
+        t = self.doc.add_table(rows=2, cols=2)
+        table_no_borders(t, zero_cell_margins=True)
+        table_fixed(t, [self.content_w - width_mm, width_mm])
+        for r in t.rows:
+            keep_row_together(r)
+        tr_pr = t.rows[0]._tr.get_or_add_trPr()
+        h = OxmlElement("w:trHeight")
+        h.set(qn("w:val"), str(int(Mm(height_mm).twips)))
+        tr_pr.append(h)
+        cell = t.rows[1].cells[1]
+        cell.paragraphs[0].text = ""
+        p1 = cell.paragraphs[0]
+        para_spacing(p1, 0, 0, 1.1)
+        p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r1 = self.run(p1, name or " ", size=10, bold=True, color=INK)
+        r1.font.underline = True
+        p2 = cell.add_paragraph()
+        para_spacing(p2, 0, 0, 1.1)
+        p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        self.run(p2, title, size=9.5, bold=True, color=INK)
+
     def save(self) -> bytes:
         buf = io.BytesIO()
         self.doc.save(buf)
@@ -762,14 +785,10 @@ def build_quotation(company: str, data: dict) -> bytes:
               (amount_in_words(total), {"size": 8.5, "italic": True, "color": "3A4553"})], tot_rows)
     d.heading("Terms & conditions")
     d.terms(data["terms"])
-    d.heading("Acceptance")
-    p = d.para(after=6)
-    d.run(p, "Please sign and return this quotation, or issue a Purchase Order referring to the quote number above, to confirm the order.",
+    p = d.para(after=4)
+    d.run(p, "To confirm the order, please issue a Purchase Order referring to the quotation number above.",
           size=8, color=GREY)
-    d.signatures([
-        (f"For {b.legal_name}", data["rep"]["name"], data["rep"].get("title", "Business Development")),
-        ("Accepted by client", "", "Name, date & company stamp"),
-    ])
+    d.signature_right(data.get("signer") or data["rep"]["name"], data.get("signer_title", "Authorized Signature"))
     return d.save()
 
 
@@ -807,7 +826,7 @@ def build_invoice(company: str, data: dict) -> bytes:
         *[(line, {"size": 9, "bold": i in (0, 2)}) for i, line in enumerate(b.bank)],
         (f"Please quote invoice no. {data['number']} as the payment reference.", {"size": 8, "color": GREY, "italic": True}),
     ])
-    d.signatures([None, (f"For {b.legal_name}", data.get("signer", "Finance Department"), "Authorized signature")])
+    d.signature_right(data.get("signer", "Finance Department"), data.get("signer_title", "Authorized Signature"))
     return d.save()
 
 
