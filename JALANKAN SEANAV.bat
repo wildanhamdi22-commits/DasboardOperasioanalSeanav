@@ -34,6 +34,9 @@ if errorlevel 1 (
 rem --- Buat shortcut di Desktop (sekali saja) ---
 powershell -NoProfile -Command "$d=[Environment]::GetFolderPath('Desktop'); $l=Join-Path $d 'Seanav Operations.lnk'; if(-not(Test-Path $l)){ $s=(New-Object -ComObject WScript.Shell).CreateShortcut($l); $s.TargetPath='%~f0'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='%SystemRoot%\System32\shell32.dll,13'; $s.Save() }" >nul 2>&1
 
+rem --- Matikan server lama yang masih berjalan agar versi terbaru yang dipakai ---
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\windows\hentikan_server.ps1"
+
 cls
 set "BUKA=--open"
 
