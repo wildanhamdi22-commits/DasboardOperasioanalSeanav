@@ -182,6 +182,12 @@ class Command(BaseCommand):
         autoreload.run_with_reloader(self.serve, opts)
 
     def serve(self, opts):
+        # Terapkan pembaruan database (migrasi baru) setiap kali server (dimuat ulang) berjalan.
+        try:
+            from django.core.management import call_command
+            call_command("migrate", interactive=False, verbosity=0)
+        except Exception as exc:  # server tetap jalan; error tampil di jendela
+            self.stderr.write(f"[!] Pembaruan database gagal: {exc}")
         ports = [opts["port"]] if opts["port"] else [443, 8443]
         ips = local_ips()
         cert, key = ensure_certificate(Path(settings.BASE_DIR) / "sertifikat", ips)
