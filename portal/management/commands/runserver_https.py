@@ -145,14 +145,43 @@ def start_redirect(ports, https_port):
 
 
 class Command(BaseCommand):
+    def _should_open(self, port):
+        """Buka browser hanya pada start pertama, bukan setiap kali server dimuat ulang."""
+        marker = Path(settings.BASE_DIR) / "sertifikat" / ".browser_dibuka"
+        token = f"{os.getppid()}:{port}"
+        try:
+            if marker.exists() and marker.read_text() == token:
+                return False
+            marker.write_text(token)
+        except OSError:
+            pass
+        return True
+
     help = "Jalankan server HTTPS untuk jaringan kantor (kamera & GPS absensi di HP)."
 
     def add_arguments(self, parser):
         parser.add_argument("--port", type=int, default=0, help="0 = otomatis: 443, atau 8443 bila 443 terpakai")
         parser.add_argument("--no-redirect", action="store_true")
         parser.add_argument("--open", action="store_true", help="Buka browser setelah server siap")
+        parser.add_argument("--noreload", action="store_true", help="Jangan muat ulang otomatis saat file berubah")
 
     def handle(self, *args, **opts):
+        ports = [opts["port"]] if opts["port"] else [443, 8443]
+        running = already_running(ports)
+        if running:
+            suffix = "" if running == 443 else f":{running}"
+            self.stdout.write(f"\nSeanav sudah berjalan di jendela lain. Membuka https://localhost{suffix}")
+            if opts["open"]:
+                import webbrowser
+                webbrowser.open(f"https://localhost{suffix}/")
+            raise SystemExit(4)
+        if opts["noreload"]:
+            return self.serve(opts)
+        from django.utils import autoreload
+        # Server dimuat ulang otomatis bila kode/template diperbarui (browser hanya dibuka sekali).
+        autoreload.run_with_reloader(self.serve, opts)
+
+    def serve(self, opts):
         ports = [opts["port"]] if opts["port"] else [443, 8443]
         ips = local_ips()
         cert, key = ensure_certificate(Path(settings.BASE_DIR) / "sertifikat", ips)
@@ -162,14 +191,6 @@ class Command(BaseCommand):
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(str(cert), str(key))
-        running = already_running(ports)
-        if running:
-            suffix = "" if running == 443 else f":{running}"
-            self.stdout.write(f"\nSeanav sudah berjalan di jendela lain. Membuka https://localhost{suffix}")
-            if opts["open"]:
-                import webbrowser
-                webbrowser.open(f"https://localhost{suffix}/")
-            raise SystemExit(3)
         httpd, port, last_error = None, None, None
         for candidate in ports:
             try:
@@ -181,7 +202,8 @@ class Command(BaseCommand):
         if httpd is None:
             self.stderr.write(f"\n[!] Port {', '.join(map(str, ports))} tidak bisa dipakai ({last_error}).")
             self.stderr.write("    Kemungkinan Seanav sudah berjalan di jendela lain. Tutup jendela itu lalu coba lagi.")
-            raise SystemExit(2)
+            self.stderr.flush() if hasattr(self.stderr, "flush") else None
+            os._exit(2)  # keluar dari proses (juga saat berjalan di bawah auto-reload)
         redirects = [] if opts["no_redirect"] else start_redirect([80, 8000], port)
         httpd.daemon_threads = True
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True, do_handshake_on_connect=False)
@@ -203,7 +225,7 @@ class Command(BaseCommand):
         self.stdout.write("\nPeringatan keamanan saat pertama dibuka itu normal (sertifikat kantor sendiri).")
         self.stdout.write('Pilih "Advanced / Lanjutan" lalu "Proceed / Lanjutkan ke situs".')
         self.stdout.write("Tekan Ctrl+C untuk berhenti.\n")
-        if opts["open"]:
+        if opts["open"] and self._should_open(port):
             import webbrowser
             threading.Timer(1.5, webbrowser.open, [f"https://localhost{suffix}/"]).start()
         try:

@@ -39,7 +39,7 @@ set "BUKA=--open"
 
 :ulang
 "%PY%" manage.py runserver_https %BUKA%
-if errorlevel 3 (
+if errorlevel 4 (
   timeout /t 3 >nul
   exit /b 0
 )
