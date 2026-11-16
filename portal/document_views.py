@@ -326,10 +326,29 @@ def invoice_document(request, invoice_id):
     project_lines += _lines(inv[11])[:2]
     payment_terms = _lines(inv[10]) or ["As stated in the quotation / Purchase Order."]
     if inv[21]:
-        items = [{"name": f"Termin {inv[21]} — {inv[23] or 'Progress payment'}",
-                  "details": [f"{Decimal(inv[22]).normalize():f}% of contract value IDR {Decimal(inv[24]):,.0f} (excl. tax)".replace(",", ".")
-                              if inv[24] else f"{Decimal(inv[22]).normalize():f}% of contract value",
-                              f"Survey services as per quotation {inv[13]}"],
+        label_en = {"down payment": "Down payment", "dp": "Down payment", "pelunasan": "Final payment (balance)"}.get(
+            (inv[23] or "").strip().lower(), inv[23] or f"Progress payment {inv[21]}")
+        names = ", ".join(_quotation_names(inv[12])[:3])
+        details = [f"{Decimal(inv[22]).normalize():f}% of contract value IDR {Decimal(inv[24]):,.0f} (excl. tax)".replace(",", ".")
+                   if inv[24] else f"{Decimal(inv[22]).normalize():f}% of contract value",
+                   f"{kind_text} as per quotation {inv[13]}" + (f": {names}" if names else "")]
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT nomor, persen_termin, status FROM invoice
+                    WHERE quotation_id = %s AND id <> %s AND status <> 'DIBATALKAN'
+                      AND COALESCE(termin_ke, 0) < %s ORDER BY termin_ke, id
+                    """,
+                    [inv[12], invoice_id, inv[21]],
+                )
+                previous = cursor.fetchall()
+        except DatabaseError:
+            previous = []
+        if previous:
+            details.append("Previously invoiced: " + "; ".join(
+                f"{no} ({Decimal(p or 100).normalize():f}%{', paid' if st == 'DIBAYAR' else ''})" for no, p, st in previous))
+        items = [{"name": f"{label_en} — {Decimal(inv[22]).normalize():f}%", "details": details,
                   "qty": 1, "unit": "lot", "days": None, "price": inv[5]}]
     data = {
         "kind": kind, "number": inv[0], "date": _d(inv[1]), "due_date": _d(inv[2]),
@@ -345,7 +364,8 @@ def invoice_document(request, invoice_id):
         "signer": "Finance Department",
     }
     name = file_name("INV", inv[13], inv[15], kind, _quotation_names(inv[12]),
-                     extra=f"Termin {inv[21]}" if inv[21] else None)
+                     extra=(f"{'DP' if (inv[23] or '').lower() in ('down payment', 'dp') else (inv[23] or f'Termin {inv[21]}')} "
+                            f"{Decimal(inv[22]).normalize():f}%") if inv[21] else None)
     return _respond(request, build_invoice(company, data), inv[0], "invoice_list", name)
 
 

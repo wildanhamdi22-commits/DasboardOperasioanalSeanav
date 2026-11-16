@@ -17,7 +17,7 @@
       <tbody>{% for invoice in invoices %}
         <tr>
           <td><b class="mono">{{ invoice.number }}</b><small>{{ invoice.company }}</small></td>
-          <td><span class="mono">{{ invoice.quotation_number }}</span>{% if invoice.termin %}<small><span class="kind kind-JASA_SURVEY">Termin {{ invoice.termin }} · {{ invoice.termin_percent|floatformat:"-2" }}%</span> {{ invoice.termin_label }}</small>{% endif %}</td>
+          <td><span class="mono">{{ invoice.quotation_number }}</span>{% if invoice.termin %}<small><span class="kind kind-JASA_SURVEY">{{ invoice.termin_label|default:"Termin" }} · {{ invoice.termin_percent|floatformat:"-2" }}%</span> tagihan ke-{{ invoice.termin }}</small>{% endif %}</td>
           <td><b>{{ invoice.client }}</b></td>
           <td>{{ invoice.date|date:"d M Y" }}{% if invoice.due_date %}<small>Jatuh tempo {{ invoice.due_date|date:"d M Y" }}</small>{% endif %}</td>
           <td class="num"><b>{{ invoice.total|rupiah }}</b>{% if invoice.tax_amount %}<small>PPN {{ invoice.tax_rate|floatformat:0 }}%: {{ invoice.tax_amount|rupiah }}</small>{% endif %}</td>

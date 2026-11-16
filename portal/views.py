@@ -223,10 +223,12 @@ def quotation_list(request, kind=None):
                        q.jenis_pajak, q.tarif_pajak, q.total_pajak,
                        COALESCE(items.jumlah_item, 0), items.daftar_item,
                        EXISTS (SELECT 1 FROM rental r WHERE r.quotation_id = q.id),
-                       EXISTS (SELECT 1 FROM invoice i WHERE i.quotation_id = q.id),
+                       EXISTS (SELECT 1 FROM invoice i WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN'),
                        q.jenis,
                        EXISTS (SELECT 1 FROM pesanan_penjualan pp WHERE pp.quotation_id = q.id),
-                       (SELECT p.id FROM proyek p WHERE p.quotation_id = q.id ORDER BY p.id LIMIT 1)
+                       (SELECT p.id FROM proyek p WHERE p.quotation_id = q.id ORDER BY p.id LIMIT 1),
+                       (SELECT COALESCE(SUM(COALESCE(i.persen_termin, 100)), 0) FROM invoice i
+                        WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN')
                 FROM quotation q
                 JOIN perusahaan p ON p.id = q.perusahaan_id
                 JOIN klien kl ON kl.id = q.klien_id
@@ -252,6 +254,8 @@ def quotation_list(request, kind=None):
                     "invoice_created": row[15], "kind": row[16],
                     "kind_label": QUOTATION_KIND_LABELS.get(row[16], row[16]),
                     "delivered": row[17], "project_id": row[18],
+                    "billed_percent": row[19] or 0,
+                    "billed_remaining": max(Decimal("0"), Decimal("100") - Decimal(row[19] or 0)),
                 }
                 for row in cursor.fetchall()
             ]
@@ -663,15 +667,15 @@ def invoice_create(request, quotation_id):
                        q.subtotal, q.jenis_pajak, q.tarif_pajak, q.total_pajak,
                        q.total, q.pic_pengguna_id, kl.nama_perusahaan, q.jenis,
                        (SELECT COUNT(*) FROM invoice i WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN'),
-                       (SELECT COALESCE(SUM(i.persen_termin), 0) FROM invoice i
+                       (SELECT COALESCE(SUM(COALESCE(i.persen_termin, 100)), 0) FROM invoice i
                         WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN')
                 FROM quotation q
                 JOIN perusahaan co ON co.id = q.perusahaan_id
                 JOIN klien kl ON kl.id = q.klien_id
                 WHERE q.id = %s
                   AND q.status = 'DITERIMA_KLIEN'
-                  AND (q.jenis = 'JASA_SURVEY'
-                       OR NOT EXISTS (SELECT 1 FROM invoice i WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN'))
+                  AND (SELECT COALESCE(SUM(COALESCE(i.persen_termin, 100)), 0) FROM invoice i
+                       WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN') < 100
                 """,
                 [quotation_id],
             )
@@ -680,21 +684,23 @@ def invoice_create(request, quotation_id):
         database_error = "Belum dapat membaca quotation. Periksa database."
 
     if not quote and not database_error:
-        messages.error(request, "Invoice hanya dapat dibuat dari quotation yang disetujui dan belum memiliki invoice.")
+        messages.error(request, "Invoice hanya dapat dibuat dari quotation yang disetujui dan belum ditagih 100%.")
         return module_redirect(kind_of_quotation(quotation_id), "quotations")
 
-    is_survey = bool(quote and quote[12] == "JASA_SURVEY")
+    # Semua modul memakai sistem termin: 100% (sekali tagih) atau DP lalu pelunasan.
+    is_survey = True
     initial = {}
     if quote:
         termin_no = (quote[13] or 0) + 1
+        remaining = max(Decimal("0"), Decimal("100") - Decimal(quote[14] or 0))
+        default_first = Decimal("30") if quote[12] == "JASA_SURVEY" else Decimal("100")
         initial = {
-            "number": f"INV/{quote[3]}" + (f"/T{termin_no}" if is_survey else ""),
+            "number": f"INV/{quote[3]}" + (f"/T{termin_no}" if termin_no > 1 else ""),
             "date": date.today(),
+            "termin_percent": remaining if termin_no > 1 else min(default_first, remaining),
+            "termin_label": ("Down payment" if quote[12] == "JASA_SURVEY" else "")
+            if termin_no == 1 else "Pelunasan",
         }
-        if is_survey:
-            remaining = max(Decimal("0"), Decimal("100") - Decimal(quote[14] or 0))
-            initial["termin_percent"] = remaining if termin_no > 1 else min(Decimal("30"), remaining)
-            initial["termin_label"] = "Down payment" if termin_no == 1 else f"Termin {termin_no}"
     form = InvoiceForm(request.POST or None, initial=initial, termin=is_survey)
     if request.method == "POST" and quote and form.is_valid():
         data = form.cleaned_data
@@ -717,26 +723,30 @@ def invoice_create(request, quotation_id):
                     else:
                         cursor.execute(
                             """
-                            SELECT COUNT(*), COALESCE(SUM(persen_termin), 0) FROM invoice
+                            SELECT COUNT(*), COALESCE(SUM(COALESCE(persen_termin, 100)), 0) FROM invoice
                             WHERE quotation_id = %s AND status <> 'DIBATALKAN'
                             """,
                             [quotation_id],
                         )
                         existing_count, existing_percent = cursor.fetchone()
                         amounts = [locked_quote[2], locked_quote[5], locked_quote[6]]
-                        termin_no = termin_percent = termin_label = None
-                        if is_survey:
-                            termin_percent = data["termin_percent"]
-                            if Decimal(existing_percent) + termin_percent > 100:
-                                form.add_error("termin_percent", f"Total termin melebihi 100% (sudah ditagih {existing_percent:g}%).")
+                        termin_no = termin_label = None
+                        termin_percent = data["termin_percent"]
+                        if Decimal(existing_percent) + termin_percent > 100:
+                            form.add_error("termin_percent", f"Total tagihan melebihi 100% (sudah ditagih {existing_percent:g}%).")
+                        if termin_percent == 100 and not existing_count:
+                            # Tagih penuh sekali: invoice biasa berisi rincian item quotation.
+                            termin_percent = None
+                        else:
                             termin_no = existing_count + 1
-                            termin_label = data.get("termin_label") or f"Termin {termin_no}"
+                            remaining_after = Decimal("100") - Decimal(existing_percent) - termin_percent
+                            termin_label = data.get("termin_label") or (
+                                "Pelunasan" if remaining_after <= 0 and termin_no > 1
+                                else "Down payment" if termin_no == 1 else f"Termin {termin_no}")
                             factor = termin_percent / Decimal("100")
                             amounts = [(Decimal(a or 0) * factor).quantize(Decimal("1")) for a in amounts[:2]]
                             amounts.append(amounts[0] + amounts[1])
-                        if not is_survey and existing_count:
-                            form.add_error(None, "Quotation ini sudah memiliki invoice.")
-                        elif form.errors:
+                        if form.errors:
                             pass
                         else:
                             cursor.execute(
@@ -757,7 +767,10 @@ def invoice_create(request, quotation_id):
                                  termin_no, termin_percent, termin_label],
                             )
                             invoice_id = cursor.fetchone()[0]
-                            messages.success(request, "Draft invoice dibuat dari quotation yang disetujui.")
+                            messages.success(request, "Draft invoice dibuat." + (
+                                f" {termin_label} {termin_percent:g}% — sisa tagihan "
+                                f"{Decimal('100') - Decimal(existing_percent) - termin_percent:g}%."
+                                if termin_percent else ""))
                             return module_redirect(quote[12], "invoices")
         except DatabaseError:
             form.add_error(None, "Invoice belum tersimpan. Periksa nomor invoice dan database.")
@@ -766,6 +779,7 @@ def invoice_create(request, quotation_id):
         "mod": module(quote[12] if quote else kind_of_quotation(quotation_id)), "is_survey": is_survey,
         "termin_no": (quote[13] or 0) + 1 if quote else 1,
         "termin_done": quote[14] if quote else 0,
+        "remaining": max(Decimal("0"), Decimal("100") - Decimal(quote[14] or 0)) if quote else Decimal("100"),
     })
 
 
@@ -793,7 +807,7 @@ def invoice_edit(request, invoice_id):
                        q.total, q.pic_pengguna_id, kl.nama_perusahaan, q.jenis,
                        (SELECT COUNT(*) FROM invoice i WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN'
                           AND i.id <> %s),
-                       (SELECT COALESCE(SUM(i.persen_termin), 0) FROM invoice i
+                       (SELECT COALESCE(SUM(COALESCE(i.persen_termin, 100)), 0) FROM invoice i
                         WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN' AND i.id <> %s)
                 FROM quotation q
                 JOIN perusahaan co ON co.id = q.perusahaan_id
@@ -811,7 +825,7 @@ def invoice_edit(request, invoice_id):
         messages.error(request, "Hanya invoice berstatus Draft yang bisa diedit. Invoice yang sudah diterbitkan "
                                 "perlu dibatalkan dan dibuat ulang.")
         return module_redirect(kind, "invoices")
-    is_survey = kind == "JASA_SURVEY" and inv[8] is not None
+    is_survey = inv[8] is not None
     initial = {"number": inv[2], "date": inv[3], "due_date": inv[4], "po_number": inv[5],
                "payment_terms": inv[6], "notes": inv[7]}
     if is_survey:
@@ -851,6 +865,7 @@ def invoice_edit(request, invoice_id):
     return render(request, "portal/invoice_form.html", {
         "form": form, "quote": quote, "mod": module(kind), "is_survey": is_survey,
         "termin_no": inv[8] or 1, "termin_done": quote[14], "invoice_id": invoice_id,
+        "remaining": max(Decimal("0"), Decimal("100") - Decimal(quote[14] or 0)),
     })
 
 

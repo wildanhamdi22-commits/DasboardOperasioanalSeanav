@@ -659,3 +659,9 @@ details.mini ul.acc-list{list-style:none;padding-left:0;display:grid;gap:6px}
 .acc-card:has(input:not(:checked)) .ph{filter:grayscale(.2)}
 .acc-summary{margin-top:10px;font-size:13px;font-weight:700}
 .acc-summary.warn{color:#b45309}.acc-summary.ok{color:#15803d}
+/* Skema tagihan invoice (DP / pelunasan) */
+.bill-scheme{border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:16px;background:var(--surface-2,#f7f9fc)}
+.bill-head{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:10px}
+.bill-options{display:flex;gap:8px;flex-wrap:wrap}
+.bill-options .chip-btn.on{background:var(--navy-2,#174b7d);color:#fff;border-color:var(--navy-2,#174b7d)}
+.bill-preview{margin-top:10px;font-size:14px}

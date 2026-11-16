@@ -1,10 +1,10 @@
 {% extends "portal/base.html" %}
 {% load portal_extras %}
-{% block title %}Buat Invoice{% endblock %}
+{% block title %}{% if invoice_id %}Edit{% else %}Buat{% endif %} Invoice{% endblock %}
 {% block crumb %}{{ mod.label }} · Invoice{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>{% if invoice_id %}Edit invoice{% else %}Buat invoice{% endif %} {{ mod.label|lower }}{% if is_survey %} · termin {{ termin_no }}{% endif %}</h1><p>{% if quote %}Dari quotation <b class="mono">{{ quote.2 }}</b> · {{ quote.3 }} · {{ quote.11 }}{% else %}Invoice dari quotation yang disetujui klien.{% endif %}</p></div>
+  <div><h1>{% if invoice_id %}Edit invoice{% else %}Buat invoice{% endif %} {{ mod.label|lower }}{% if termin_done %} · tagihan ke-{{ termin_no }}{% endif %}</h1><p>{% if quote %}Dari quotation <b class="mono">{{ quote.3 }}</b> · {{ quote.11 }}{% else %}Invoice dari quotation yang disetujui klien.{% endif %}</p></div>
   <div class="page-actions"><a class="btn btn-outline" href="{% url mod.quotations %}">← Kembali</a></div>
 </div>
 {% endblock %}
@@ -13,19 +13,63 @@
   {% if database_error %}<div class="flash error">{{ database_error }}</div>{% endif %}
   {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
   <form method="post">{% csrf_token %}
+    {% if is_survey and quote %}
+    <div class="bill-scheme">
+      <div class="bill-head"><b>Skema tagihan</b><span class="muted small">Pilih cepat, atau isi persentase sendiri di bawah.</span></div>
+      <div class="bill-options">
+        {% if not termin_done %}
+          <button type="button" class="chip-btn" data-pct="100" data-label="">Lunas sekali tagih · 100%</button>
+          <button type="button" class="chip-btn" data-pct="50" data-label="Down payment">DP 50%</button>
+          <button type="button" class="chip-btn" data-pct="30" data-label="Down payment">DP 30%</button>
+          <button type="button" class="chip-btn" data-pct="20" data-label="Down payment">DP 20%</button>
+        {% else %}
+          <button type="button" class="chip-btn" data-pct="{{ remaining|floatformat:'-2'|default:'' }}" data-label="Pelunasan">Pelunasan · sisa {{ remaining|floatformat:"-2" }}%</button>
+        {% endif %}
+      </div>
+      <div class="bill-preview">Nilai invoice ini: <b id="bill-amount">-</b> <span class="muted small" id="bill-note"></span></div>
+    </div>
+    {% endif %}
     <div class="form-grid">
       {% for field in form %}<div class="field {% if field.name == 'payment_terms' or field.name == 'notes' %}full{% endif %}">
-        {{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+        {% if field.name == 'termin_percent' %}<label for="{{ field.id_for_label }}">Persentase tagihan (%)</label>{% elif field.name == 'termin_label' %}<label for="{{ field.id_for_label }}">Keterangan tagihan</label>{% else %}{{ field.label_tag }}{% endif %}{{ field }}
+        {% if field.name == 'termin_percent' %}<span class="help">100 = tagih penuh. Isi 50 untuk DP 50%, lalu buat invoice kedua untuk pelunasan.</span>{% elif field.name == 'termin_label' %}<span class="help">Contoh: Down payment, Pelunasan, Termin 2 – progres 50%.</span>{% elif field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
         {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
       </div>{% endfor %}
     </div>
     {% if quote %}<div class="sum-box">
-      <div><span>Subtotal</span><b>{{ quote.5|rupiah }}</b></div>
+      <div><span>Subtotal quotation</span><b>{{ quote.5|rupiah }}</b></div>
       {% if quote.8 %}<div><span>{{ quote.6 }} {{ quote.7|floatformat:0 }}%</span><b>{{ quote.8|rupiah }}</b></div>{% endif %}
-      <div class="grand"><span>{% if is_survey %}Nilai kontrak{% else %}Total invoice{% endif %}</span><span>{{ quote.9|rupiah }}</span></div>
-      {% if is_survey %}<div><span>Sudah ditagih</span><b>{{ termin_done|floatformat:"-2" }}%</b></div><p class="small muted" style="margin:6px 0 0">Nilai termin = nilai kontrak × persentase termin.</p>{% endif %}
+      <div class="grand"><span>Nilai kontrak</span><span>{{ quote.9|rupiah }}</span></div>
+      {% if is_survey %}<div><span>Sudah ditagih (invoice lain)</span><b>{{ termin_done|floatformat:"-2" }}%</b></div>{% endif %}
     </div>{% endif %}
     <div class="form-actions"><button class="btn btn-primary" type="submit">{% if invoice_id %}Simpan perubahan{% else %}Simpan draft invoice{% endif %}</button><a class="btn btn-ghost" href="{% url mod.quotations %}">Batal</a></div>
   </form>
 </section>
+{% endblock %}
+{% block scripts %}
+{% if is_survey and quote %}
+<script>
+(() => {
+  const total = {{ quote.9|default:0|stringformat:"s" }}, done = {{ termin_done|default:0|stringformat:"s" }};
+  const pct = document.getElementById("id_termin_percent"), label = document.getElementById("id_termin_label");
+  const amount = document.getElementById("bill-amount"), note = document.getElementById("bill-note");
+  if (!pct) return;
+  const money = (v) => new Intl.NumberFormat("id-ID", {style: "currency", currency: "IDR", maximumFractionDigits: 0}).format(v || 0);
+  const update = () => {
+    const p = parseFloat(String(pct.value).replace(",", ".")) || 0;
+    amount.textContent = money(total * p / 100);
+    const rest = Math.max(0, 100 - done - p);
+    note.textContent = p > 0 ? (rest > 0 ? `· sisa ${rest.toLocaleString("id-ID")}% (${money(total * rest / 100)}) ditagih di invoice berikutnya` : "· tagihan lunas setelah invoice ini") : "";
+    document.querySelectorAll(".bill-options .chip-btn").forEach((b) => b.classList.toggle("on", parseFloat(b.dataset.pct) === p));
+  };
+  document.querySelectorAll(".bill-options .chip-btn").forEach((b) => b.addEventListener("click", () => {
+    pct.value = b.dataset.pct;
+    if (label && (b.dataset.label || !label.value || ["Down payment", "Pelunasan"].includes(label.value))) label.value = b.dataset.label;
+    update();
+  }));
+  pct.addEventListener("input", update);
+  update();
+})();
+</script>
+{% endif %}
 {% endblock %}

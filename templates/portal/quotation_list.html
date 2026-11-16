@@ -37,7 +37,8 @@
                   <form method="post" action="{% url 'quotation_status' quote.id 'terima' %}">{% csrf_token %}<button class="btn btn-green btn-sm" type="submit">Klien setuju</button></form>
                   <form method="post" action="{% url 'quotation_status' quote.id 'tolak' %}" data-confirm="Catat quotation ini ditolak klien?">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Klien menolak</button></form>
                 {% elif quote.status == "DITERIMA_KLIEN" %}
-                  {% if quote.invoice_created and quote.kind != "JASA_SURVEY" %}<a class="btn btn-outline btn-sm" href="{% url mod.invoices %}">Lihat invoice</a>{% else %}<a class="btn btn-red btn-sm" href="{% url 'invoice_create' quote.id %}">Buat invoice</a>{% endif %}
+                  {% if quote.invoice_created %}<a class="btn btn-outline btn-sm" href="{% url mod.invoices %}">Lihat invoice</a>{% endif %}
+                  {% if quote.billed_remaining > 0 %}<a class="btn btn-red btn-sm" href="{% url 'invoice_create' quote.id %}">{% if quote.invoice_created %}Tagih sisa {{ quote.billed_remaining|floatformat:"-2" }}%{% else %}Buat invoice{% endif %}</a>{% endif %}
                   {% if quote.kind == "PENJUALAN" %}{% if quote.delivered %}<a class="btn btn-outline btn-sm" href="{% url 'sales_orders' %}">Lihat pesanan</a>{% else %}<form method="post" action="{% url 'sales_order_create' quote.id %}">{% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Buat pesanan</button></form>{% endif %}{% endif %}{% if quote.kind == "JASA_SURVEY" %}{% if quote.project_id %}<a class="btn btn-outline btn-sm" href="{% url 'survey_project_detail' quote.project_id %}">Lihat proyek</a>{% else %}<a class="btn btn-primary btn-sm" href="{% url 'project_create' %}?quotation_id={{ quote.id }}">Buat proyek</a>{% endif %}{% endif %}
                 {% endif %}
               </div>
