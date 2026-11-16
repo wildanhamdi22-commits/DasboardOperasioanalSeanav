@@ -1,6 +1,7 @@
 """Unduhan dokumen resmi (Quotation, Invoice, Delivery Order) memakai satu desain
 dari portal.doc_builder: Oseana = Century Gothic, Seanav = Aptos."""
 import logging
+import re
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -42,8 +43,62 @@ def _brand_code(code):
     return code if code in BRANDS else "SNV"
 
 
-def _respond(request, docx_bytes, number, fallback):
+KIND_FILE_LABEL = {"RENTAL": "Rental", "PENJUALAN": "Penjualan", "JASA_SURVEY": "Jasa Survey"}
+
+
+def _clean_part(text):
+    text = re.sub(r'[\\/:*?"<>|\r\n\t]+', " ", str(text or "")).replace("–", "-").replace("—", "-")
+    return re.sub(r"\s+", " ", text).strip(" ._-")
+
+
+def _names_text(names, limit=2):
+    seen = []
+    for name in names:
+        name = _clean_part(name)
+        if name and name.lower() not in [x.lower() for x in seen]:
+            seen.append(name)
+    if not seen:
+        return ""
+    text = ", ".join(seen[:limit])
+    return text + (f" +{len(seen) - limit}" if len(seen) > limit else "")
+
+
+def file_name(prefix, reference, client, kind=None, names=(), extra=None):
+    """Nama file standar: [PREFIX_]Nomor_Klien_Jenis (Alat)[_Ekstra]. Contoh: INV_QR26168_PT Abc_Rental MRU SMC."""
+    label = " ".join(x for x in (KIND_FILE_LABEL.get(kind, kind or ""), _names_text(names)) if x)
+    parts = [prefix, str(reference or "").replace("/", "-"), client, label, extra]
+    name = "_".join(p for p in (_clean_part(x) for x in parts) if p and p != "-")
+    return name[:150].rstrip(" ._-") or "dokumen"
+
+
+def _quotation_names(quotation_id):
+    """Nama alat/produk pada quotation; item katalog didahulukan, item manual bila tidak ada katalog."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT TRIM(concat_ws(' ', m.merek, m.nama_model)), TRIM(concat_ws(' ', pj.merek, pj.nama)),
+                       qi.deskripsi_item
+                FROM quotation_item qi
+                LEFT JOIN model_alat m ON m.id = qi.model_alat_id
+                LEFT JOIN produk_jual pj ON pj.id = qi.produk_jual_id
+                WHERE qi.quotation_id = %s ORDER BY qi.id
+                """,
+                [quotation_id],
+            )
+            rows = cursor.fetchall()
+    except DatabaseError:
+        return []
+    catalog = [a or b for a, b, _ in rows if a or b]
+    return catalog or [c for _, _, c in rows if c]
+
+
+def _respond(request, docx_bytes, number, fallback, filename=None):
+    from urllib.parse import quote
+
+    pretty = filename or number
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in number)
+    ascii_name = pretty.encode("ascii", "ignore").decode() or safe
     if request.GET.get("format", "").lower() == "pdf":
         try:
             pdf = docx_to_pdf(docx_bytes, safe)
@@ -53,10 +108,10 @@ def _respond(request, docx_bytes, number, fallback):
                                     "(Windows) / LibreOffice (server) terpasang.")
             return redirect(fallback)
         response = HttpResponse(pdf, content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="{safe}.pdf"'
+        response["Content-Disposition"] = f'attachment; filename="{ascii_name}.pdf"; filename*=UTF-8\'\'{quote(pretty)}.pdf'
         return response
     response = HttpResponse(docx_bytes, content_type=DOCX_MIME)
-    response["Content-Disposition"] = f'attachment; filename="{safe}.docx"'
+    response["Content-Disposition"] = f'attachment; filename="{ascii_name}.docx"; filename*=UTF-8\'\'{quote(pretty)}.docx'
     return response
 
 
@@ -175,7 +230,8 @@ def quotation_document(request, quotation_id):
         "tax_label": _tax_label(q[15], q[13]) if q[14] else None,
     }
     data["site"]["name"] = q[5]
-    return _respond(request, build_quotation(company, data), q[0], "quotation_list")
+    name = file_name(None, q[0], q[5], kind, _quotation_names(quotation_id))
+    return _respond(request, build_quotation(company, data), q[0], "quotation_list", name)
 
 
 INVOICE_STATUS = {"DIBAYAR": "PAID", "DIBATALKAN": "CANCELLED"}
@@ -240,7 +296,9 @@ def invoice_document(request, invoice_id):
         "paid": inv[9] if inv[4] == "DIBAYAR" else None,
         "signer": "Finance Department",
     }
-    return _respond(request, build_invoice(company, data), inv[0], "invoice_list")
+    name = file_name("INV", inv[13], inv[15], kind, _quotation_names(inv[12]),
+                     extra=f"Termin {inv[21]}" if inv[21] else None)
+    return _respond(request, build_invoice(company, data), inv[0], "invoice_list", name)
 
 
 def _accessories_for_unit(cursor, unit_id):
@@ -335,7 +393,9 @@ def rental_delivery_order(request, rental_id):
         "prepared_by": r[14], "delivered_by": "",
         "items": items,
     }
-    return _respond(request, build_delivery_order(company, data), data["number"], "rental_list")
+    name = file_name("DO", r[8] if r[8] != "-" else r[0], r[5], "RENTAL",
+                     [it["name"] for it in items if it.get("name")])
+    return _respond(request, build_delivery_order(company, data), data["number"], "rental_list", name)
 
 
 
@@ -380,7 +440,9 @@ def rental_return_note(request, handover_id):
                 [handover_id],
             )
             rows = []
+            unit_names = []
             for i, (name, serial, qty, cond, unit_id) in enumerate(cursor.fetchall(), 1):
+                unit_names.append(name)
                 acc = _accessories_for_unit(cursor, unit_id)
                 rows.append({"cells": [str(i), [name, *([f"Incl. {acc}"] if acc else [])], serial,
                                        f"{Decimal(qty).normalize():f} unit", CONDITION_EN.get(cond, cond.title())]})
@@ -417,7 +479,8 @@ def rental_return_note(request, handover_id):
         "signatures": [("Returned by (client)", h[2], "Name, date & signature"),
                        ("Received by (warehouse)", h[3], "Date :")],
     }
-    return _respond(request, build_generic(_brand_code(h[7]), data), number, "rental_returns")
+    fname = file_name("RN", h[9] if h[9] != "-" else h[6], h[8], "RENTAL", unit_names)
+    return _respond(request, build_generic(_brand_code(h[7]), data), number, "rental_returns", fname)
 
 
 @business_permission_required("SERAH_TERIMA", "LIHAT")
@@ -486,7 +549,9 @@ def sale_delivery_order(request, order_id):
         "prepared_by": o[13], "delivered_by": o[11],
         "items": items,
     }
-    return _respond(request, build_delivery_order(company, data), number, "sales_deliveries")
+    fname = file_name("DO", o[5] if o[5] != "-" else o[1], o[3], "PENJUALAN",
+                      [it["name"] for it in items if it.get("name")])
+    return _respond(request, build_delivery_order(company, data), number, "sales_deliveries", fname)
 
 
 QC_SECTIONS_EN = {"A": "Identity & documents", "B": "Physical condition", "C": "Completeness",
@@ -551,7 +616,8 @@ def sales_qc_report(request, unit_id):
                                          "lines": [(r[10] or "All inspection points passed.", {"size": 8.5})]}}],
         "signatures": [("Inspected by", r[12], "QC / Technical"), ("Approved by", "", "Date :")],
     }
-    return _respond(request, build_generic(_brand_code(r[4]), data), number, "sales_qc_list")
+    fname = file_name("QC", r[3], r[5], "PENJUALAN", [r[2]], extra=f"SN {r[0]}" if r[0] else None)
+    return _respond(request, build_generic(_brand_code(r[4]), data), number, "sales_qc_list", fname)
 
 
 @business_permission_required("PROYEK", "LIHAT")
@@ -598,7 +664,8 @@ def survey_report_document(request, report_id):
         ],
         "signatures": [("Prepared by (party chief)", r[7], "Date :"), ("Acknowledged by (client)", "", "Name, date & signature")],
     }
-    return _respond(request, build_generic(_brand_code(r[10]), data), number, "survey_reports")
+    fname = file_name("DPR", r[8], r[11], "JASA_SURVEY", [r[9]], extra=r[0].strftime("%Y-%m-%d") if r[0] else None)
+    return _respond(request, build_generic(_brand_code(r[10]), data), number, "survey_reports", fname)
 
 
 @business_permission_required("PROYEK", "LIHAT")
@@ -653,4 +720,5 @@ def survey_bast_document(request, project_id):
                        ("Accepted by (client)", r[11], "Name, date & company stamp")],
         "signature_height": 24,
     }
-    return _respond(request, build_generic(_brand_code(r[2]), data), number, "survey_deliverables")
+    fname = file_name("BAST", r[12] if r[12] != "-" else r[0], r[3], "JASA_SURVEY", [r[1]])
+    return _respond(request, build_generic(_brand_code(r[2]), data), number, "survey_deliverables", fname)
