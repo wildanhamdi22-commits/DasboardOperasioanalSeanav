@@ -37,7 +37,7 @@
             <td style="min-width:220px">
               <b>{{ unit.display_name }}</b><small>{% if unit.category in categories %}<span class="cat cat-{{ unit.category }}">{{ unit.category }}</span>{% else %}<span class="cat cat-none" title="Edit untuk memilih Geodetic, Geophysic, atau Metocean">Perlu kategori · {{ unit.category }}</span>{% endif %}</small>
               {% if unit.accessories %}
-                <details class="mini"><summary>Kelengkapan ({{ unit.accessories|length }})</summary><ul>{% for accessory in unit.accessories %}<li>{{ accessory }}</li>{% endfor %}</ul></details>
+                <details class="mini"><summary>Kelengkapan ({{ unit.accessories|length }})</summary><ul class="acc-list">{% for accessory in unit.accessories %}<li>{% if accessory.photo_url %}<a href="{{ accessory.photo_url }}" target="_blank" rel="noopener"><img class="acc-thumb" src="{{ accessory.photo_url }}" alt="Foto {{ accessory.text }}" loading="lazy"></a>{% else %}<span class="acc-thumb acc-thumb-empty" title="Belum ada foto">—</span>{% endif %}<span>{{ accessory.text }}</span></li>{% endfor %}</ul></details>
               {% else %}<small>Kelengkapan belum dicatat</small>{% endif %}
             </td>
             <td><span class="mono">{{ unit.serial|default:"—" }}</span><small>OMSN: {{ unit.om_sn|default:"—" }}</small></td>

@@ -24,6 +24,13 @@
         </div>
       {% endfor %}
       </div>
+      <div class="acc-check" id="acc-check" hidden>
+        <h3>Cek kelengkapan alat</h3>
+        <p class="help" style="margin:0">Cocokkan fisik alat dengan foto, lalu centang setiap aksesori yang ada. Aksesori yang tidak dicentang otomatis tercatat di catatan.</p>
+        <div class="acc-head" id="acc-head"></div>
+        <div class="acc-cards" id="acc-cards"></div>
+        <div class="acc-summary" id="acc-summary"></div>
+      </div>
       <div class="return-check" id="return-check" {% if not is_return %}hidden{% endif %}>
         <h3>Checklist pengecekan pengembalian</h3>
         <div class="check-grid">{% for key, label in return_checklist %}<label class="check-item"><input type="checkbox" name="chk_{{ key }}"> <span>{{ label }}</span></label>{% endfor %}</div>
@@ -42,6 +49,41 @@
   if (!kind || !box) return;
   const sync = () => { box.hidden = kind.value !== "KEMBALI"; };
   kind.addEventListener("change", sync); sync();
+})();
+(() => {
+  const kits = {{ unit_kits_json|safe }};
+  const select = document.getElementById("id_rental_item_id");
+  const box = document.getElementById("acc-check"), head = document.getElementById("acc-head"),
+        cards = document.getElementById("acc-cards"), summary = document.getElementById("acc-summary");
+  if (!select || !box) return;
+  const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const count = () => {
+    const all = cards.querySelectorAll("input"), on = cards.querySelectorAll("input:checked");
+    if (!all.length) { summary.textContent = ""; return; }
+    const ok = on.length === all.length;
+    summary.className = "acc-summary " + (ok ? "ok" : "warn");
+    summary.textContent = ok ? `✓ Lengkap — ${on.length} dari ${all.length} aksesori` : `⚠ ${all.length - on.length} aksesori belum dicentang (${on.length}/${all.length})`;
+  };
+  const render = () => {
+    const kit = kits[select.value];
+    if (!kit) { box.hidden = true; return; }
+    box.hidden = false;
+    head.innerHTML = (kit.photo_url ? `<img src="${esc(kit.photo_url)}" alt="">` : "") +
+      `<div><b>${esc(kit.unit)}</b><br><span class="help">S/N: ${esc(kit.serial || "—")}</span></div>`;
+    if (!kit.accessories.length) {
+      cards.innerHTML = `<p class="help">Kelengkapan unit ini belum dicatat. Tambahkan lewat Daftar Alat → Edit.</p>`;
+    } else {
+      cards.innerHTML = kit.accessories.map((a) => `
+        <label class="acc-card"><input type="checkbox" name="acc_${a.id}">
+          <div class="ph" ${a.photo_url ? `style="background-image:url('${esc(a.photo_url)}')"` : ""}>${a.photo_url ? "" : "Belum ada foto"}</div>
+          <div class="tx"><b>${esc(a.qty)}× ${esc(a.name)}</b>${a.serial ? `S/N: ${esc(a.serial)}` : ""}</div>
+        </label>`).join("");
+    }
+    count();
+  };
+  cards.addEventListener("change", count);
+  select.addEventListener("change", render);
+  render();
 })();
 </script>
 {% endblock %}

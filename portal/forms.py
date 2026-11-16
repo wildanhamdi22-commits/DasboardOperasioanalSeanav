@@ -55,6 +55,27 @@ class AccessoryForm(forms.Form):
         label="Jumlah", required=False, min_value=Decimal("0.01"),
         max_digits=12, decimal_places=2, initial=1,
     )
+    photo = forms.FileField(
+        label="Foto aksesori", required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": "image/*", "capture": "environment"}),
+    )
+    existing_photo = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def clean_photo(self):
+        photo = self.cleaned_data.get("photo")
+        if not photo:
+            return photo
+        if Path(photo.name).suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+            raise forms.ValidationError("Gunakan foto JPG, PNG, atau WEBP.")
+        if photo.size > 8 * 1024 * 1024:
+            raise forms.ValidationError("Ukuran foto maksimal 8 MB.")
+        return photo
+
+    def clean_existing_photo(self):
+        path = (self.cleaned_data.get("existing_photo") or "").strip()
+        if path and (not path.startswith("inventory/") or ".." in path or path.startswith("/")):
+            return ""
+        return path
 
     def clean(self):
         cleaned = super().clean()

@@ -25,14 +25,18 @@
 
     <section class="form-section" id="accessory-formset">
       <h2>Aksesori / kelengkapan</h2>
-      <p>Isi serial number bila aksesori memilikinya. Jika tiap unit aksesori punya nomor seri berbeda, masukkan satu baris per unit dengan jumlah 1.</p>
+      <p>Isi serial number bila aksesori memilikinya, dan unggah fotonya agar tim gudang tidak salah ambil saat serah terima dan pengembalian. Jika tiap unit aksesori punya nomor seri berbeda, masukkan satu baris per unit dengan jumlah 1.</p>
       {{ accessory_formset.management_form }}
       {% if accessory_formset.non_form_errors %}<div class="flash error">{{ accessory_formset.non_form_errors|join:" " }}</div>{% endif %}
       <div id="accessory-rows" style="display:grid;gap:10px">
         {% for accessory in accessory_formset %}
-          <div class="accessory-row form-grid" style="grid-template-columns:2fr 1.5fr .7fr auto;align-items:end">
+          <div class="accessory-row">
             {% for hidden in accessory.hidden_fields %}{{ hidden }}{% endfor %}
-            <div class="field">{{ accessory.name.label_tag }}{{ accessory.name }}{% for error in accessory.name.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+            <label class="acc-photo" title="Klik untuk memilih / memotret foto aksesori">
+              {% if accessory.photo_preview %}<img src="{{ accessory.photo_preview }}" alt="Foto {{ accessory.name.value }}">{% else %}<span class="acc-photo-empty">📷<small>Foto</small></span>{% endif %}
+              <input type="file" name="{{ accessory.photo.html_name }}" accept="image/*" class="acc-photo-input">
+            </label>
+            <div class="field">{{ accessory.name.label_tag }}{{ accessory.name }}{% for error in accessory.name.errors %}<span class="field-error">{{ error }}</span>{% endfor %}{% for error in accessory.photo.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
             <div class="field">{{ accessory.serial_number.label_tag }}{{ accessory.serial_number }}{% for error in accessory.serial_number.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
             <div class="field">{{ accessory.quantity.label_tag }}{{ accessory.quantity }}{% for error in accessory.quantity.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
             {{ accessory.DELETE.as_hidden }}
@@ -42,7 +46,9 @@
       </div>
       <button type="button" class="btn btn-outline btn-sm" id="add-accessory" style="margin-top:12px">+ Tambah aksesori</button>
       <template id="empty-accessory-row">
-        <div class="accessory-row form-grid" style="grid-template-columns:2fr 1.5fr .7fr auto;align-items:end">
+        <div class="accessory-row">
+          <input type="hidden" name="accessories-__prefix__-existing_photo" id="id_accessories-__prefix__-existing_photo">
+          <label class="acc-photo" title="Klik untuk memilih / memotret foto aksesori"><span class="acc-photo-empty">📷<small>Foto</small></span><input type="file" name="accessories-__prefix__-photo" accept="image/*" class="acc-photo-input"></label>
           <div class="field"><label for="id_accessories-__prefix__-name">Jenis aksesoris</label><input type="text" name="accessories-__prefix__-name" maxlength="180" id="id_accessories-__prefix__-name"></div>
           <div class="field"><label for="id_accessories-__prefix__-serial_number">Serial Number (opsional)</label><input type="text" name="accessories-__prefix__-serial_number" maxlength="120" id="id_accessories-__prefix__-serial_number"></div>
           <div class="field"><label for="id_accessories-__prefix__-quantity">Jumlah</label><input type="number" name="accessories-__prefix__-quantity" value="1" min="0.01" step="0.01" id="id_accessories-__prefix__-quantity"></div>
@@ -60,6 +66,17 @@
 </section>
 {% endblock %}
 {% block scripts %}
+<script>
+document.addEventListener("change", (event) => {
+  const input = event.target;
+  if (!input.classList || !input.classList.contains("acc-photo-input") || !input.files || !input.files[0]) return;
+  const box = input.closest(".acc-photo");
+  const url = URL.createObjectURL(input.files[0]);
+  box.querySelectorAll("img,.acc-photo-empty").forEach((el) => el.remove());
+  const img = document.createElement("img"); img.src = url; img.alt = "Pratinjau foto aksesori";
+  box.insertBefore(img, input);
+});
+</script>
 <script>
 (() => {
   const rows = document.getElementById("accessory-rows");

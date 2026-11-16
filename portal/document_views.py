@@ -403,9 +403,15 @@ def rental_return_note(request, handover_id):
             {"heading": "Return inspection"},
             {"table": {"columns": ["No", "Check item", "Result"], "widths": [10, None, 30],
                        "rows": [{"cells": [str(i), labels.get(k, k), "✓ OK" if checklist.get(k) else "✗ Not OK"]}
-                                for i, (k, _) in enumerate(RETURN_CHECKLIST, 1)] if checklist else
+                                for i, (k, _) in enumerate(RETURN_CHECKLIST, 1)] if any(k in checklist for k, _ in RETURN_CHECKLIST) else
                                [{"cells": ["–", "Inspection checklist not recorded", "–"]}],
                        "center": (0, 2)}},
+            *([{"heading": "Accessories check"},
+               {"table": {"columns": ["No", "Accessory", "Qty", "Serial no.", "Result"], "widths": [10, None, 16, 38, 26],
+                          "rows": [{"cells": [str(i), a.get("nama", ""), str(a.get("jumlah", "")), a.get("serial") or "-",
+                                              "✓ Returned" if a.get("ada") else "✗ Missing"]}
+                                   for i, a in enumerate(checklist.get("aksesori", []), 1)],
+                          "center": (0, 2, 4)}}] if checklist.get("aksesori") else []),
             {"box": {"title": "Remarks", "lines": [(h[4] or "No remarks.", {"size": 8.5})]}},
         ],
         "signatures": [("Returned by (client)", h[2], "Name, date & signature"),

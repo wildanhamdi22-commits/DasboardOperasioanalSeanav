@@ -743,7 +743,53 @@ def _current_pengguna_id(cursor, request):
     return cursor.fetchone()[0]
 
 
-def _sync_unit_accessories(cursor, unit_id, accessories):
+def _accessory_photo_paths(formset, unit_id):
+    """Simpan foto aksesori yang baru diunggah; urutan sama dengan daftar aksesori yang disimpan."""
+    paths = []
+    for item in formset.forms:
+        data = item.cleaned_data
+        if not data or not data.get("name") or data.get("DELETE"):
+            continue
+        photo = data.get("photo")
+        if photo:
+            paths.append(default_storage.save(f"inventory/aksesori/{unit_id}/{photo.name}", photo))
+        else:
+            paths.append(data.get("existing_photo") or None)
+    return paths
+
+
+def _attach_accessory_previews(formset):
+    for item in formset.forms:
+        path = item["existing_photo"].value()
+        item.photo_preview = default_storage.url(path) if path else None
+
+
+def _unit_accessories(cursor, unit_ids):
+    """{unit_id: [{id, name, qty, serial, photo_url}]} untuk checklist serah terima."""
+    if not unit_ids:
+        return {}
+    cursor.execute(
+        """
+        SELECT pu.unit_utama_id, pui.id, pai.nama_item, trim_scale(pui.jumlah)::text,
+               COALESCE(pui.nomor_seri, ''), pui.foto_url
+        FROM paket_unit pu
+        JOIN paket_unit_item pui ON pui.paket_unit_id = pu.id
+        JOIN paket_alat_item pai ON pai.id = pui.paket_alat_item_id
+        WHERE pu.unit_utama_id = ANY(%s)
+        ORDER BY pai.nama_item, pui.id
+        """,
+        [list(unit_ids)],
+    )
+    result = {}
+    for unit_id, item_id, name, qty, serial, photo in cursor.fetchall():
+        result.setdefault(unit_id, []).append({
+            "id": item_id, "name": name, "qty": qty, "serial": serial,
+            "photo_url": default_storage.url(photo) if photo else None,
+        })
+    return result
+
+
+def _sync_unit_accessories(cursor, unit_id, accessories, photos=None):
     cursor.execute(
         "SELECT id, paket_alat_id FROM paket_unit WHERE unit_utama_id = %s FOR UPDATE",
         [unit_id],
@@ -774,7 +820,9 @@ def _sync_unit_accessories(cursor, unit_id, accessories):
         quantities_by_name[key] = quantities_by_name.get(key, Decimal("0")) + quantity
         has_serial_by_name[key] = has_serial_by_name.get(key, False) or bool(_serial_number)
 
-    for name, quantity, serial_number in accessories:
+    photos = list(photos or [])
+    for index, (name, quantity, serial_number) in enumerate(accessories):
+        photo_path = photos[index] if index < len(photos) else None
         cursor.execute(
             """
             SELECT id FROM paket_alat_item
@@ -803,10 +851,10 @@ def _sync_unit_accessories(cursor, unit_id, accessories):
         cursor.execute(
             """
             INSERT INTO paket_unit_item
-                (paket_unit_id, paket_alat_item_id, jumlah, kondisi, nomor_seri)
-            VALUES (%s, %s, %s, 'BAIK', %s)
+                (paket_unit_id, paket_alat_item_id, jumlah, kondisi, nomor_seri, foto_url)
+            VALUES (%s, %s, %s, 'BAIK', %s, %s)
             """,
-            [package_unit_id, package_item_id, quantity, serial_number or None],
+            [package_unit_id, package_item_id, quantity, serial_number or None, photo_path],
         )
 
 
@@ -1330,12 +1378,12 @@ def inventory(request):
                     WHERE COALESCE(stri.unit_alat_id, ri.unit_alat_id) = u.id
                 ) AS rh ON TRUE
                 LEFT JOIN LATERAL (
-                    SELECT string_agg(
-                               trim_scale(pui.jumlah)::text || 'x ' || pai.nama_item ||
-                               CASE WHEN NULLIF(pui.nomor_seri, '') IS NOT NULL
-                                    THEN ' (S/N: ' || pui.nomor_seri || ')' ELSE '' END,
-                               chr(10) ORDER BY pai.nama_item, pui.nomor_seri
-                           ) AS daftar_aksesori
+                    SELECT json_agg(json_build_object(
+                               'text', trim_scale(pui.jumlah)::text || 'x ' || pai.nama_item ||
+                                   CASE WHEN NULLIF(pui.nomor_seri, '') IS NOT NULL
+                                        THEN ' (S/N: ' || pui.nomor_seri || ')' ELSE '' END,
+                               'photo', pui.foto_url
+                           ) ORDER BY pai.nama_item, pui.nomor_seri)::text AS daftar_aksesori
                     FROM paket_unit pu
                     JOIN paket_unit_item pui ON pui.paket_unit_id = pu.id
                     JOIN paket_alat_item pai ON pai.id = pui.paket_alat_item_id
@@ -1388,7 +1436,10 @@ def inventory(request):
                     "photo_url": default_storage.url(row[10]) if row[10] else None,
                     "exit_count": row[11],
                     "clients": row[12],
-                    "accessories": [line for line in (row[13] or "").splitlines() if line.strip()],
+                    "accessories": [
+                        {"text": acc["text"], "photo_url": default_storage.url(acc["photo"]) if acc.get("photo") else None}
+                        for acc in json.loads(row[13] or "[]")
+                    ],
                 }
                 for row in cursor.fetchall()
             ]
@@ -2071,6 +2122,13 @@ def rental_handover(request):
                             checklist = None
                             if kind == "KEMBALI":
                                 checklist = {key: request.POST.get(f"chk_{key}") == "on" for key, _ in RETURN_CHECKLIST}
+                            accessory_check = _accessory_check_result(cursor, unit_id, request.POST)
+                            notes = data["notes"] or ""
+                            if accessory_check:
+                                checklist = dict(checklist or {}, aksesori=accessory_check)
+                                missing = [f"{a['jumlah']}x {a['nama']}" for a in accessory_check if not a["ada"]]
+                                if missing:
+                                    notes = (notes + "\n" if notes else "") + "Aksesori belum lengkap: " + ", ".join(missing)
                             cursor.execute(
                                 """
                                 INSERT INTO serah_terima_rental
@@ -2080,7 +2138,7 @@ def rental_handover(request):
                                 RETURNING id
                                 """,
                                 [rental_id, kind, data["internal_user_id"],
-                                 data["recipient_name"] or None, data["notes"] or None,
+                                 data["recipient_name"] or None, notes or None,
                                  json.dumps(checklist) if checklist is not None else None],
                             )
                             document_id = cursor.fetchone()[0]
@@ -2185,8 +2243,51 @@ def rental_handover(request):
         request,
         "portal/rental_handover.html",
         {"form": form, "database_error": database_error, "return_checklist": RETURN_CHECKLIST,
-         "is_return": request.GET.get("kind") == "KEMBALI"},
+         "is_return": request.GET.get("kind") == "KEMBALI",
+         "unit_kits_json": json.dumps(_handover_kits(form)) if form else "{}"},
     )
+
+
+def _handover_kits(form):
+    """{rental_item_id: {unit, serial, photo_url, accessories:[...]}} untuk checklist bergambar."""
+    item_ids = [int(value) for value, _ in form.fields["rental_item_id"].choices if str(value).isdigit()]
+    if not item_ids:
+        return {}
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT ri.id, u.id, concat_ws(' ', m.merek, m.nama_model), COALESCE(u.nomor_seri, ''), u.foto_url
+                FROM rental_item ri
+                JOIN unit_alat u ON u.id = ri.unit_alat_id
+                JOIN model_alat m ON m.id = u.model_alat_id
+                WHERE ri.id = ANY(%s)
+                """,
+                [item_ids],
+            )
+            rows = cursor.fetchall()
+            accessories = _unit_accessories(cursor, {row[1] for row in rows})
+    except DatabaseError:
+        return {}
+    return {
+        str(item_id): {
+            "unit": name, "serial": serial,
+            "photo_url": default_storage.url(photo) if photo else None,
+            "accessories": accessories.get(unit_id, []),
+        }
+        for item_id, unit_id, name, serial, photo in rows
+    }
+
+
+def _accessory_check_result(cursor, unit_id, post):
+    """Hasil centang kelengkapan dari form serah terima."""
+    result = []
+    for acc in _unit_accessories(cursor, [unit_id]).get(unit_id, []):
+        result.append({
+            "nama": acc["name"], "jumlah": acc["qty"], "serial": acc["serial"],
+            "ada": post.get(f"acc_{acc['id']}") == "on",
+        })
+    return result
 
 
 @business_permission_required("RENTAL", "LIHAT")
@@ -2657,7 +2758,7 @@ def rental_create(request):
 @business_permission_required("INVENTARIS", "BUAT")
 def add_inventory(request):
     form = EquipmentForm(request.POST or None, request.FILES or None)
-    accessory_formset = AccessoryFormSet(request.POST or None, prefix="accessories")
+    accessory_formset = AccessoryFormSet(request.POST or None, request.FILES or None, prefix="accessories")
     form_valid = form.is_valid() if request.method == "POST" else False
     accessories_valid = accessory_formset.is_valid() if request.method == "POST" else False
     if request.method == "POST" and form_valid and accessories_valid:
@@ -2747,7 +2848,7 @@ def add_inventory(request):
                         ],
                     )
                     unit_id = cursor.fetchone()[0]
-                    _sync_unit_accessories(cursor, unit_id, accessory_items)
+                    _sync_unit_accessories(cursor, unit_id, accessory_items, _accessory_photo_paths(accessory_formset, unit_id))
                     cursor.execute(
                         """
                         INSERT INTO audit_perubahan
@@ -2783,7 +2884,7 @@ def add_inventory(request):
 
     return render(
         request, "portal/inventory_form.html",
-        {"form": form, "accessory_formset": accessory_formset},
+        {"form": form, "accessory_formset": _attach_accessory_previews(accessory_formset) or accessory_formset},
     )
 
 
@@ -2798,8 +2899,9 @@ def edit_inventory(request, unit_id):
                        COALESCE((
                            SELECT json_agg(json_build_object(
                                'name', pai.nama_item,
-                               'quantity', pui.jumlah::text,
-                               'serial_number', pui.nomor_seri
+                               'quantity', trim_scale(pui.jumlah)::text,
+                               'serial_number', pui.nomor_seri,
+                               'existing_photo', pui.foto_url
                            ) ORDER BY pai.nama_item, pui.id)::text
                            FROM paket_unit pu
                            JOIN paket_unit_item pui ON pui.paket_unit_id = pu.id
@@ -2837,7 +2939,7 @@ def edit_inventory(request, unit_id):
 
     if request.method == "POST":
         form = EquipmentForm(request.POST, request.FILES)
-        accessory_formset = AccessoryFormSet(request.POST, prefix="accessories")
+        accessory_formset = AccessoryFormSet(request.POST, request.FILES, prefix="accessories")
     else:
         form = EquipmentForm(initial=original)
         accessory_formset = AccessoryFormSet(
@@ -2935,7 +3037,7 @@ def edit_inventory(request, unit_id):
                             unit_id,
                         ],
                     )
-                    _sync_unit_accessories(cursor, unit_id, accessory_items)
+                    _sync_unit_accessories(cursor, unit_id, accessory_items, _accessory_photo_paths(accessory_formset, unit_id))
 
                     after = {
                         "category": data["category"],
@@ -2996,7 +3098,7 @@ def edit_inventory(request, unit_id):
     return render(
         request,
         "portal/inventory_form.html",
-        {"form": form, "accessory_formset": accessory_formset, "is_edit": True, "unit_id": unit_id, "current_photo": default_storage.url(original["photo_path"]) if original["photo_path"] else None},
+        {"form": form, "accessory_formset": _attach_accessory_previews(accessory_formset) or accessory_formset, "is_edit": True, "unit_id": unit_id, "current_photo": default_storage.url(original["photo_path"]) if original["photo_path"] else None},
     )
 
 
