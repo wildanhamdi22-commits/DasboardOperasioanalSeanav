@@ -634,7 +634,7 @@ class DocBuilder:
             set_cell_margins(top, 0, 0, 0, 0)
             set_cell_margins(mid, 0, 0, 0, 0)
 
-    def signature_right(self, name, title="Authorized Signature", height_mm=24, width_mm=60):
+    def signature_right(self, name, title="Authorized Signature", height_mm=24, width_mm=42):
         """Satu tanda tangan perusahaan di pojok kanan bawah: ruang ttd/stempel, nama (tebal, bergaris bawah), jabatan."""
         t = self.doc.add_table(rows=2, cols=2)
         table_no_borders(t, zero_cell_margins=True)
