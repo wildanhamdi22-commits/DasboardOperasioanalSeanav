@@ -4,6 +4,7 @@ from django.urls import path, re_path
 
 from portal import attendance as sdm
 from portal import document_views as docs
+from portal import flag
 from portal import rental_extra as rnt
 from portal import sales
 from portal import survey
@@ -77,6 +78,14 @@ urlpatterns = [
     path("survey/laporan-harian/<int:report_id>/dokumen/", docs.survey_report_document, name="survey_report_document"),
     path("survey/deliverable/", survey.survey_deliverables, name="survey_deliverables"),
     path("survey/peta/", survey.survey_map, name="survey_map"),
+    # ---------------- Pinjam bendera (LPJ klien) — terpisah dari quotation/rental
+    path("pinjam-bendera/", flag.flag_list, name="flag_list"),
+    path("pinjam-bendera/tambah/", flag.flag_form, name="flag_create"),
+    path("pinjam-bendera/impor/", flag.flag_import, name="flag_import"),
+    path("pinjam-bendera/ekspor/", flag.flag_export, name="flag_export"),
+    path("pinjam-bendera/<int:flag_id>/edit/", flag.flag_form, name="flag_edit"),
+    path("pinjam-bendera/<int:flag_id>/dokumen/<str:doc>/", flag.flag_document, name="flag_document"),
+    path("pinjam-bendera/<int:flag_id>/<str:action>/", flag.flag_status, name="flag_status"),
     path("proyek/", project_list, name="project_list"),
     path("proyek/tambah/", project_form, name="project_create"),
     path("proyek/<int:project_id>/edit/", project_form, name="project_edit"),

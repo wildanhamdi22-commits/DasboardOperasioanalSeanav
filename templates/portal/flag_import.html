@@ -1,0 +1,40 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Impor Pinjam Bendera{% endblock %}
+{% block crumb %}Pinjam Bendera · Impor Excel{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Impor dari Excel</h1>
+    <p>Format kolom: No · Tanggal · Rincian · Judul Penelitian · Ketua Peneliti · Banyaknya · Satuan · Volume · Satuan · Harga satuan · Jumlah Biaya. Baris tanpa No dianggap rincian tambahan dari baris di atasnya.</p></div>
+  <div class="page-actions"><a class="btn btn-outline" href="{% url 'flag_list' %}">← Kembali</a></div>
+</div>
+{% endblock %}
+{% block content %}
+{% if errors %}<div class="flash error">{{ errors|join:" " }}</div>{% endif %}
+<section class="panel" style="max-width:1100px">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div class="field"><label for="i-file">File Excel (.xlsx)</label><input id="i-file" type="file" name="file" accept=".xlsx,.xlsm" {% if not preview %}required{% endif %}>{% if preview %}<span class="help">File sudah terbaca. Pilih file lagi hanya bila ingin mengganti.</span>{% endif %}</div>
+      <div class="field"><label for="i-co">Perusahaan (kop dokumen)</label><select id="i-co" name="company_id">{% for c in companies %}<option value="{{ c.0 }}" {% if c.0|stringformat:"s" == company_id or not company_id and c.1 == "SNV" %}selected{% endif %}>{{ c.1 }} · {{ c.2 }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="i-fee">Fee perusahaan (%)</label><input id="i-fee" name="fee_percent" value="{{ fee_percent }}"></div>
+    </div>
+    {% if preview %}
+      <h3 style="margin:18px 0 8px">Pratinjau — {{ preview|length }} data</h3>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Ketua peneliti</th><th>Rincian</th><th>Tanggal kegiatan</th><th class="num">Jumlah</th><th class="num">DPP</th><th class="num">PPN</th><th class="num">Fee</th></tr></thead>
+        <tbody>{% for g in preview %}<tr>
+          <td><b>{{ g.client|default:"(kosong — dilewati)" }}</b><small>{{ g.research_title|truncatechars:70 }}</small></td>
+          <td>{% for it in g.items %}{{ it.rincian }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+          <td>{{ g.activity_date }}</td>
+          <td class="num"><b>{{ g.total|rupiah }}</b></td><td class="num">{{ g.dpp|rupiah }}</td><td class="num">{{ g.ppn|rupiah }}</td><td class="num">{{ g.fee|rupiah }}</td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      <p class="small muted">Klik <b>Impor sekarang</b> bila data sudah benar. Nomor dokumen dibuat otomatis (mis. SNV-LPJ/26/001) dan bisa diubah setelahnya.</p>
+      <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit" name="confirm" value="1">Impor sekarang</button><button class="btn btn-outline" type="submit">Pratinjau ulang</button></div>
+    {% else %}
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Lihat pratinjau</button></div>
+    {% endif %}
+  </form>
+</section>
+{% endblock %}

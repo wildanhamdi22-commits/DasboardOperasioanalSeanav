@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   {% block leaflet_css %}{% endblock %}
   <script>try{if(localStorage.getItem("snv-theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'portal/app.css' %}?v=20261116d">
+  <link rel="stylesheet" href="{% static 'portal/app.css' %}?v=20261116e">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -92,6 +92,21 @@
         <a class="sb-sub {% if nav_active == 'v_deliverables' %}on{% endif %}" href="{% url 'survey_deliverables' %}"><span>Deliverable & BAST</span></a>
         <a class="sb-sub {% if nav_active == 'v_invoices' %}on{% endif %}" href="{% url 'survey_invoices' %}"><span>Invoice Termin</span></a>
         <a class="sb-sub {% if nav_active == 'v_map' %}on{% endif %}" href="{% url 'survey_map' %}"><span>Peta Proyek</span></a>
+      </div>
+    </details>
+    {% endif %}
+
+    {% if business_access.invoice or business_access.quotation %}
+    <details class="sb-group" {% if nav_module == 'flag' %}open{% endif %}>
+      <summary class="sb-link {% if nav_module == 'flag' %}on{% endif %}">
+        <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg></span>
+        <span><b>Pinjam Bendera</b><small>Dokumen LPJ klien</small></span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </summary>
+      <div class="sb-subs">
+        <a class="sb-sub {% if nav_active == 'f_list' %}on{% endif %}" href="{% url 'flag_list' %}"><span>Daftar &amp; Dokumen</span></a>
+        <a class="sb-sub {% if nav_active == 'f_create' %}on{% endif %}" href="{% url 'flag_create' %}"><span>Tambah</span></a>
+        <a class="sb-sub {% if nav_active == 'f_import' %}on{% endif %}" href="{% url 'flag_import' %}"><span>Impor / Ekspor Excel</span></a>
       </div>
     </details>
     {% endif %}

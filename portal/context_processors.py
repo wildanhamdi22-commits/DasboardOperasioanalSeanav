@@ -71,6 +71,10 @@ _NAV_GROUPS = {
     "v_deliverables": {"survey_deliverables", "survey_bast_document"},
     "v_invoices": {"survey_invoices"},
     "v_map": {"survey_map"},
+    # Pinjam bendera (LPJ)
+    "f_list": {"flag_list", "flag_edit", "flag_status", "flag_document"},
+    "f_create": {"flag_create"},
+    "f_import": {"flag_import", "flag_export"},
     # Lainnya
     "attendance": {"attendance"},
     "leave": {"leave_list", "leave_create", "leave_decide"},
@@ -79,7 +83,7 @@ _NAV_GROUPS = {
     "roles": {"role_management"},
     "profile": {"profile"},
 }
-_MODULE_OF = {"r": "rental", "s": "sales", "v": "survey"}
+_MODULE_OF = {"r": "rental", "s": "sales", "v": "survey", "f": "flag"}
 
 
 def portal_shell(request):

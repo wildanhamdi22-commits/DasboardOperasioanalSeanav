@@ -1,0 +1,61 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Pinjam Bendera (LPJ){% endblock %}
+{% block crumb %}Pinjam Bendera · Daftar{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Pinjam Bendera (LPJ)</h1>
+    <p>Dokumen atas nama perusahaan untuk pertanggungjawaban klien / peneliti. Terpisah dari quotation &amp; rental: alat tidak tercatat disewa. Perusahaan hanya mencatat fee.</p></div>
+  <div class="page-actions">
+    <a class="btn btn-outline" href="{% url 'flag_import' %}">Impor Excel</a>
+    <a class="btn btn-outline" href="{% url 'flag_export' %}{% if month %}?bulan={{ month }}{% endif %}">Ekspor Excel</a>
+    <a class="btn btn-primary" href="{% url 'flag_create' %}">+ Tambah</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+{% if database_error %}<div class="flash error">{{ database_error }}</div>{% endif %}
+<div class="kpi-row flag-kpis">
+  <div class="kpi"><span>Nilai dokumen (termasuk PPN)</span><b>{{ totals.total|rupiah }}</b></div>
+  <div class="kpi"><span>DPP</span><b>{{ totals.dpp|rupiah }}</b></div>
+  <div class="kpi"><span>PPN</span><b>{{ totals.ppn|rupiah }}</b></div>
+  <div class="kpi accent"><span>Fee perusahaan</span><b>{{ totals.fee|rupiah }}</b><small>Diterima {{ totals.fee_received|rupiah }}</small></div>
+</div>
+<section class="panel">
+  <form class="filter-row" method="get">
+    <select name="bulan" onchange="this.form.submit()"><option value="">Semua bulan</option>{% for value, label in months %}<option value="{{ value }}" {% if value == month %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <select name="status" onchange="this.form.submit()"><option value="">Semua status</option>{% for key, label in statuses.items %}<option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </form>
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Nomor</th><th>Klien / ketua peneliti</th><th>Rincian</th><th class="num">Nilai</th><th class="num">Fee</th><th>Status</th><th>Dokumen &amp; aksi</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr {% if r.status == "DIBATALKAN" %}class="muted-row"{% endif %}>
+        <td><b class="mono">{{ r.number }}</b><small>{{ r.company }} · {{ r.date|date:"d M Y" }}</small></td>
+        <td><b>{{ r.client }}</b><small>{{ r.title|truncatechars:80 }}</small></td>
+        <td>{{ r.items|truncatechars:70 }}<small>{{ r.activity }}</small></td>
+        <td class="num"><b>{{ r.total|rupiah }}</b><small>DPP {{ r.dpp|rupiah }} · PPN {{ r.ppn|rupiah }}</small></td>
+        <td class="num">{{ r.fee|rupiah }}<small>{{ r.fee_percent|floatformat:"-2" }}%</small></td>
+        <td><span class="st st-{% if r.status == 'FEE_DITERIMA' %}DIBAYAR{% elif r.status == 'DOKUMEN_TERBIT' %}DITERBITKAN{% else %}{{ r.status }}{% endif %}">{{ r.status_label }}</span></td>
+        <td><div class="row-actions">
+          <a class="btn btn-outline btn-sm" href="{% url 'flag_document' r.id 'invoice' %}{% if pdf_available %}?format=pdf{% endif %}">Invoice</a>
+          <a class="btn btn-outline btn-sm" href="{% url 'flag_document' r.id 'kwitansi' %}{% if pdf_available %}?format=pdf{% endif %}">Kwitansi</a>
+          <a class="btn btn-outline btn-sm" href="{% url 'flag_document' r.id 'bast' %}{% if pdf_available %}?format=pdf{% endif %}">BAST</a>
+          <a class="btn btn-outline btn-sm" href="{% url 'flag_document' r.id 'invoice' %}" title="Unduh Word">DOCX</a>
+          {% if r.status != "DIBATALKAN" %}<a class="btn btn-outline btn-sm" href="{% url 'flag_edit' r.id %}">✎ Edit</a>{% endif %}
+          {% if r.status == "DRAFT" %}<form method="post" action="{% url 'flag_status' r.id 'terbit' %}">{% csrf_token %}<button class="btn btn-primary btn-sm">Tandai terbit</button></form>{% endif %}
+          {% if r.status == "DOKUMEN_TERBIT" or r.status == "DRAFT" %}<form method="post" action="{% url 'flag_status' r.id 'fee' %}" data-confirm="Catat fee {{ r.fee|rupiah }} sudah diterima?">{% csrf_token %}<button class="btn btn-green btn-sm">Fee diterima</button></form>{% endif %}
+          {% if r.status == "FEE_DITERIMA" or r.status == "DIBATALKAN" %}<form method="post" action="{% url 'flag_status' r.id 'draft' %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">Kembalikan ke Draft</button></form>{% endif %}
+          {% if r.status != "DIBATALKAN" and r.status != "FEE_DITERIMA" %}<form method="post" action="{% url 'flag_status' r.id 'batal' %}" data-confirm="Batalkan data ini?">{% csrf_token %}<button class="btn btn-danger-outline btn-sm">Batalkan</button></form>{% endif %}
+          {% if r.status == "DRAFT" or r.status == "DIBATALKAN" %}<form method="post" action="{% url 'flag_status' r.id 'hapus' %}" data-confirm="Hapus permanen data {{ r.number }}?">{% csrf_token %}<button class="btn btn-danger-outline btn-sm">Hapus</button></form>{% endif %}
+        </div></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+    <div class="empty"><b>Belum ada data pinjam bendera.</b><p>Tambah manual, atau impor dari file Excel rekap Anda.</p><a class="btn btn-primary" href="{% url 'flag_create' %}">+ Tambah</a> <a class="btn btn-outline" href="{% url 'flag_import' %}">Impor Excel</a></div>
+  {% endif %}
+</section>
+{% endblock %}

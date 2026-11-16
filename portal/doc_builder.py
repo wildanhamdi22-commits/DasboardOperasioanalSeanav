@@ -675,6 +675,8 @@ def _qty_only(item):
 
 
 def _duration_text(item):
+    if item.get("duration_text"):
+        return item["duration_text"]
     days = item.get("days")
     if not days:
         return "–"
