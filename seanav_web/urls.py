@@ -11,8 +11,8 @@ from portal import survey
 from portal.views import (
     add_inventory, archive_project, archive_unit, dashboard, edit_inventory,
     inventory, inventory_history, project_form, project_list, rental_create,
-    invoice_create, invoice_list, invoice_status, place_search,
-    quotation_create, quotation_list, quotation_status,
+    invoice_create, invoice_edit, invoice_list, invoice_status, place_search,
+    quotation_create, quotation_edit, quotation_list, quotation_status,
     rental_handover, rental_list, rental_location_edit, landing, role_management,
     StaffLoginView,
 )
@@ -45,6 +45,7 @@ urlpatterns = [
     path("rental/<int:rental_id>/lokasi/", rental_location_edit, name="rental_location_edit"),
     path("rental/<int:rental_id>/arsip/", rnt.rental_archive, name="rental_archive"),
     path("rental/<int:rental_id>/delivery-order/", docs.rental_delivery_order, name="rental_delivery_order"),
+    path("delivery-order/<str:kind>/<int:ref_id>/edit/", docs.delivery_order_edit, name="delivery_order_edit"),
     path("rental/tambah/", rental_create, name="rental_create"),
     path("rental/", rental_list, name="rental_list"),
 
@@ -85,10 +86,12 @@ urlpatterns = [
     path("quotation/", quotation_list, name="quotation_list"),
     path("quotation/tambah/", quotation_create, name="quotation_create"),
     path("quotation/<int:quotation_id>/dokumen/", docs.quotation_document, name="quotation_document"),
+    path("quotation/<int:quotation_id>/edit/", quotation_edit, name="quotation_edit"),
     path("quotation/<int:quotation_id>/<str:action>/", quotation_status, name="quotation_status"),
     path("invoice/", invoice_list, name="invoice_list"),
     path("invoice/tambah/<int:quotation_id>/", invoice_create, name="invoice_create"),
     path("invoice/<int:invoice_id>/dokumen/", docs.invoice_document, name="invoice_document"),
+    path("invoice/<int:invoice_id>/edit/", invoice_edit, name="invoice_edit"),
     path("invoice/<int:invoice_id>/<str:action>/", invoice_status, name="invoice_status"),
 
     # ---------------- SDM: absensi, izin/cuti, rekap, profil

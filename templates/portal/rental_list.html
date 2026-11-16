@@ -50,6 +50,7 @@
                 <a class="btn btn-outline btn-sm" href="{% url 'rental_location_edit' rental.id %}">{% if rental.map_edit %}Tandai lokasi{% else %}Lokasi{% endif %}</a>
                 {% if rental.quotation_id %}<a class="btn btn-ghost btn-sm" href="{% url 'quotation_document' rental.quotation_id %}{% if pdf_available %}?format=pdf{% endif %}">Quotation</a>{% endif %}
                 {% if rental.invoice_id %}<a class="btn btn-ghost btn-sm" href="{% url 'invoice_document' rental.invoice_id %}{% if pdf_available %}?format=pdf{% endif %}">Invoice</a>{% endif %}
+                <a class="btn btn-outline btn-sm" href="{% url 'delivery_order_edit' 'rental' rental.id %}" title="Periksa & ubah isi DO sebelum dikirim">✎ Edit DO</a>
                 <a class="btn btn-outline btn-sm" href="{% url 'rental_archive' rental.id %}">Arsip DO{% if rental.signed_do %} <span class="badge green">{{ rental.signed_do }}</span>{% elif rental.unit_count %} <span class="badge red">!</span>{% endif %}</a>
               </div>
             </td>

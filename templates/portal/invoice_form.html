@@ -4,7 +4,7 @@
 {% block crumb %}{{ mod.label }} · Invoice{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Buat invoice {{ mod.label|lower }}{% if is_survey %} · termin {{ termin_no }}{% endif %}</h1><p>{% if quote %}Dari quotation <b class="mono">{{ quote.2 }}</b> · {{ quote.3 }} · {{ quote.11 }}{% else %}Invoice dari quotation yang disetujui klien.{% endif %}</p></div>
+  <div><h1>{% if invoice_id %}Edit invoice{% else %}Buat invoice{% endif %} {{ mod.label|lower }}{% if is_survey %} · termin {{ termin_no }}{% endif %}</h1><p>{% if quote %}Dari quotation <b class="mono">{{ quote.2 }}</b> · {{ quote.3 }} · {{ quote.11 }}{% else %}Invoice dari quotation yang disetujui klien.{% endif %}</p></div>
   <div class="page-actions"><a class="btn btn-outline" href="{% url mod.quotations %}">← Kembali</a></div>
 </div>
 {% endblock %}
@@ -25,7 +25,7 @@
       <div class="grand"><span>{% if is_survey %}Nilai kontrak{% else %}Total invoice{% endif %}</span><span>{{ quote.9|rupiah }}</span></div>
       {% if is_survey %}<div><span>Sudah ditagih</span><b>{{ termin_done|floatformat:"-2" }}%</b></div><p class="small muted" style="margin:6px 0 0">Nilai termin = nilai kontrak × persentase termin.</p>{% endif %}
     </div>{% endif %}
-    <div class="form-actions"><button class="btn btn-primary" type="submit">Simpan draft invoice</button><a class="btn btn-ghost" href="{% url mod.quotations %}">Batal</a></div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">{% if invoice_id %}Simpan perubahan{% else %}Simpan draft invoice{% endif %}</button><a class="btn btn-ghost" href="{% url mod.quotations %}">Batal</a></div>
   </form>
 </section>
 {% endblock %}

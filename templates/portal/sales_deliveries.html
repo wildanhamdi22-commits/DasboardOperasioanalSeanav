@@ -13,7 +13,7 @@
       <td><span class="st st-{{ r.status }}">{{ r.status_label }}</span></td>
       <td>{% if r.shipped_at %}{{ r.shipped_at|date:"d M Y H:i" }}<small>Penerima {{ r.receiver }}</small>{% else %}<span class="muted small">Belum dikirim</span>{% endif %}</td>
       <td>{% if r.status == "DIKIRIM" %}{% if r.signed %}<span class="st st-SELESAI">{{ r.signed }} tersimpan</span>{% else %}<span class="st st-DITOLAK_KLIEN">Belum diunggah</span>{% endif %}{% else %}—{% endif %}</td>
-      <td><div class="row-actions">{% if r.status == "DIKIRIM" %}<a class="btn btn-outline btn-sm" href="{% url 'sale_delivery_order' r.id %}{% if pdf_available %}?format=pdf{% endif %}">Unduh DO</a>{% endif %}<a class="btn btn-primary btn-sm" href="{% url 'sales_order_detail' r.id %}">{% if r.status == "SIAP_KIRIM" %}Kirim{% else %}Buka{% endif %}</a></div></td>
+      <td><div class="row-actions">{% if r.status == "DIKIRIM" or r.status == "SIAP_KIRIM" %}<a class="btn btn-outline btn-sm" href="{% url 'delivery_order_edit' 'penjualan' r.id %}">✎ Edit DO</a><a class="btn btn-outline btn-sm" href="{% url 'sale_delivery_order' r.id %}{% if pdf_available %}?format=pdf{% endif %}">{% if r.status == "SIAP_KIRIM" %}Pratinjau DO{% else %}Unduh DO{% endif %}</a>{% endif %}<a class="btn btn-primary btn-sm" href="{% url 'sales_order_detail' r.id %}">{% if r.status == "SIAP_KIRIM" %}Kirim{% else %}Buka{% endif %}</a></div></td>
     </tr>{% endfor %}
   </tbody></table></div>{% else %}<div class="panel-pad"><div class="empty">Belum ada pesanan yang siap kirim atau terkirim.</div></div>{% endif %}
 </section>

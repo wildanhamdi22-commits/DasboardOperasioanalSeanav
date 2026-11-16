@@ -264,22 +264,116 @@ def quotation_list(request, kind=None):
     )
 
 
+QUOTATION_EDITABLE = ("DRAFT", "TERKIRIM", "DITOLAK_KLIEN")
+
+
+def _quotation_edit_block(cursor, quotation_id):
+    """Alasan quotation tidak bisa diedit, atau None bila boleh."""
+    cursor.execute(
+        """
+        SELECT q.status,
+               EXISTS (SELECT 1 FROM invoice i WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN'),
+               EXISTS (SELECT 1 FROM rental r WHERE r.quotation_id = q.id),
+               EXISTS (SELECT 1 FROM pesanan_penjualan pp WHERE pp.quotation_id = q.id),
+               EXISTS (SELECT 1 FROM proyek p WHERE p.quotation_id = q.id)
+        FROM quotation q WHERE q.id = %s
+        """,
+        [quotation_id],
+    )
+    row = cursor.fetchone()
+    if not row:
+        return "Quotation tidak ditemukan."
+    status, has_invoice, has_rental, has_order, has_project = row
+    if has_invoice:
+        return "Quotation sudah punya invoice. Batalkan invoice draft-nya dulu bila perlu merevisi quotation."
+    if has_rental or has_order or has_project:
+        return "Quotation sudah diproses menjadi rental / pesanan / proyek sehingga tidak bisa diedit."
+    if status not in QUOTATION_EDITABLE:
+        return "Quotation yang sudah disetujui atau dibatalkan tidak bisa diedit."
+    return None
+
+
+def _quotation_initial(cursor, quotation_id, kind):
+    cursor.execute(
+        """
+        SELECT q.perusahaan_id, q.nomor, q.pic_pengguna_id, kl.nama_perusahaan, COALESCE(kl.alamat, ''),
+               COALESCE((SELECT kk.nama FROM kontak_klien kk WHERE kk.klien_id = kl.id
+                         ORDER BY kk.utama DESC, kk.id LIMIT 1), ''),
+               COALESCE(kl.email, ''), COALESCE(kl.telepon, ''), q.total_pajak > 0, q.tanggal, q.berlaku_sampai,
+               (SELECT MIN(qi.tanggal_mulai_rencana) FROM quotation_item qi WHERE qi.quotation_id = q.id),
+               COALESCE(q.catatan, '')
+        FROM quotation q JOIN klien kl ON kl.id = q.klien_id WHERE q.id = %s
+        """,
+        [quotation_id],
+    )
+    h = cursor.fetchone()
+    initial = {
+        "kind": kind, "company_id": str(h[0]), "number": h[1], "representative_id": str(h[2] or ""),
+        "client_name": h[3], "client_address": h[4], "client_contact": h[5], "client_email": h[6],
+        "client_phone": h[7], "apply_tax": bool(h[8]), "date": h[9], "valid_until": h[10],
+        "rental_start": h[11] if kind != "PENJUALAN" else None, "notes": h[12],
+    }
+    cursor.execute(
+        """
+        SELECT model_alat_id, produk_jual_id, deskripsi_item, kuantitas, satuan, harga_satuan,
+               tanggal_mulai_rencana, tanggal_selesai_rencana
+        FROM quotation_item WHERE quotation_id = %s ORDER BY id
+        """,
+        [quotation_id],
+    )
+    items, catalog_ids = [], set()
+    for model_id, product_id, desc, qty, unit, price, start, end in cursor.fetchall():
+        catalog_id = product_id if kind == "PENJUALAN" else model_id
+        if catalog_id:
+            catalog_ids.add(catalog_id)
+        days = (end - start).days + 1 if start and end else None
+        items.append({
+            "equipment_id": str(catalog_id) if catalog_id else "",
+            "description": "" if catalog_id else desc,
+            "quantity": qty.normalize() if qty is not None else None,
+            "days": days if kind != "PENJUALAN" else None,
+            "unit": unit or "unit",
+            "unit_price": price,
+        })
+    return initial, items, catalog_ids
+
+
 @business_permission_required("QUOTATION", "BUAT")
-def quotation_create(request, kind=None):
+def quotation_edit(request, quotation_id):
+    return quotation_create(request, kind=kind_of_quotation(quotation_id) or "RENTAL", quotation_id=quotation_id)
+
+
+@business_permission_required("QUOTATION", "BUAT")
+def quotation_create(request, kind=None, quotation_id=None):
     if kind is None:
         legacy = request.GET.get("jenis", "").upper()
         return module_redirect(legacy if legacy in MODULES else "RENTAL", "quotation_create")
     database_error = None
     post_data = None
+    initial = {"kind": kind}
+    item_initial = None
+    keep_ids = set()
+    if quotation_id:
+        try:
+            with connection.cursor() as cursor:
+                blocked = _quotation_edit_block(cursor, quotation_id)
+                if blocked:
+                    messages.error(request, blocked)
+                    return module_redirect(kind, "quotations")
+                initial, item_initial, keep_ids = _quotation_initial(cursor, quotation_id, kind)
+        except DatabaseError:
+            messages.error(request, "Quotation belum dapat dibaca dari database.")
+            return module_redirect(kind, "quotations")
     if request.method == "POST":
         post_data = request.POST.copy()
         post_data["kind"] = kind
     try:
-        form = QuotationForm(post_data, user_email=request.user.email, initial={"kind": kind})
+        form = QuotationForm(post_data, user_email=request.user.email, initial=initial)
     except DatabaseError:
         form = None
         database_error = "Belum dapat membaca daftar perusahaan dari database."
-    item_formset = QuotationItemFormSet(post_data, prefix="items", form_kwargs={}, catalog_kind=kind)
+    item_formset = QuotationItemFormSet(post_data, prefix="items", form_kwargs={}, catalog_kind=kind,
+                                        initial=item_initial, keep_ids=keep_ids)
     form_valid = form.is_valid() if request.method == "POST" and form else False
     items_valid = item_formset.is_valid() if request.method == "POST" else False
 
@@ -349,7 +443,9 @@ def quotation_create(request, kind=None):
                 {"form": form, "item_formset": item_formset,
                  "database_error": database_error,
                  "equipment_catalog": item_formset.equipment_catalog,
-                 "catalog_error": item_formset.catalog_error},
+                 "catalog_error": item_formset.catalog_error,
+                 "mod": module(kind), "kind": kind, "survey_presets": SURVEY_ITEM_PRESETS,
+                 "quotation_id": quotation_id},
             )
         try:
             with transaction.atomic():
@@ -438,21 +534,41 @@ def quotation_create(request, kind=None):
                         raise DatabaseError("Selected quotation representative is no longer active")
                     representative_id = representative[0]
 
-                    cursor.execute(
-                        """
-                        INSERT INTO quotation
-                            (perusahaan_id, nomor, jenis, klien_id, tanggal, berlaku_sampai,
-                             pic_pengguna_id, status, subtotal, jenis_pajak, tarif_pajak,
-                             total_pajak, total, catatan, dibuat_oleh)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, 'DRAFT', %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                        """,
-                        [data["company_id"], data["number"], kind, client_id, data["date"],
-                         data["valid_until"], representative_id, subtotal,
-                         "PPN" if data["apply_tax"] else None, tax_rate, tax_amount, grand_total,
-                         data["notes"] or None, user_id],
-                    )
-                    quotation_id = cursor.fetchone()[0]
+                    if quotation_id:
+                        blocked = _quotation_edit_block(cursor, quotation_id)
+                        if blocked:
+                            raise PermissionDenied(blocked)
+                        cursor.execute(
+                            """
+                            UPDATE quotation
+                            SET perusahaan_id = %s, nomor = %s, klien_id = %s, tanggal = %s, berlaku_sampai = %s,
+                                pic_pengguna_id = %s, status = 'DRAFT', subtotal = %s, jenis_pajak = %s,
+                                tarif_pajak = %s, total_pajak = %s, total = %s, catatan = %s, versi = versi + 1
+                            WHERE id = %s
+                            """,
+                            [data["company_id"], data["number"], client_id, data["date"], data["valid_until"],
+                             representative_id, subtotal, "PPN" if data["apply_tax"] else None, tax_rate,
+                             tax_amount, grand_total, data["notes"] or None, quotation_id],
+                        )
+                        cursor.execute("DELETE FROM quotation_item WHERE quotation_id = %s", [quotation_id])
+                        edited = True
+                    else:
+                        edited = False
+                        cursor.execute(
+                            """
+                            INSERT INTO quotation
+                                (perusahaan_id, nomor, jenis, klien_id, tanggal, berlaku_sampai,
+                                 pic_pengguna_id, status, subtotal, jenis_pajak, tarif_pajak,
+                                 total_pajak, total, catatan, dibuat_oleh)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, 'DRAFT', %s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id
+                            """,
+                            [data["company_id"], data["number"], kind, client_id, data["date"],
+                             data["valid_until"], representative_id, subtotal,
+                             "PPN" if data["apply_tax"] else None, tax_rate, tax_amount, grand_total,
+                             data["notes"] or None, user_id],
+                        )
+                        quotation_id = cursor.fetchone()[0]
                     for item in items:
                         cursor.execute(
                             """
@@ -466,17 +582,24 @@ def quotation_create(request, kind=None):
                              item["unit"], item["unit_price"], item["subtotal"],
                              item["start_date"], item["end_date"]],
                         )
-            messages.success(request, f"Draft quotation {QUOTATION_KIND_LABELS.get(kind, kind).lower()} berhasil dibuat.")
+            if edited:
+                messages.success(request, "Perubahan quotation disimpan. Status kembali ke Draft; kirim ulang bila sudah siap.")
+            else:
+                messages.success(request, f"Draft quotation {QUOTATION_KIND_LABELS.get(kind, kind).lower()} berhasil dibuat.")
             return module_redirect(kind, "quotations")
+        except PermissionDenied as exc:
+            form.add_error(None, str(exc))
         except DatabaseError:
-            form.add_error(None, "Quotation belum tersimpan. Periksa nomor quotation dan database.")
+            logger.exception("Quotation gagal disimpan")
+            form.add_error(None, "Quotation belum tersimpan. Periksa nomor quotation (mungkin sudah dipakai) dan database.")
 
     return render(
         request, "portal/quotation_form.html",
         {"form": form, "item_formset": item_formset, "database_error": database_error,
          "equipment_catalog": item_formset.equipment_catalog,
          "catalog_error": item_formset.catalog_error,
-         "mod": module(kind), "kind": kind, "survey_presets": SURVEY_ITEM_PRESETS},
+         "mod": module(kind), "kind": kind, "survey_presets": SURVEY_ITEM_PRESETS,
+         "quotation_id": quotation_id},
     )
 
 
@@ -643,6 +766,91 @@ def invoice_create(request, quotation_id):
         "mod": module(quote[12] if quote else kind_of_quotation(quotation_id)), "is_survey": is_survey,
         "termin_no": (quote[13] or 0) + 1 if quote else 1,
         "termin_done": quote[14] if quote else 0,
+    })
+
+
+@business_permission_required("INVOICE", "UBAH")
+def invoice_edit(request, invoice_id):
+    """Ubah invoice selama masih Draft (sebelum diterbitkan / dikirim ke klien)."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT i.quotation_id, i.status, i.nomor, i.tanggal, i.jatuh_tempo, COALESCE(i.po_no, ''),
+                       COALESCE(i.syarat_pembayaran, ''), COALESCE(i.catatan, ''), i.termin_ke, i.persen_termin,
+                       COALESCE(i.keterangan_termin, '')
+                FROM invoice i WHERE i.id = %s
+                """,
+                [invoice_id],
+            )
+            inv = cursor.fetchone()
+            if not inv:
+                raise Http404("Invoice tidak ditemukan.")
+            cursor.execute(
+                """
+                SELECT q.id, q.perusahaan_id, co.kode, q.nomor, q.tanggal,
+                       q.subtotal, q.jenis_pajak, q.tarif_pajak, q.total_pajak,
+                       q.total, q.pic_pengguna_id, kl.nama_perusahaan, q.jenis,
+                       (SELECT COUNT(*) FROM invoice i WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN'
+                          AND i.id <> %s),
+                       (SELECT COALESCE(SUM(i.persen_termin), 0) FROM invoice i
+                        WHERE i.quotation_id = q.id AND i.status <> 'DIBATALKAN' AND i.id <> %s)
+                FROM quotation q
+                JOIN perusahaan co ON co.id = q.perusahaan_id
+                JOIN klien kl ON kl.id = q.klien_id
+                WHERE q.id = %s
+                """,
+                [invoice_id, invoice_id, inv[0]],
+            )
+            quote = cursor.fetchone()
+    except DatabaseError:
+        messages.error(request, "Invoice belum dapat dibaca dari database.")
+        return module_redirect("RENTAL", "invoices")
+    kind = quote[12]
+    if inv[1] != "DRAFT":
+        messages.error(request, "Hanya invoice berstatus Draft yang bisa diedit. Invoice yang sudah diterbitkan "
+                                "perlu dibatalkan dan dibuat ulang.")
+        return module_redirect(kind, "invoices")
+    is_survey = kind == "JASA_SURVEY" and inv[8] is not None
+    initial = {"number": inv[2], "date": inv[3], "due_date": inv[4], "po_number": inv[5],
+               "payment_terms": inv[6], "notes": inv[7]}
+    if is_survey:
+        initial.update({"termin_percent": inv[9], "termin_label": inv[10]})
+    form = InvoiceForm(request.POST or None, initial=initial, termin=is_survey)
+    if request.method == "POST" and form.is_valid():
+        data = form.cleaned_data
+        amounts = [quote[5], quote[8], quote[9]]
+        termin_percent, termin_label = inv[9], inv[10]
+        if is_survey:
+            termin_percent = data["termin_percent"]
+            termin_label = data.get("termin_label") or inv[10] or f"Termin {inv[8]}"
+            if Decimal(quote[14] or 0) + termin_percent > 100:
+                form.add_error("termin_percent", f"Total termin melebihi 100% (termin lain sudah {quote[14]:g}%).")
+            factor = termin_percent / Decimal("100")
+            amounts = [(Decimal(a or 0) * factor).quantize(Decimal("1")) for a in amounts[:2]]
+            amounts.append(amounts[0] + amounts[1])
+        if not form.errors:
+            try:
+                with transaction.atomic(), connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE invoice
+                        SET nomor = %s, tanggal = %s, jatuh_tempo = %s, po_no = %s, syarat_pembayaran = %s,
+                            catatan = %s, subtotal = %s, total_pajak = %s, total = %s,
+                            persen_termin = %s, keterangan_termin = %s
+                        WHERE id = %s AND status = 'DRAFT'
+                        """,
+                        [data["number"], data["date"], data["due_date"], data["po_number"] or None,
+                         data["payment_terms"] or None, data["notes"] or None, amounts[0], amounts[1], amounts[2],
+                         termin_percent, termin_label or None, invoice_id],
+                    )
+                messages.success(request, f"Invoice {data['number']} diperbarui. Nilai mengikuti quotation terbaru.")
+                return module_redirect(kind, "invoices")
+            except DatabaseError:
+                form.add_error(None, "Invoice belum tersimpan. Periksa nomor invoice (mungkin sudah dipakai).")
+    return render(request, "portal/invoice_form.html", {
+        "form": form, "quote": quote, "mod": module(kind), "is_survey": is_survey,
+        "termin_no": inv[8] or 1, "termin_done": quote[14], "invoice_id": invoice_id,
     })
 
 

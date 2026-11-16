@@ -1,9 +1,9 @@
 {% extends "portal/base.html" %}
-{% block title %}Buat Quotation {{ mod.label }}{% endblock %}
+{% block title %}{% if quotation_id %}Edit{% else %}Buat{% endif %} Quotation {{ mod.label }}{% endblock %}
 {% block crumb %}{{ mod.label }} · Quotation{% endblock %}
 {% block page_head %}
 <div class="page-head">
-  <div><h1>Buat quotation {{ mod.label|lower }}</h1><p>{{ mod.quotation_hint }} Penawaran disimpan sebagai draft.</p></div>
+  <div>{% if quotation_id %}<h1>Edit quotation {{ form.number.value }}</h1><p>Periksa dan ubah isi penawaran sebelum dikirim. Setelah disimpan, status kembali ke Draft dan versi bertambah.</p>{% else %}<h1>Buat quotation {{ mod.label|lower }}</h1><p>{{ mod.quotation_hint }} Penawaran disimpan sebagai draft.</p>{% endif %}</div>
   <div class="page-actions"><a class="btn btn-outline" href="{% url mod.quotations %}">← Kembali</a></div>
 </div>
 {% endblock %}
@@ -87,7 +87,7 @@
     </template>
   </section>
   <div class="form-actions" style="border:0">
-    <button class="btn btn-primary btn-lg" type="submit">Simpan draft quotation</button>
+    <button class="btn btn-primary btn-lg" type="submit">{% if quotation_id %}Simpan perubahan{% else %}Simpan draft quotation{% endif %}</button>
     <a class="btn btn-ghost" href="{% url mod.quotations %}">Batal</a>
   </div>
 </form>

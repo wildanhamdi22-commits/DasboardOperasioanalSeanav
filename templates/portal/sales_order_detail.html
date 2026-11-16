@@ -8,7 +8,7 @@
   <div><h1>Pesanan <span class="mono">{{ order.number }}</span></h1><p>{{ order.client }} · {{ order.company }} · quotation <span class="mono">{{ order.quotation|default:"-" }}</span> · {{ order.total|rupiah }}</p></div>
   <div class="page-actions">
     <a class="btn btn-outline" href="{% url 'sales_orders' %}">← Pesanan</a>
-    {% if order.status == "DIKIRIM" %}<a class="btn btn-primary" href="{% url 'sale_delivery_order' order.id %}{% if pdf_available %}?format=pdf{% endif %}">Unduh DO</a>{% endif %}
+    {% if order.status == "DIKIRIM" or order.status == "SIAP_KIRIM" %}<a class="btn btn-outline" href="{% url 'delivery_order_edit' 'penjualan' order.id %}">✎ Edit DO</a><a class="btn btn-primary" href="{% url 'sale_delivery_order' order.id %}{% if pdf_available %}?format=pdf{% endif %}">{% if order.status == "SIAP_KIRIM" %}Pratinjau DO{% else %}Unduh DO{% endif %}</a>{% endif %}
   </div>
 </div>
 {% endblock %}

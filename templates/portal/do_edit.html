@@ -1,0 +1,93 @@
+{% extends "portal/base.html" %}
+{% block title %}Edit Delivery Order{% endblock %}
+{% block crumb %}{% if kind == "rental" %}Rental{% else %}Penjualan{% endif %} · Delivery Order{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Edit Delivery Order <span class="mono">{{ data.number }}</span></h1>
+    <p>Periksa dan sesuaikan isi DO sebelum dicetak atau dikirim. Data transaksi (status alat, stok) tidak berubah; yang diubah hanya isi dokumen.</p></div>
+  <div class="page-actions">
+    <a class="btn btn-outline" href="{{ back }}">← Kembali</a>
+    <a class="btn btn-outline" href="{{ download }}">Unduh DOCX</a>
+    {% if pdf_available %}<a class="btn btn-primary" href="{{ download }}?format=pdf">Unduh PDF</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+{% if saved %}<div class="flash success">DO ini sudah diedit manual oleh <b>{{ saved.by|default:"-" }}</b> · {{ saved.at|date:"d M Y H:i" }}. Isi di bawah adalah versi editan.</div>
+{% else %}<div class="flash info">Isi di bawah adalah versi otomatis dari data transaksi. Ubah seperlunya lalu simpan.</div>{% endif %}
+<form method="post" id="do-form">
+  {% csrf_token %}
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><div><h2>Informasi DO</h2><p>Nomor, tanggal, referensi, dan penerima</p></div></div></div>
+    <div class="form-grid">
+      <div class="field"><label for="f-number">No. DO</label><input id="f-number" name="number" value="{{ data.number }}"></div>
+      <div class="field"><label for="f-date">Tanggal DO</label><input id="f-date" name="date" value="{{ data.date }}" placeholder="16 November 2026"></div>
+      <div class="field"><label for="f-ref">Referensi (quotation)</label><input id="f-ref" name="reference" value="{{ data.reference }}"></div>
+      <div class="field"><label for="f-po">No. PO klien</label><input id="f-po" name="po" value="{{ data.po }}"></div>
+      <div class="field"><label for="f-client">Kirim ke (nama klien)</label><input id="f-client" name="client_name" value="{{ data.client.name }}"></div>
+      <div class="field"><label for="f-attn">Attn. / penerima</label><input id="f-attn" name="attn" value="{{ data.client.attn }}"></div>
+      <div class="field full"><label for="f-site">Alamat / lokasi pengiriman <small class="muted">(satu baris per baris, maks. 4)</small></label><textarea id="f-site" name="site_lines" rows="3">{{ site_text }}</textarea></div>
+      <div class="field"><label for="f-purpose">Keperluan</label><input id="f-purpose" name="purpose" value="{{ data.purpose }}"></div>
+      <div class="field"><label for="f-via">Dikirim via</label><input id="f-via" name="ship_via" value="{{ data.ship_via }}"></div>
+      <div class="field"><label for="f-prep">Disiapkan oleh</label><input id="f-prep" name="prepared_by" value="{{ data.prepared_by }}"></div>
+      <div class="field"><label for="f-deliv">Dikirim oleh</label><input id="f-deliv" name="delivered_by" value="{{ data.delivered_by }}"></div>
+      <div class="field full"><label for="f-ship">Keterangan pengiriman <small class="muted">(maks. 4 baris)</small></label><textarea id="f-ship" name="ship_lines" rows="2">{{ ship_text }}</textarea></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="ph"><div class="ph-l"><div><h2>Item yang dikirim</h2><p>Nama alat, kelengkapan, S/N, jumlah, dan kondisi</p></div></div></div>
+    <div class="table-wrap">
+      <table class="data do-items">
+        <thead><tr><th style="width:36px">No</th><th style="min-width:240px">Nama item</th><th style="min-width:240px">Kelengkapan / keterangan <small>(per baris)</small></th><th style="width:150px">S/N</th><th style="width:80px">Qty</th><th style="width:80px">Satuan</th><th style="width:110px">Kondisi</th><th style="width:60px"></th></tr></thead>
+        <tbody id="do-rows">
+          {% for it in items %}
+          <tr class="do-row">
+            <td class="mono row-no">{{ forloop.counter }}</td>
+            <td><input name="item_name" value="{{ it.name }}"></td>
+            <td><textarea name="item_details" rows="2">{{ it.details_text }}</textarea></td>
+            <td><input name="item_serial" value="{{ it.serial }}"></td>
+            <td><input name="item_qty" value="{{ it.qty_text }}"></td>
+            <td><input name="item_unit" value="{{ it.unit }}"></td>
+            <td><input name="item_condition" value="{{ it.condition }}"></td>
+            <td><button type="button" class="btn btn-danger-outline btn-sm do-remove">Hapus</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" id="do-add" style="margin-top:12px">+ Tambah item</button>
+    <template id="do-row-template">
+      <tr class="do-row">
+        <td class="mono row-no"></td>
+        <td><input name="item_name" placeholder="Nama item"></td>
+        <td><textarea name="item_details" rows="2" placeholder="Incl. ..."></textarea></td>
+        <td><input name="item_serial" value="-"></td>
+        <td><input name="item_qty" value="1"></td>
+        <td><input name="item_unit" value="unit"></td>
+        <td><input name="item_condition" value="Good"></td>
+        <td><button type="button" class="btn btn-danger-outline btn-sm do-remove">Hapus</button></td>
+      </tr>
+    </template>
+  </section>
+
+  <div class="form-actions" style="border:0">
+    <button class="btn btn-primary btn-lg" type="submit" name="action" value="save">Simpan perubahan DO</button>
+    {% if saved %}<button class="btn btn-ghost" type="submit" name="action" value="reset" data-confirm="Kembalikan DO ke versi otomatis? Semua editan manual akan dihapus.">Kembalikan ke versi otomatis</button>{% endif %}
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const rows = document.getElementById("do-rows"), tpl = document.getElementById("do-row-template");
+  const renumber = () => rows.querySelectorAll(".do-row").forEach((tr, i) => { tr.querySelector(".row-no").textContent = i + 1; });
+  document.getElementById("do-add").addEventListener("click", () => { rows.appendChild(tpl.content.cloneNode(true)); renumber(); });
+  rows.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("do-remove")) return;
+    if (rows.querySelectorAll(".do-row").length <= 1) return;
+    e.target.closest(".do-row").remove(); renumber();
+  });
+})();
+</script>
+{% endblock %}

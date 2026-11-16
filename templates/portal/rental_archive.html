@@ -7,6 +7,7 @@
   <div><h1>Arsip rental <span class="mono">{{ rental.1 }}</span></h1><p>{{ rental.3 }} · {{ rental.5|date:"d M Y" }} – {{ rental.6|date:"d M Y" }}{% if rental.7 %} · {{ rental.7 }}{% endif %}</p></div>
   <div class="page-actions">
     <a class="btn btn-outline" href="{% url 'rental_list' %}">← Catatan rental</a>
+    <a class="btn btn-outline" href="{% url 'delivery_order_edit' 'rental' rental.0 %}">✎ Edit DO</a>
     <a class="btn btn-primary" href="{% url 'rental_delivery_order' rental.0 %}{% if pdf_available %}?format=pdf{% endif %}">Unduh Delivery Order</a>
   </div>
 </div>

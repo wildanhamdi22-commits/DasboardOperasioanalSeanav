@@ -542,8 +542,11 @@ class QuotationItemForm(forms.Form):
 
 
 class QuotationItemFormSetBase(BaseFormSet):
-    def __init__(self, *args, catalog_kind="RENTAL", **kwargs):
+    def __init__(self, *args, catalog_kind="RENTAL", keep_ids=None, **kwargs):
+        if kwargs.get("initial"):
+            self.extra = 0
         super().__init__(*args, **kwargs)
+        keep_ids = {int(x) for x in (keep_ids or ())}
         self.catalog_kind = catalog_kind
         self.equipment_catalog = []
         self.catalog_error = False
@@ -555,9 +558,10 @@ class QuotationItemFormSetBase(BaseFormSet):
                         SELECT p.id, k.nama, concat_ws(' ', p.merek, p.nama), p.harga_jual, p.satuan
                         FROM produk_jual p
                         JOIN kategori_alat k ON k.id = p.kategori_alat_id
-                        WHERE p.aktif
+                        WHERE p.aktif OR p.id = ANY(%s)
                         ORDER BY k.nama, p.merek, p.nama
-                        """
+                        """,
+                        [list(keep_ids)],
                     )
                     self.equipment_catalog = [
                         {"id": row[0], "category": row[1], "name": row[2],
@@ -580,6 +584,20 @@ class QuotationItemFormSetBase(BaseFormSet):
                         {"id": row[0], "category": row[1], "name": row[2]}
                         for row in cursor.fetchall()
                     ]
+                    missing = keep_ids - {item["id"] for item in self.equipment_catalog}
+                    if missing:
+                        # Saat edit: alat yang sudah ada di quotation tetap bisa dipilih walau unitnya sedang dipakai.
+                        cursor.execute(
+                            """
+                            SELECT m.id, k.nama, concat_ws(' ', m.merek, m.nama_model)
+                            FROM model_alat m JOIN kategori_alat k ON k.id = m.kategori_alat_id
+                            WHERE m.id = ANY(%s)
+                            """,
+                            [list(missing)],
+                        )
+                        self.equipment_catalog += [
+                            {"id": row[0], "category": row[1], "name": row[2]} for row in cursor.fetchall()
+                        ]
         except DatabaseError:
             self.equipment_catalog = []
             self.catalog_error = True

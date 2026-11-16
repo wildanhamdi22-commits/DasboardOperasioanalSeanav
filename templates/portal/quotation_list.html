@@ -30,6 +30,7 @@
               <div class="row-actions">
                 {% if pdf_available %}<a class="btn btn-outline btn-sm" href="{% url 'quotation_document' quote.id %}?format=pdf" title="Unduh PDF">PDF</a>{% endif %}
                 <a class="btn btn-outline btn-sm" href="{% url 'quotation_document' quote.id %}" title="Unduh Word">DOCX</a>
+                {% if quote.status == "DRAFT" or quote.status == "TERKIRIM" or quote.status == "DITOLAK_KLIEN" %}<a class="btn btn-outline btn-sm" href="{% url 'quotation_edit' quote.id %}" title="Ubah isi quotation sebelum dikirim">✎ Edit</a>{% endif %}
                 {% if quote.status == "DRAFT" %}
                   <form method="post" action="{% url 'quotation_status' quote.id 'kirim' %}">{% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Tandai terkirim</button></form>
                 {% elif quote.status == "TERKIRIM" %}

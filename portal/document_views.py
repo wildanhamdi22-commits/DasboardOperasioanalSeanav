@@ -1,5 +1,6 @@
 """Unduhan dokumen resmi (Quotation, Invoice, Delivery Order) memakai satu desain
 dari portal.doc_builder: Oseana = Century Gothic, Seanav = Aptos."""
+import json
 import logging
 import re
 from datetime import date, datetime
@@ -91,6 +92,53 @@ def _quotation_names(quotation_id):
         return []
     catalog = [a or b for a, b, _ in rows if a or b]
     return catalog or [c for _, _, c in rows if c]
+
+
+DO_EDIT_FIELDS = ("number", "date", "reference", "po", "purpose", "ship_via", "prepared_by", "delivered_by")
+
+
+def document_edit(kind, ref_id):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT data, diubah_oleh, diubah_pada FROM dokumen_edit WHERE jenis = %s AND ref_id = %s",
+                           [kind, ref_id])
+            row = cursor.fetchone()
+    except DatabaseError:
+        return None
+    if not row:
+        return None
+    data = row[0] if isinstance(row[0], dict) else json.loads(row[0] or "{}")
+    return {"data": data, "by": row[1], "at": row[2]}
+
+
+def apply_document_edit(kind, ref_id, data):
+    """Timpa isi DO otomatis dengan hasil edit manual (bila ada)."""
+    saved = document_edit(kind, ref_id)
+    if not saved:
+        return data
+    edit = saved["data"]
+    data = dict(data)
+    for key in DO_EDIT_FIELDS:
+        if edit.get(key) not in (None, ""):
+            data[key] = edit[key]
+    client = dict(data.get("client") or {})
+    if edit.get("client_name"):
+        client["name"] = edit["client_name"]
+    if edit.get("attn"):
+        client["attn"] = edit["attn"]
+    data["client"] = client
+    if edit.get("site_lines") is not None:
+        data["site_lines"] = [x for x in edit["site_lines"] if x.strip()]
+    if edit.get("ship_lines") is not None:
+        data["ship_lines"] = [x for x in edit["ship_lines"] if x.strip()]
+    if edit.get("items"):
+        data["items"] = [
+            {"name": it.get("name", ""), "details": [x for x in it.get("details", []) if x.strip()],
+             "serial": it.get("serial") or "-", "qty": it.get("qty") or 1, "unit": it.get("unit") or "unit",
+             "condition": it.get("condition") or ""}
+            for it in edit["items"] if (it.get("name") or "").strip()
+        ]
+    return data
 
 
 def _respond(request, docx_bytes, number, fallback, filename=None):
@@ -323,8 +371,8 @@ def _accessories_for_unit(cursor, unit_id):
 CONDITION_EN = {"BAIK": "Good", "RUSAK_RINGAN": "Minor damage", "RUSAK_BERAT": "Damaged", "PERLU_KALIBRASI": "Needs calibration"}
 
 
-@business_permission_required("SERAH_TERIMA", "LIHAT")
-def rental_delivery_order(request, rental_id):
+def _rental_do(request, rental_id):
+    """(company, data, nama_file) DO rental yang dirangkai otomatis, atau None bila gagal."""
     try:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -378,7 +426,7 @@ def rental_delivery_order(request, rental_id):
                               "condition": CONDITION_EN.get(condition, condition.title())})
     except DatabaseError:
         messages.error(request, "Data rental belum dapat dibaca dari database.")
-        return redirect("rental_list")
+        return None
 
     company = _brand_code(r[4])
     site_lines = _lines(r[3])[:2] or _lines(r[6])[:2]
@@ -395,6 +443,16 @@ def rental_delivery_order(request, rental_id):
     }
     name = file_name("DO", r[8] if r[8] != "-" else r[0], r[5], "RENTAL",
                      [it["name"] for it in items if it.get("name")])
+    return company, data, name
+
+
+@business_permission_required("SERAH_TERIMA", "LIHAT")
+def rental_delivery_order(request, rental_id):
+    built = _rental_do(request, rental_id)
+    if built is None:
+        return redirect("rental_list")
+    company, data, name = built
+    data = apply_document_edit("DO_RENTAL", rental_id, data)
     return _respond(request, build_delivery_order(company, data), data["number"], "rental_list", name)
 
 
@@ -483,8 +541,8 @@ def rental_return_note(request, handover_id):
     return _respond(request, build_generic(_brand_code(h[7]), data), number, "rental_returns", fname)
 
 
-@business_permission_required("SERAH_TERIMA", "LIHAT")
-def sale_delivery_order(request, order_id):
+def _sale_do(request, order_id):
+    """(company, data, nama_file) DO penjualan otomatis, atau None bila gagal."""
     try:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -535,7 +593,7 @@ def sale_delivery_order(request, order_id):
                                   "condition": "New"})
     except DatabaseError:
         messages.error(request, "Data pengiriman belum dapat dibaca.")
-        return redirect("sales_deliveries")
+        return None
     company = _brand_code(o[2])
     number = "DO/" + (o[1][3:] if o[1].startswith("SO/") else o[1])
     data = {
@@ -551,7 +609,17 @@ def sale_delivery_order(request, order_id):
     }
     fname = file_name("DO", o[5] if o[5] != "-" else o[1], o[3], "PENJUALAN",
                       [it["name"] for it in items if it.get("name")])
-    return _respond(request, build_delivery_order(company, data), number, "sales_deliveries", fname)
+    return company, data, fname
+
+
+@business_permission_required("SERAH_TERIMA", "LIHAT")
+def sale_delivery_order(request, order_id):
+    built = _sale_do(request, order_id)
+    if built is None:
+        return redirect("sales_deliveries")
+    company, data, fname = built
+    data = apply_document_edit("DO_PENJUALAN", order_id, data)
+    return _respond(request, build_delivery_order(company, data), data["number"], "sales_deliveries", fname)
 
 
 QC_SECTIONS_EN = {"A": "Identity & documents", "B": "Physical condition", "C": "Completeness",
@@ -722,3 +790,91 @@ def survey_bast_document(request, project_id):
     }
     fname = file_name("BAST", r[12] if r[12] != "-" else r[0], r[3], "JASA_SURVEY", [r[1]])
     return _respond(request, build_generic(_brand_code(r[2]), data), number, "survey_deliverables", fname)
+
+
+DO_KINDS = {
+    "rental": ("DO_RENTAL", _rental_do, "rental_delivery_order", "rental_list"),
+    "penjualan": ("DO_PENJUALAN", _sale_do, "sale_delivery_order", "sales_deliveries"),
+}
+
+
+@business_permission_required("SERAH_TERIMA", "UBAH")
+def delivery_order_edit(request, kind, ref_id):
+    """Edit isi Delivery Order (nomor, tanggal, alamat, attn, item, keterangan) sebelum dicetak / dikirim."""
+    from django.shortcuts import render
+    from django.urls import reverse
+
+    if kind not in DO_KINDS:
+        raise Http404("Jenis DO tidak dikenal.")
+    edit_kind, builder, download_url, fallback = DO_KINDS[kind]
+    built = builder(request, ref_id)
+    if built is None:
+        return redirect(fallback)
+    _company, auto_data, _fname = built
+    if request.method == "POST":
+        if request.POST.get("action") == "reset":
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("DELETE FROM dokumen_edit WHERE jenis = %s AND ref_id = %s", [edit_kind, ref_id])
+                messages.success(request, "Isi DO dikembalikan ke versi otomatis.")
+            except DatabaseError:
+                messages.error(request, "Gagal mengembalikan DO.")
+            return redirect(request.path)
+        post = request.POST
+        lines = lambda key: [x.strip() for x in (post.get(key) or "").splitlines() if x.strip()]
+        items = []
+        names = post.getlist("item_name")
+        for idx, name in enumerate(names):
+            name = name.strip()
+            if not name:
+                continue
+            get = lambda field: (post.getlist(field) + [""] * len(names))[idx].strip()
+            qty_text = get("item_qty").replace(",", ".")
+            try:
+                qty = Decimal(qty_text) if qty_text else Decimal("1")
+            except Exception:
+                qty = Decimal("1")
+            items.append({"name": name[:300], "details": [x for x in get("item_details").splitlines() if x.strip()][:6],
+                          "serial": get("item_serial")[:120], "qty": f"{qty.normalize():f}",
+                          "unit": get("item_unit")[:30] or "unit", "condition": get("item_condition")[:40]})
+        payload = {key: (post.get(key) or "").strip()[:300] for key in DO_EDIT_FIELDS}
+        payload.update({
+            "client_name": (post.get("client_name") or "").strip()[:200],
+            "attn": (post.get("attn") or "").strip()[:160],
+            "site_lines": lines("site_lines")[:4],
+            "ship_lines": lines("ship_lines")[:4],
+            "items": items,
+        })
+        if not items:
+            messages.error(request, "DO harus berisi minimal satu item.")
+        else:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO dokumen_edit (jenis, ref_id, data, diubah_oleh, diubah_pada)
+                        VALUES (%s, %s, %s::jsonb, %s, now())
+                        ON CONFLICT (jenis, ref_id) DO UPDATE
+                        SET data = EXCLUDED.data, diubah_oleh = EXCLUDED.diubah_oleh, diubah_pada = now()
+                        """,
+                        [edit_kind, ref_id, json.dumps(payload, default=str), request.user.get_username()],
+                    )
+                messages.success(request, "Perubahan DO disimpan. Unduh DO untuk melihat hasilnya.")
+                return redirect(request.path)
+            except DatabaseError:
+                messages.error(request, "Perubahan DO belum tersimpan (tabel dokumen_edit belum ada? jalankan ulang server).")
+    saved = document_edit(edit_kind, ref_id)
+    data = apply_document_edit(edit_kind, ref_id, auto_data)
+    def qty_text(value):
+        try:
+            return f"{Decimal(str(value)).normalize():f}"
+        except Exception:
+            return str(value or 1)
+
+    items = [{**it, "details_text": "\n".join(d for d in it.get("details", []) if d), "qty_text": qty_text(it.get("qty"))}
+             for it in data["items"]]
+    return render(request, "portal/do_edit.html", {
+        "kind": kind, "ref_id": ref_id, "data": data, "items": items, "saved": saved,
+        "site_text": "\n".join(data.get("site_lines") or []), "ship_text": "\n".join(data.get("ship_lines") or []),
+        "download": reverse(download_url, args=[ref_id]), "back": reverse(fallback),
+    })

@@ -26,6 +26,7 @@
             {% if pdf_available %}<a class="btn btn-outline btn-sm" href="{% url 'invoice_document' invoice.id %}?format=pdf">PDF</a>{% endif %}
             <a class="btn btn-outline btn-sm" href="{% url 'invoice_document' invoice.id %}">DOCX</a>
             {% if invoice.status == "DRAFT" %}
+              <a class="btn btn-outline btn-sm" href="{% url 'invoice_edit' invoice.id %}" title="Ubah invoice sebelum diterbitkan">✎ Edit</a>
               <form method="post" action="{% url 'invoice_status' invoice.id 'terbitkan' %}">{% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Terbitkan</button></form>
               <form method="post" action="{% url 'invoice_status' invoice.id 'batalkan' %}" data-confirm="Batalkan invoice ini?">{% csrf_token %}<button class="btn btn-danger-outline btn-sm" type="submit">Batalkan</button></form>
             {% elif invoice.status == "DITERBITKAN" %}
