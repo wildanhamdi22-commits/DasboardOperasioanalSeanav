@@ -215,6 +215,7 @@ if not DEBUG:
     SECURE_REFERRER_POLICY = "same-origin"
     X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_AGE = int(os.getenv("DJANGO_SESSION_AGE", str(60 * 60 * 12)))
+REMEMBER_ME_DAYS = int(os.getenv("DJANGO_REMEMBER_ME_DAYS", "30"))
 
 LOGGING = {
     "version": 1,

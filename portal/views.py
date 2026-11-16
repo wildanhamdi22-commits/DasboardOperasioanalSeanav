@@ -141,7 +141,14 @@ class StaffLoginView(LoginView):
         if not form.get_user().is_staff:
             form.add_error(None, "Akun ini belum memiliki akses untuk Oseana · Seanav Operations.")
             return self.form_invalid(form)
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        if self.request.POST.get("remember"):
+            # "Ingat saya": tetap masuk di perangkat ini selama REMEMBER_ME_DAYS hari.
+            self.request.session.set_expiry(settings.REMEMBER_ME_DAYS * 24 * 60 * 60)
+        else:
+            # Tanpa centang: keluar otomatis saat browser ditutup (maks. SESSION_COOKIE_AGE).
+            self.request.session.set_expiry(0)
+        return response
 
 
 def role_management(request):
