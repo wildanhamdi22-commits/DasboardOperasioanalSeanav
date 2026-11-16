@@ -649,12 +649,12 @@ class DocBuilder:
         cell.paragraphs[0].text = ""
         p1 = cell.paragraphs[0]
         para_spacing(p1, 0, 0, 1.1)
-        p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p1.alignment = WD_ALIGN_PARAGRAPH.LEFT
         r1 = self.run(p1, name or " ", size=10, bold=True, color=INK)
         r1.font.underline = True
         p2 = cell.add_paragraph()
         para_spacing(p2, 0, 0, 1.1)
-        p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p2.alignment = WD_ALIGN_PARAGRAPH.LEFT
         self.run(p2, title, size=9.5, bold=True, color=INK)
 
     def save(self) -> bytes:
