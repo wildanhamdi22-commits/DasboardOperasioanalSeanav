@@ -623,7 +623,12 @@ def invoice_list(request, kind=None):
                        EXISTS (SELECT 1 FROM rental r WHERE r.invoice_id = i.id), q.jenis,
                        i.termin_ke, i.persen_termin, COALESCE(i.keterangan_termin, ''),
                        EXISTS (SELECT 1 FROM pesanan_penjualan pp WHERE pp.quotation_id = q.id),
-                       (SELECT p.id FROM proyek p WHERE p.quotation_id = q.id ORDER BY p.id LIMIT 1)
+                       (SELECT p.id FROM proyek p WHERE p.quotation_id = q.id ORDER BY p.id LIMIT 1),
+                       q.total,
+                       (SELECT COALESCE(SUM(COALESCE(x.persen_termin, 100)), 0) FROM invoice x
+                        WHERE x.quotation_id = q.id AND x.status <> 'DIBATALKAN'),
+                       (SELECT COALESCE(SUM(COALESCE(x.persen_termin, 100)), 0) FROM invoice x
+                        WHERE x.quotation_id = q.id AND x.status = 'DIBAYAR')
                 FROM invoice i
                 JOIN quotation q ON q.id = i.quotation_id
                 JOIN perusahaan co ON co.id = i.perusahaan_id
@@ -645,6 +650,11 @@ def invoice_list(request, kind=None):
                     "kind_label": QUOTATION_KIND_LABELS.get(row[15], row[15]),
                     "termin": row[16], "termin_percent": row[17], "termin_label": row[18],
                     "order_created": row[19], "project_id": row[20],
+                    "contract_total": row[21],
+                    "billed_percent": min(Decimal("100"), Decimal(row[22] or 0)),
+                    "paid_percent": min(Decimal("100"), Decimal(row[23] or 0)),
+                    "billed_remaining": max(Decimal("0"), Decimal("100") - Decimal(row[22] or 0)),
+                    "this_percent": Decimal(row[17]) if row[17] is not None else Decimal("100"),
                 }
                 for row in cursor.fetchall()
             ]

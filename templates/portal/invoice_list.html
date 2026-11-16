@@ -13,7 +13,7 @@
   {% if database_error %}<div class="panel-pad"><div class="flash error">{{ database_error }} Pastikan migrasi invoice sudah diterapkan.</div></div>
   {% elif invoices %}
     <div class="table-wrap"><table class="data">
-      <thead><tr><th>Invoice</th><th>Quotation</th><th>Klien</th><th>Tanggal</th><th class="num">Total</th><th>Status</th><th>Aksi</th></tr></thead>
+      <thead><tr><th>Invoice</th><th>Quotation</th><th>Klien</th><th>Tanggal</th><th class="num">Total</th><th style="min-width:190px">Tagihan kontrak</th><th>Status</th><th>Aksi</th></tr></thead>
       <tbody>{% for invoice in invoices %}
         <tr>
           <td><b class="mono">{{ invoice.number }}</b><small>{{ invoice.company }}</small></td>
@@ -21,10 +21,18 @@
           <td><b>{{ invoice.client }}</b></td>
           <td>{{ invoice.date|date:"d M Y" }}{% if invoice.due_date %}<small>Jatuh tempo {{ invoice.due_date|date:"d M Y" }}</small>{% endif %}</td>
           <td class="num"><b>{{ invoice.total|rupiah }}</b>{% if invoice.tax_amount %}<small>PPN {{ invoice.tax_rate|floatformat:0 }}%: {{ invoice.tax_amount|rupiah }}</small>{% endif %}</td>
+          <td>
+            <div class="bill-tag">{% if invoice.termin %}<b>{{ invoice.termin_label|default:"Termin" }} {{ invoice.this_percent|floatformat:"-2" }}%</b>{% else %}<b>Tagihan penuh 100%</b>{% endif %}</div>
+            <div class="bill-bar" title="Lunas {{ invoice.paid_percent|floatformat:'-2' }}% · tertagih {{ invoice.billed_percent|floatformat:'-2' }}% dari {{ invoice.contract_total|rupiah }}">
+              <span class="paid" style="width:{{ invoice.paid_percent|floatformat:'0' }}%"></span><span class="billed" style="width:{{ invoice.billed_percent|floatformat:'0' }}%"></span>
+            </div>
+            <small>Lunas {{ invoice.paid_percent|floatformat:"-2" }}% · tertagih {{ invoice.billed_percent|floatformat:"-2" }}%{% if invoice.billed_remaining > 0 %} · <b class="warn-text">sisa {{ invoice.billed_remaining|floatformat:"-2" }}%</b>{% endif %}</small>
+          </td>
           <td><span class="st st-{{ invoice.status }}">{{ invoice.status|label }}</span></td>
           <td><div class="row-actions">
             {% if pdf_available %}<a class="btn btn-outline btn-sm" href="{% url 'invoice_document' invoice.id %}?format=pdf">PDF</a>{% endif %}
             <a class="btn btn-outline btn-sm" href="{% url 'invoice_document' invoice.id %}">DOCX</a>
+            {% if invoice.billed_remaining > 0 and invoice.status != "DIBATALKAN" %}<a class="btn btn-red btn-sm" href="{% url 'invoice_create' invoice.quotation_id %}" title="Buat invoice untuk sisa tagihan">Tagih sisa {{ invoice.billed_remaining|floatformat:"-2" }}%</a>{% endif %}
             {% if invoice.status == "DRAFT" %}
               <a class="btn btn-outline btn-sm" href="{% url 'invoice_edit' invoice.id %}" title="Ubah invoice sebelum diterbitkan">✎ Edit</a>
               <form method="post" action="{% url 'invoice_status' invoice.id 'terbitkan' %}">{% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Terbitkan</button></form>

@@ -665,6 +665,12 @@ details.mini ul.acc-list{list-style:none;padding-left:0;display:grid;gap:6px}
 .bill-options{display:flex;gap:8px;flex-wrap:wrap}
 .bill-options .chip-btn.on{background:var(--navy-2,#174b7d);color:#fff;border-color:var(--navy-2,#174b7d)}
 .bill-preview{margin-top:10px;font-size:14px}
+.bill-tag{font-size:12.5px;margin-bottom:5px}
+.bill-bar{position:relative;height:7px;border-radius:99px;background:#e7ebf0;overflow:hidden;margin-bottom:4px}
+.bill-bar span{position:absolute;left:0;top:0;bottom:0;border-radius:99px}
+.bill-bar .billed{background:#9cc3e6;z-index:1}
+.bill-bar .paid{background:#16a34a;z-index:2}
+.warn-text{color:#b45309}
 /* Pinjam bendera */
 .kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
 .kpi-row .kpi{background:var(--surface,#fff);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;gap:4px}
