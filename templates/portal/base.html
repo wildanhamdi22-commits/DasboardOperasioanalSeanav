@@ -96,7 +96,8 @@
     </details>
     {% endif %}
 
-    {% if business_access.invoice or business_access.quotation %}
+    {% url 'flag_list' as u_flag_list %}{% url 'flag_create' as u_flag_create %}{% url 'flag_import' as u_flag_import %}
+    {% if u_flag_list and business_access.invoice or u_flag_list and business_access.quotation %}
     <details class="sb-group" {% if nav_module == 'flag' %}open{% endif %}>
       <summary class="sb-link {% if nav_module == 'flag' %}on{% endif %}">
         <span class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg></span>
@@ -104,9 +105,9 @@
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
       </summary>
       <div class="sb-subs">
-        <a class="sb-sub {% if nav_active == 'f_list' %}on{% endif %}" href="{% url 'flag_list' %}"><span>Daftar &amp; Dokumen</span></a>
-        <a class="sb-sub {% if nav_active == 'f_create' %}on{% endif %}" href="{% url 'flag_create' %}"><span>Tambah</span></a>
-        <a class="sb-sub {% if nav_active == 'f_import' %}on{% endif %}" href="{% url 'flag_import' %}"><span>Impor / Ekspor Excel</span></a>
+        <a class="sb-sub {% if nav_active == 'f_list' %}on{% endif %}" href="{{ u_flag_list }}"><span>Daftar &amp; Dokumen</span></a>
+        <a class="sb-sub {% if nav_active == 'f_create' %}on{% endif %}" href="{{ u_flag_create }}"><span>Tambah</span></a>
+        <a class="sb-sub {% if nav_active == 'f_import' %}on{% endif %}" href="{{ u_flag_import }}"><span>Impor / Ekspor Excel</span></a>
       </div>
     </details>
     {% endif %}
