@@ -34,7 +34,7 @@ _ID_MONTHS = {"januari": "January", "februari": "February", "maret": "March", "a
 _UNITS = {"hari": ("day", "days"), "hr": ("day", "days"), "minggu": ("week", "weeks"), "bulan": ("month", "months"),
           "tahun": ("year", "years"), "jam": ("hour", "hours"), "unit": ("unit", "units"), "titik": ("point", "points"),
           "set": ("set", "sets"), "paket": ("package", "packages"), "orang": ("person", "persons"),
-          "lot": ("lot", "lots"), "ls": ("lump sum", "lump sum"), "trip": ("trip", "trips"), "pcs": ("pc", "pcs"),
+          "lot": ("lot", "lots"), "ls": ("Ls", "Ls"), "trip": ("trip", "trips"), "pcs": ("pc", "pcs"),
           "buah": ("pc", "pcs"), "km": ("km", "km"), "ha": ("ha", "ha"), "day": ("day", "days"),
           "days": ("day", "days"), "month": ("month", "months"), "week": ("week", "weeks")}
 _TITLES = {"direktur": "Director", "direktur utama": "President Director", "komisaris": "Commissioner",
@@ -58,8 +58,6 @@ def en_unit(amount, unit):
     pair = _UNITS.get(unit.lower())
     if not pair:
         return f"{qty(amount)} {unit}".strip()
-    if pair[0] == "lump sum":
-        return "Lump sum" if Decimal(amount) == 1 else f"{qty(amount)} x lump sum"
     return f"{qty(amount)} {pair[0] if Decimal(amount) == 1 else pair[1]}"
 
 
