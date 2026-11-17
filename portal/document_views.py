@@ -790,7 +790,7 @@ def survey_bast_document(request, project_id):
     start, end = r[6] or r[8], r[7] or r[9]
     rows = [{"cells": [str(i), d[0], d[1].title(), _d(timezone.localtime(d[2]).date())]} for i, d in enumerate(deliverables, 1)] or         [{"cells": ["–", "Deliverables as per scope of work", "Final", "-"]}]
     data = {
-        "title": "HANDOVER CERTIFICATE", "subtitle": "Berita acara serah terima pekerjaan", "number": number,
+        "title": "HANDOVER CERTIFICATE", "subtitle": "Certificate of work completion", "number": number,
         "footer_title": "BAST",
         "meta": [("BAST No.", number), ("Date", _d(r[10]) if r[10] else "-"), ("Project", r[0]), ("Quotation", r[12])],
         "parties": [("Client", [r[3], *_lines(r[4])[:2]]), ("Project", [r[1], r[5] or "-"]),

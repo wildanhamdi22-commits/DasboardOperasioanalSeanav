@@ -16,8 +16,8 @@ from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.http import Http404, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 
-from .doc_builder import fmt_idr
-from .lpj_builder import build_lpj_bast, build_lpj_invoice, build_lpj_receipt
+from .doc_builder import amount_in_words, fmt_idr
+from .lpj_builder import build_lpj_bast, build_lpj_invoice, build_lpj_receipt, en_item, en_text
 from .document_views import _brand_code, _respond, file_name
 from .views import business_permission_required
 
@@ -373,20 +373,20 @@ def _doc_items(record):
 def _lpj_payload(record):
     signer_title = record["signer_title"] or ""
     if signer_title.strip().lower() in ("authorized signature", "authorized signatured"):
-        signer_title = "Direktur"
-    purpose = "; ".join(i["rincian"] for i in record["items"])
+        signer_title = "Director"
+    purpose = "; ".join(en_item(i["rincian"]) for i in record["items"])
     if record["research_title"]:
-        purpose += f", untuk kegiatan penelitian \u201c{record['research_title']}\u201d"
+        purpose += f" for the research project \u201c{record['research_title']}\u201d"
     if record["activity_date"]:
-        purpose += f" ({record['activity_date']})"
+        purpose += f" ({en_text(record['activity_date'])})"
     return {
         "brand": _brand_code(record["company_code"]), "number": record["number"],
-        "invoice_no": f"INV/{record['number']}", "receipt_no": f"KW/{record['number']}",
+        "invoice_no": f"INV/{record['number']}", "receipt_no": f"RCPT/{record['number']}",
         "bast_no": f"BAST/{record['number']}", "doc_date": record["doc_date"], "client": record["client"],
         "institution": record["institution"], "address_lines": [x for x in record["address"].splitlines() if x.strip()][:3],
         "research_title": record["research_title"], "activity_date": record["activity_date"], "items": record["items"],
         "include_tax": record["include_tax"], "tax_rate": record["tax_rate"], "total": record["total"],
-        "dpp": record["dpp"], "ppn": record["ppn"], "terbilang": terbilang(record["total"]), "purpose": purpose,
+        "dpp": record["dpp"], "ppn": record["ppn"], "terbilang": amount_in_words(record["total"]) + " only", "purpose": purpose,
         "signer": record["signer"], "signer_title": signer_title,
     }
 
@@ -406,7 +406,7 @@ def _flag_bast(record):
     return data["brand"], build_lpj_bast(data), data["bast_no"]
 
 
-DOCS = {"invoice": ("INV", _flag_invoice), "kwitansi": ("KW", _flag_receipt), "bast": ("BAST", _flag_bast)}
+DOCS = {"invoice": ("INV", _flag_invoice), "kwitansi": ("RCPT", _flag_receipt), "bast": ("BAST", _flag_bast)}
 
 
 @business_permission_required("INVOICE", "LIHAT")
@@ -422,7 +422,7 @@ def flag_document(request, flag_id, doc):
         raise Http404("Data pinjam bendera tidak ditemukan.")
     prefix, builder = DOCS[doc]
     _company, content, number = builder(record)
-    names = [i["rincian"] for i in record["items"]]
+    names = [en_item(i["rincian"]) for i in record["items"]]
     fname = file_name(prefix, record["number"], record["client"], None, names[:2])
     return _respond(request, content, number, "flag_list", fname)
 

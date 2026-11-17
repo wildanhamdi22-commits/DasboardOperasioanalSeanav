@@ -1,11 +1,12 @@
-"""Template dokumen Pinjam Bendera (LPJ) bergaya surat resmi perusahaan Indonesia.
+"""Template dokumen Pinjam Bendera (LPJ) — surat resmi berbahasa Inggris.
 
-Kop surat bergaris ganda, judul di tengah, tabel bergaris penuh, terbilang, dan blok
-"Hormat kami" — dipakai untuk Invoice, Kwitansi, dan Berita Acara Serah Terima.
+Kop surat bergaris ganda, judul di tengah, tabel bergaris penuh, amount in words, dan blok
+tanda tangan dengan ruang meterai — dipakai untuk Invoice, Official Receipt, dan Handover Certificate.
 Font mengikuti perusahaan (Seanav = Aptos, Oseana = Century Gothic).
 """
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
@@ -22,22 +23,112 @@ from .doc_builder import (
 BLACK = "111111"
 SOFT = "555555"
 HEAD_FILL = "EDEFF2"
-HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September",
-         "Oktober", "November", "Desember"]
+DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+          "October", "November", "December"]
+STAMP = "Duty stamp (meterai) IDR 10,000"
+_ID_MONTHS = {"januari": "January", "februari": "February", "maret": "March", "april": "April", "mei": "May",
+              "juni": "June", "juli": "July", "agustus": "August", "september": "September", "oktober": "October",
+              "november": "November", "desember": "December", "des": "Dec", "okt": "Oct", "agu": "Aug",
+              "agt": "Aug", "mei": "May", "s/d": "to", "sampai": "to", "dan": "and", "hari": "days"}
+_UNITS = {"hari": ("day", "days"), "hr": ("day", "days"), "minggu": ("week", "weeks"), "bulan": ("month", "months"),
+          "tahun": ("year", "years"), "jam": ("hour", "hours"), "unit": ("unit", "units"), "titik": ("point", "points"),
+          "set": ("set", "sets"), "paket": ("package", "packages"), "orang": ("person", "persons"),
+          "lot": ("lot", "lots"), "ls": ("lump sum", "lump sum"), "trip": ("trip", "trips"), "pcs": ("pc", "pcs"),
+          "buah": ("pc", "pcs"), "km": ("km", "km"), "ha": ("ha", "ha"), "day": ("day", "days"),
+          "days": ("day", "days"), "month": ("month", "months"), "week": ("week", "weeks")}
+_TITLES = {"direktur": "Director", "direktur utama": "President Director", "komisaris": "Commissioner",
+           "manajer": "Manager", "manager": "Manager", "ketua peneliti": "Principal Investigator",
+           "authorized signature": "Director", "authorized signatured": "Director"}
 
 
 def tgl(d):
-    return f"{d.day} {BULAN[d.month - 1]} {d.year}" if d else "-"
+    return f"{d.day} {MONTHS[d.month - 1]} {d.year}" if d else "-"
+
+
+def en_text(value):
+    """Terjemahkan nama bulan/kata umum dalam teks bebas (mis. '12 Oktober 2026')."""
+    if not value:
+        return value
+    return re.sub(r"[A-Za-z/]+", lambda m: _ID_MONTHS.get(m.group(0).lower(), m.group(0)), str(value))
+
+
+def en_unit(amount, unit):
+    unit = (unit or "").strip()
+    pair = _UNITS.get(unit.lower())
+    if not pair:
+        return f"{qty(amount)} {unit}".strip()
+    if pair[0] == "lump sum":
+        return "Lump sum" if Decimal(amount) == 1 else f"{qty(amount)} x lump sum"
+    return f"{qty(amount)} {pair[0] if Decimal(amount) == 1 else pair[1]}"
+
+
+_WORDS = {"selama": "for", "dan": "and", "untuk": "for", "dengan": "with", "alat": "equipment",
+          "peralatan": "equipment", "pengukuran": "measurement", "pemetaan": "mapping", "survei": "survey",
+          "pengolahan": "processing", "data": "data", "termasuk": "including", "operator": "operator",
+          "beserta": "with", "per": "per", "lokasi": "site", "kapal": "vessel", "mobilisasi": "mobilization",
+          "demobilisasi": "demobilization", "laporan": "report", "kegiatan": "activity", "penelitian": "research"}
+
+
+def _en_words(text):
+    def unit(m):
+        n, word = m.group(1), m.group(2)
+        pair = _UNITS.get(word.lower())
+        if not pair:
+            return m.group(0)
+        one = Decimal(n.replace(",", ".")) == 1
+        return f"{n} {pair[0] if one else pair[1]}"
+    text = re.sub(r"(\d+(?:[.,]\d+)?)\s+([A-Za-z]+)\b", unit, text)
+    return re.sub(r"[A-Za-z]+", lambda m: _WORDS.get(m.group(0).lower(), m.group(0)) if m.group(0).islower()
+                  else m.group(0), text)
+
+
+_SUBJECTS = {"topografi": "Topographic", "batimetri": "Bathymetric", "hidrografi": "Hydrographic",
+             "geodesi": "Geodetic", "geofisika": "Geophysical", "magnetik": "Magnetic", "seismik": "Seismic",
+             "arus": "Current", "pasang surut": "Tidal", "pasut": "Tidal", "gelombang": "Wave"}
+
+
+def _en_phrase(text):
+    """'Pengukuran Topografi' -> 'Topographic Survey'; 'Survei Batimetri' -> 'Bathymetric Survey'."""
+    m = re.match(r"(?i)^(pengukuran|survei|survey|pemetaan)\s+(.+)$", text.strip())
+    if m:
+        subject = _SUBJECTS.get(m.group(2).strip().lower(), m.group(2).strip())
+        noun = "Mapping" if m.group(1).lower() == "pemetaan" else "Survey"
+        return f"{subject} {noun}"
+    return _en_words(text)
+
+
+def en_item(name):
+    """'Sewa GPS RTK 3 unit selama 6 hari' -> 'Rental of GPS RTK, 3 units for 6 days'."""
+    name = re.sub(r"\s+", " ", (name or "").strip())
+    m = re.match(r"(?i)^(sewa|jasa)\s+(.+)$", name)
+    if not m:
+        return _en_words(name)
+    body = m.group(2)
+    split = re.search(r"\s(\d+(?:[.,]\d+)?\s+[A-Za-z]+\b.*)$", body)
+    head, tail = (body[:split.start()], split.group(1)) if split else (body, "")
+    head = _en_phrase(head)
+    tail = f", {_en_words(tail)}" if tail else ""
+    if m.group(1).lower() == "sewa":
+        return f"Rental of {head}{tail}"
+    return f"{head} services{tail}"
+
+
+def en_title(title):
+    return _TITLES.get((title or "").strip().lower(), title or "")
 
 
 def rp(value):
-    return f"Rp {fmt_idr(value)},-"
+    return f"IDR {fmt_idr(value).replace('.', ',')}"
+
+
+def num(value):
+    return fmt_idr(value).replace(".", ",")
 
 
 def qty(value):
     value = Decimal(value)
-    return f"{int(value)}" if value == value.to_integral() else f"{value.normalize():f}".replace(".", ",")
+    return f"{int(value)}" if value == value.to_integral() else f"{value.normalize():f}"
 
 
 def _border(cell, **edges):
@@ -142,7 +233,7 @@ class LpjDoc(DocBuilder):
     def title(self, title, number):
         p = self.text(title, size=15, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER, after=0, underline=True)
         p.runs[0].font.all_caps = True
-        self.text(f"Nomor: {number}", size=10, align=WD_ALIGN_PARAGRAPH.CENTER, after=12, color=SOFT)
+        self.text(f"No. {number}", size=10, align=WD_ALIGN_PARAGRAPH.CENTER, after=12, color=SOFT)
 
     def fields(self, rows, widths=(40, 4, None), size=10, after=8):
         """Baris 'Label : isi' rata titik dua."""
@@ -229,7 +320,7 @@ class LpjDoc(DocBuilder):
         self.run(p, value, size=10, italic=italic, bold=True, color=BLACK)
         self.spacer(10)
 
-    def signature(self, place_date, opening, company, name, title, height_mm=34, note="Materai Rp10.000", col_mm=70):
+    def signature(self, place_date, opening, company, name, title, height_mm=34, note=STAMP, col_mm=70):
         """Blok tanda tangan kanan: tempat/tanggal, salam, perusahaan, ruang ttd, nama (garis bawah), jabatan."""
         t = self.doc.add_table(rows=1, cols=2)
         table_no_borders(t, zero_cell_margins=True)
@@ -246,7 +337,7 @@ class LpjDoc(DocBuilder):
         table_fixed(t, [half, half])
         keep_row_together(t.rows[0])
         for cell, (heads, name, title) in zip(t.rows[0].cells, (left, right)):
-            self._sign_block(cell, heads, name, title, height_mm, "Materai Rp10.000", center=True)
+            self._sign_block(cell, heads, name, title, height_mm, STAMP, center=True)
 
     def _sign_block(self, cell, heads, name, title, height_mm, note, center=False):
         align = WD_ALIGN_PARAGRAPH.CENTER if center else WD_ALIGN_PARAGRAPH.LEFT
@@ -277,7 +368,7 @@ class LpjDoc(DocBuilder):
 
 # --------------------------------------------------------------------------- dokumen
 def _uraian(item):
-    return item["rincian"]
+    return en_item(item["rincian"])
 
 
 def build_lpj_invoice(r) -> bytes:
@@ -289,17 +380,17 @@ def build_lpj_invoice(r) -> bytes:
     left, right = t.rows[0].cells
     p = left.paragraphs[0]
     para_spacing(p, 0, 0, 1.25)
-    d.run(p, "Kepada Yth.", size=10, color=BLACK)
+    d.run(p, "Bill to:", size=10, bold=True, color=SOFT)
     for i, line in enumerate([r["client"], r["institution"], *r["address_lines"]]):
         if not line:
             continue
         q = left.add_paragraph()
         para_spacing(q, 0, 0, 1.25)
         d.run(q, line, size=10, bold=i == 0, color=BLACK)
-    meta = [("Tanggal", tgl(r["doc_date"])), ("No. Referensi", r["number"]), ("Jatuh tempo", tgl(r["doc_date"]))]
+    meta = [("Invoice date", tgl(r["doc_date"])), ("Reference", r["number"]), ("Due date", tgl(r["doc_date"]))]
     mt = right.add_table(rows=len(meta), cols=3)
     table_no_borders(mt, zero_cell_margins=True)
-    table_fixed(mt, [30, 4, d.content_w * 0.45 - 34])
+    table_fixed(mt, [28, 4, d.content_w * 0.45 - 32])
     for row, (k, v) in zip(mt.rows, meta):
         for c, txt in zip(row.cells, (k, ":", v)):
             q = c.paragraphs[0]
@@ -308,32 +399,34 @@ def build_lpj_invoice(r) -> bytes:
     right.paragraphs[0]._p.getparent().remove(right.paragraphs[0]._p)
     d.spacer(10)
     if r["research_title"]:
-        d.fields([("Perihal", f"Jasa / sewa peralatan untuk penelitian “{r['research_title']}”")], widths=(32, 4, None), after=2)
+        d.fields([("Subject", f"Equipment rental and services for the research project “{r['research_title']}”")],
+                 widths=(32, 4, None), after=2)
     if r["activity_date"]:
-        d.fields([("Waktu kegiatan", r["activity_date"])], widths=(32, 4, None), after=8)
+        d.fields([("Activity date", en_text(r["activity_date"]))], widths=(32, 4, None), after=8)
     rows = []
     for i, item in enumerate(r["items"], 1):
-        rows.append([str(i), _uraian(item), f"{qty(item['banyaknya'])} {item['satuan']}",
-                     f"{qty(item['volume'])} {item['satuan_volume']}", fmt_idr(item["harga_satuan"]),
-                     fmt_idr(item["jumlah"])])
+        rows.append([str(i), _uraian(item), en_unit(item["banyaknya"], item["satuan"]),
+                     en_unit(item["volume"], item["satuan_volume"]), num(item["harga_satuan"]),
+                     num(item["jumlah"])])
     summary = []
     if r["include_tax"]:
-        summary += [("Jumlah (termasuk PPN)", fmt_idr(r["total"]), False),
-                    ("Dasar Pengenaan Pajak (DPP)", fmt_idr(r["dpp"]), False),
-                    (f"PPN {qty(r['tax_rate'])}%", fmt_idr(r["ppn"]), False)]
+        summary += [("Subtotal (VAT inclusive)", num(r["total"]), False),
+                    ("Tax base (DPP)", num(r["dpp"]), False),
+                    (f"VAT (PPN) {qty(r['tax_rate'])}%", num(r["ppn"]), False)]
     else:
-        summary += [("Jumlah (DPP)", fmt_idr(r["dpp"]), False), (f"PPN {qty(r['tax_rate'])}%", fmt_idr(r["ppn"]), False)]
-    summary.append(("TOTAL TAGIHAN", fmt_idr(r["total"]), True))
+        summary += [("Subtotal (tax base / DPP)", num(r["dpp"]), False),
+                    (f"VAT (PPN) {qty(r['tax_rate'])}%", num(r["ppn"]), False)]
+    summary.append(("TOTAL AMOUNT DUE", num(r["total"]), True))
     R, C = WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.CENTER
-    d.table(["No", "Uraian", "Banyaknya", "Volume", "Harga Satuan (Rp)", "Jumlah (Rp)"], rows,
+    d.table(["No", "Description", "Quantity", "Duration", "Unit Price (IDR)", "Amount (IDR)"], rows,
             [10, None, 22, 22, 30, 30], align={0: C, 2: C, 3: C, 4: R, 5: R}, summary=summary)
-    d.boxed("Terbilang", r["terbilang"])
-    d.text("Pembayaran mohon ditransfer ke rekening berikut:", size=9.5, after=3)
+    d.boxed("Amount in words", r["terbilang"])
+    d.text("Please remit payment to the following bank account:", size=9.5, after=3)
     bank = d.b.bank
-    d.fields([("Bank", bank[0] if bank else "-"), ("No. Rekening", bank[2] if len(bank) > 2 else "-"),
-              ("Atas nama", bank[3].replace("a.n. ", "") if len(bank) > 3 else d.b.legal_name)],
+    d.fields([("Bank", bank[0] if bank else "-"), ("Account no.", bank[2] if len(bank) > 2 else "-"),
+              ("Account name", bank[3].replace("Account name: ", "") if len(bank) > 3 else d.b.legal_name)],
              widths=(30, 4, None), size=9.5, after=14)
-    d.signature(f"Jakarta, {tgl(r['doc_date'])}", "Hormat kami,", d.b.legal_name, r["signer"], r["signer_title"])
+    d.signature(f"Jakarta, {tgl(r['doc_date'])}", "Sincerely,", d.b.legal_name, r["signer"], en_title(r["signer_title"]))
     return d.save()
 
 
@@ -348,19 +441,19 @@ def build_lpj_receipt(r) -> bytes:
     p = cell.paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     para_spacing(p, 0, 0, 1.1)
-    title = d.run(p, "KWITANSI", size=18, bold=True, color=BLACK, spacing=3)
+    title = d.run(p, "OFFICIAL RECEIPT", size=18, bold=True, color=BLACK, spacing=3)
     title.font.underline = True
     q = cell.add_paragraph()
     q.alignment = WD_ALIGN_PARAGRAPH.CENTER
     para_spacing(q, 2, 10, 1.1)
-    d.run(q, f"Nomor: {r['receipt_no']}", size=10, color=SOFT)
+    d.run(q, f"No. {r['receipt_no']}", size=10, color=SOFT)
     inner_w = d.content_w - 8
     t = cell.add_table(rows=3, cols=3)
     table_no_borders(t, zero_cell_margins=True)
     table_fixed(t, [40, 5, inner_w - 45])
-    rows = [("Sudah terima dari", [r["client"], r["institution"]] if r["institution"] else [r["client"]], False),
-            ("Uang sejumlah", [r["terbilang"]], True),
-            ("Untuk pembayaran", [r["purpose"]], False)]
+    rows = [("Received from", [r["client"], r["institution"]] if r["institution"] else [r["client"]], False),
+            ("The sum of", [r["terbilang"]], True),
+            ("Being payment for", [r["purpose"]], False)]
     for row, (label, lines, shade) in zip(t.rows, rows):
         keep_row_together(row)
         for c, content in zip(row.cells, (label, ":", None)):
@@ -376,7 +469,7 @@ def build_lpj_receipt(r) -> bytes:
         for i, line in enumerate(lines):
             p = v.paragraphs[0] if i == 0 else v.add_paragraph()
             para_spacing(p, 0, 0, 1.3)
-            d.run(p, line, size=10.5, bold=shade or i == 0 and label == "Sudah terima dari", italic=shade, color=BLACK)
+            d.run(p, line, size=10.5, bold=shade or i == 0 and label == "Received from", italic=shade, color=BLACK)
     gap = cell.add_paragraph()
     para_spacing(gap, 0, 8, 1)
     bottom = cell.add_table(rows=1, cols=2)
@@ -395,41 +488,42 @@ def build_lpj_receipt(r) -> bytes:
     para_spacing(ap, 0, 0, 1)
     d.run(ap, rp(r["total"]), size=14, bold=True, color=BLACK)
     left.paragraphs[0]._p.getparent().remove(left.paragraphs[0]._p)
-    d._sign_block(right, [f"Jakarta, {tgl(r['doc_date'])}", "Yang menerima,", d.b.legal_name], r["signer"],
-                  r["signer_title"], 36, "Materai Rp10.000")
+    d._sign_block(right, [f"Jakarta, {tgl(r['doc_date'])}", "Received by,", d.b.legal_name], r["signer"],
+                  en_title(r["signer_title"]), 36, STAMP)
     return d.save()
 
 
 def build_lpj_bast(r) -> bytes:
     d = LpjDoc(r["brand"])
-    d.title("BERITA ACARA SERAH TERIMA", r["bast_no"])
+    d.title("HANDOVER CERTIFICATE", r["bast_no"])
     day = r["doc_date"]
-    d.text(f"Pada hari ini, {HARI[day.weekday()]} tanggal {tgl(day)}, kami yang bertanda tangan di bawah ini:",
-           after=6)
-    d.fields([("1.  Nama", r["signer"] or "-"), ("     Jabatan", r["signer_title"] or "-"),
-              ("     Perusahaan", d.b.legal_name)], widths=(38, 4, None), after=2)
-    d.text("Selanjutnya disebut sebagai PIHAK PERTAMA.", italic=True, after=8)
-    d.fields([("2.  Nama", r["client"]), ("     Jabatan", "Ketua Peneliti"),
-              ("     Instansi", r["institution"] or "-")], widths=(38, 4, None), after=2)
-    d.text("Selanjutnya disebut sebagai PIHAK KEDUA.", italic=True, after=10)
-    opening = ("PIHAK PERTAMA telah menyerahkan kepada PIHAK KEDUA, dan PIHAK KEDUA telah menerima, "
-               "pekerjaan / penggunaan peralatan dengan rincian sebagai berikut:")
+    pi = "Principal Investigator"
+    d.text(f"On this day, {DAYS[day.weekday()]}, {tgl(day)}, the undersigned:", after=6)
+    d.fields([("1.  Name", r["signer"] or "-"), ("     Position", en_title(r["signer_title"]) or "-"),
+              ("     Company", d.b.legal_name)], widths=(38, 4, None), after=2)
+    d.text("hereinafter referred to as the FIRST PARTY.", italic=True, after=8)
+    d.fields([("2.  Name", r["client"]), ("     Position", pi),
+              ("     Institution", r["institution"] or "-")], widths=(38, 4, None), after=2)
+    d.text("hereinafter referred to as the SECOND PARTY.", italic=True, after=10)
+    opening = ("The FIRST PARTY has handed over to the SECOND PARTY, and the SECOND PARTY has received, "
+               "the following work / use of equipment:")
     d.text(opening, after=6, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
-    rows = [[str(i), _uraian(it), f"{qty(it['banyaknya'])} {it['satuan']}",
-             f"{qty(it['volume'])} {it['satuan_volume']}", "Baik, selesai"] for i, it in enumerate(r["items"], 1)]
+    rows = [[str(i), _uraian(it), en_unit(it["banyaknya"], it["satuan"]),
+             en_unit(it["volume"], it["satuan_volume"]), "Completed, good condition"]
+            for i, it in enumerate(r["items"], 1)]
     C = WD_ALIGN_PARAGRAPH.CENTER
-    d.table(["No", "Uraian Pekerjaan / Peralatan", "Banyaknya", "Volume", "Keterangan"], rows,
-            [10, None, 24, 24, 30], align={0: C, 2: C, 3: C, 4: C})
+    d.table(["No", "Description of Work / Equipment", "Quantity", "Duration", "Remarks"], rows,
+            [10, None, 22, 22, 34], align={0: C, 2: C, 3: C, 4: C})
     extra = []
     if r["research_title"]:
-        extra.append(f"dalam rangka kegiatan penelitian “{r['research_title']}”")
+        extra.append(f"for the research project “{r['research_title']}”")
     if r["activity_date"]:
-        extra.append(f"yang dilaksanakan pada {r['activity_date']}")
+        extra.append(f"carried out on {en_text(r['activity_date'])}")
     if extra:
-        d.text("Pekerjaan tersebut dilaksanakan " + ", ".join(extra) + ", dalam keadaan baik dan lengkap.",
-               after=6, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
-    d.text("Demikian Berita Acara Serah Terima ini dibuat dengan sebenarnya dalam rangkap 2 (dua) untuk "
-           "dipergunakan sebagaimana mestinya.", after=18, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
-    d.two_signatures((["PIHAK PERTAMA", d.b.legal_name], r["signer"], r["signer_title"]),
-                     (["PIHAK KEDUA", r["institution"] or "Ketua Peneliti"], r["client"], "Ketua Peneliti"))
+        d.text("The above work was performed " + ", ".join(extra) + ", and has been completed in good and "
+               "complete condition.", after=6, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+    d.text("This Handover Certificate is made truthfully in 2 (two) original copies, each having the same "
+           "legal force, to be used as appropriate.", after=18, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+    d.two_signatures((["FIRST PARTY", d.b.legal_name], r["signer"], en_title(r["signer_title"])),
+                     (["SECOND PARTY", r["institution"] or pi], r["client"], pi))
     return d.save()
