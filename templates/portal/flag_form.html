@@ -17,7 +17,7 @@
     <div class="ph"><div class="ph-l"><div><h2>Informasi dokumen</h2><p>Perusahaan penerbit, klien, dan kegiatan</p></div></div></div>
     <div class="form-grid">
       <div class="field"><label for="f-co">Perusahaan (kop dokumen)</label><select id="f-co" name="company_id">{% for c in companies %}<option value="{{ c.0 }}" {% if c.0|stringformat:"s" == record.company_id|stringformat:"s" %}selected{% endif %}>{{ c.1 }} · {{ c.2 }}</option>{% endfor %}</select></div>
-      <div class="field"><label for="f-no">Nomor dokumen</label><input id="f-no" name="number" value="{{ record.number }}" required><span class="help">Dipakai untuk INV/…, KW/…, dan BAST/….</span></div>
+      <div class="field"><label for="f-no">Nomor dokumen</label><input id="f-no" name="number" value="{{ record.number }}" required><span class="help">Format: SNV-26034 → dokumen menjadi INV/SNV-26034/VIII/2026, RCPT/… dan BAST/… (bulan romawi dari tanggal dokumen).</span></div>
       <div class="field"><label for="f-date">Tanggal dokumen</label><input id="f-date" type="date" name="doc_date" value="{{ record.doc_date|date:'Y-m-d' }}"></div>
       <div class="field"><label for="f-act">Tanggal kegiatan</label><input id="f-act" name="activity_date" value="{{ record.activity_date|default:'' }}" placeholder="02 - 03 November 2026"></div>
       <div class="field"><label for="f-client">Klien / ketua peneliti</label><input id="f-client" name="client" value="{{ record.client|default:'' }}" required></div>

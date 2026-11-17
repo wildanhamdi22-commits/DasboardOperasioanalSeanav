@@ -131,14 +131,29 @@ def _companies(cursor):
 
 
 def _next_number(cursor, company_code):
-    prefix = f"{company_code}-LPJ/{date.today():%y}/"
+    """Nomor dasar: {KODE}-{yy}{urut 3 digit}, mis. SNV-26034. Dokumen: INV/SNV-26034/VIII/2026."""
+    prefix = f"{company_code}-{date.today():%y}"
     cursor.execute("SELECT nomor FROM pinjam_bendera WHERE nomor LIKE %s", [prefix + "%"])
     seq = 0
     for (nomor,) in cursor.fetchall():
-        tail = nomor[len(prefix):]
+        tail = base_number(nomor)[len(prefix):]
         if tail.isdigit():
             seq = max(seq, int(tail))
     return f"{prefix}{seq + 1:03d}"
+
+
+ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]
+
+
+def base_number(number):
+    """'INV/SNV-26034/VIII/2026' atau 'SNV-26034' -> 'SNV-26034'."""
+    number = re.sub(r"^\s*(INV|RCPT|KW|BAST)\s*/\s*", "", (number or "").strip(), flags=re.I)
+    return re.sub(r"/\s*[IVXLC]+\s*/\s*\d{4}\s*$", "", number)
+
+
+def doc_number(prefix, number, doc_date):
+    doc_date = doc_date or date.today()
+    return f"{prefix}/{base_number(number)}/{ROMAN[doc_date.month - 1]}/{doc_date.year}"
 
 
 def _save(cursor, data, items, user, flag_id=None):
@@ -262,7 +277,7 @@ def flag_form(request, flag_id=None):
     if request.method == "POST":
         post = request.POST
         data = {
-            "company_id": post.get("company_id"), "number": (post.get("number") or "").strip()[:80],
+            "company_id": post.get("company_id"), "number": base_number(post.get("number") or "")[:80],
             "activity_date": (post.get("activity_date") or "").strip()[:120],
             "client": (post.get("client") or "").strip()[:200],
             "institution": (post.get("institution") or "").strip()[:200],
@@ -380,9 +395,10 @@ def _lpj_payload(record):
     if record["activity_date"]:
         purpose += f" ({en_text(record['activity_date'])})"
     return {
-        "brand": _brand_code(record["company_code"]), "number": record["number"],
-        "invoice_no": f"INV/{record['number']}", "receipt_no": f"RCPT/{record['number']}",
-        "bast_no": f"BAST/{record['number']}", "doc_date": record["doc_date"], "client": record["client"],
+        "brand": _brand_code(record["company_code"]), "number": base_number(record["number"]),
+        "invoice_no": doc_number("INV", record["number"], record["doc_date"]),
+        "receipt_no": doc_number("RCPT", record["number"], record["doc_date"]),
+        "bast_no": doc_number("BAST", record["number"], record["doc_date"]), "doc_date": record["doc_date"], "client": record["client"],
         "institution": record["institution"], "address_lines": [x for x in record["address"].splitlines() if x.strip()][:3],
         "research_title": record["research_title"], "activity_date": record["activity_date"], "items": record["items"],
         "include_tax": record["include_tax"], "tax_rate": record["tax_rate"], "total": record["total"],
@@ -423,7 +439,7 @@ def flag_document(request, flag_id, doc):
     prefix, builder = DOCS[doc]
     _company, content, number = builder(record)
     names = [en_item(i["rincian"]) for i in record["items"]]
-    fname = file_name(prefix, record["number"], record["client"], None, names[:2])
+    fname = file_name(prefix, base_number(record["number"]), record["client"], None, names[:2])
     return _respond(request, content, number, "flag_list", fname)
 
 
