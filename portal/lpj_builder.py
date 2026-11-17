@@ -99,14 +99,14 @@ class LpjDoc(DocBuilder):
         b = self.b
         t = self.doc.add_table(rows=1, cols=2)
         table_no_borders(t, zero_cell_margins=True)
-        table_fixed(t, [48, self.content_w - 48])
+        table_fixed(t, [72, self.content_w - 72])
         left, right = t.rows[0].cells
         left.vertical_alignment = right.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
         logo = ASSET_DIR / b.logo
         p = left.paragraphs[0]
         para_spacing(p, 0, 0, 1)
         if logo.exists():
-            p.add_run().add_picture(str(logo), width=Mm(min(b.logo_width_mm, 44)))
+            p.add_run().add_picture(str(logo), width=Mm(min(b.logo_width_mm * 1.3, 68)))
         p = right.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         para_spacing(p, 0, 1, 1)
@@ -229,7 +229,7 @@ class LpjDoc(DocBuilder):
         self.run(p, value, size=10, italic=italic, bold=True, color=BLACK)
         self.spacer(10)
 
-    def signature(self, place_date, opening, company, name, title, height_mm=24, note=None, col_mm=70):
+    def signature(self, place_date, opening, company, name, title, height_mm=34, note="Materai Rp10.000", col_mm=70):
         """Blok tanda tangan kanan: tempat/tanggal, salam, perusahaan, ruang ttd, nama (garis bawah), jabatan."""
         t = self.doc.add_table(rows=1, cols=2)
         table_no_borders(t, zero_cell_margins=True)
@@ -239,14 +239,14 @@ class LpjDoc(DocBuilder):
         self._sign_block(c, [place_date, opening, company], name, title, height_mm, note)
         return t
 
-    def two_signatures(self, left, right, height_mm=24):
+    def two_signatures(self, left, right, height_mm=32):
         t = self.doc.add_table(rows=1, cols=2)
         table_no_borders(t, zero_cell_margins=True)
         half = self.content_w / 2
         table_fixed(t, [half, half])
         keep_row_together(t.rows[0])
         for cell, (heads, name, title) in zip(t.rows[0].cells, (left, right)):
-            self._sign_block(cell, heads, name, title, height_mm, None, center=True)
+            self._sign_block(cell, heads, name, title, height_mm, "Materai Rp10.000", center=True)
 
     def _sign_block(self, cell, heads, name, title, height_mm, note, center=False):
         align = WD_ALIGN_PARAGRAPH.CENTER if center else WD_ALIGN_PARAGRAPH.LEFT
@@ -260,7 +260,7 @@ class LpjDoc(DocBuilder):
         gap = cell.add_paragraph()
         gap.alignment = align
         para_spacing(gap, 0, 0, 1)
-        gap.paragraph_format.space_before = Mm(height_mm - 6)
+        gap.paragraph_format.space_before = Mm(height_mm - 4)
         if note:
             self.run(gap, note, size=7.5, color="9AA1AB", italic=True)
         p = cell.add_paragraph()
@@ -333,8 +333,7 @@ def build_lpj_invoice(r) -> bytes:
     d.fields([("Bank", bank[0] if bank else "-"), ("No. Rekening", bank[2] if len(bank) > 2 else "-"),
               ("Atas nama", bank[3].replace("a.n. ", "") if len(bank) > 3 else d.b.legal_name)],
              widths=(30, 4, None), size=9.5, after=14)
-    d.signature(f"Jakarta, {tgl(r['doc_date'])}", "Hormat kami,", d.b.legal_name, r["signer"], r["signer_title"],
-                height_mm=20)
+    d.signature(f"Jakarta, {tgl(r['doc_date'])}", "Hormat kami,", d.b.legal_name, r["signer"], r["signer_title"])
     return d.save()
 
 
@@ -397,7 +396,7 @@ def build_lpj_receipt(r) -> bytes:
     d.run(ap, rp(r["total"]), size=14, bold=True, color=BLACK)
     left.paragraphs[0]._p.getparent().remove(left.paragraphs[0]._p)
     d._sign_block(right, [f"Jakarta, {tgl(r['doc_date'])}", "Yang menerima,", d.b.legal_name], r["signer"],
-                  r["signer_title"], 26, "Materai Rp10.000")
+                  r["signer_title"], 36, "Materai Rp10.000")
     return d.save()
 
 
