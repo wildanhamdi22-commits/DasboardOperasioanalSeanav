@@ -386,7 +386,7 @@ def _lpj_payload(record):
         "institution": record["institution"], "address_lines": [x for x in record["address"].splitlines() if x.strip()][:3],
         "research_title": record["research_title"], "activity_date": record["activity_date"], "items": record["items"],
         "include_tax": record["include_tax"], "tax_rate": record["tax_rate"], "total": record["total"],
-        "dpp": record["dpp"], "ppn": record["ppn"], "terbilang": amount_in_words(record["total"]) + " only", "purpose": purpose,
+        "dpp": record["dpp"], "ppn": record["ppn"], "terbilang": amount_in_words(record["total"]), "purpose": purpose,
         "signer": record["signer"], "signer_title": signer_title,
     }
 
