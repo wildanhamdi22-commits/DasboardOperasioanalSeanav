@@ -26,7 +26,7 @@ HEAD_FILL = "EDEFF2"
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
           "October", "November", "December"]
-STAMP = "Duty stamp (meterai) IDR 10,000"
+STAMP = ""  # ruang meterai tetap ada, tanpa tulisan
 _ID_MONTHS = {"januari": "January", "februari": "February", "maret": "March", "april": "April", "mei": "May",
               "juni": "June", "juli": "July", "agustus": "August", "september": "September", "oktober": "October",
               "november": "November", "desember": "December", "des": "Dec", "okt": "Oct", "agu": "Aug",
