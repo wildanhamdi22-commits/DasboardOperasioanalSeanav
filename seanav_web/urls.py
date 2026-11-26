@@ -83,6 +83,7 @@ urlpatterns = [
     path("pinjam-bendera/tambah/", flag.flag_form, name="flag_create"),
     path("pinjam-bendera/impor/", flag.flag_import, name="flag_import"),
     path("pinjam-bendera/ekspor/", flag.flag_export, name="flag_export"),
+    path("pinjam-bendera/rekap-pajak/", flag.flag_tax, name="flag_tax"),
     path("pinjam-bendera/<int:flag_id>/edit/", flag.flag_form, name="flag_edit"),
     path("pinjam-bendera/<int:flag_id>/dokumen/<str:doc>/", flag.flag_document, name="flag_document"),
     path("pinjam-bendera/<int:flag_id>/<str:action>/", flag.flag_status, name="flag_status"),

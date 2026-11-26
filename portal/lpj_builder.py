@@ -65,7 +65,13 @@ _WORDS = {"selama": "for", "dan": "and", "untuk": "for", "dengan": "with", "alat
           "peralatan": "equipment", "pengukuran": "measurement", "pemetaan": "mapping", "survei": "survey",
           "pengolahan": "processing", "data": "data", "termasuk": "including", "operator": "operator",
           "beserta": "with", "per": "per", "lokasi": "site", "kapal": "vessel", "mobilisasi": "mobilization",
-          "demobilisasi": "demobilization", "laporan": "report", "kegiatan": "activity", "penelitian": "research"}
+          "demobilisasi": "demobilization", "laporan": "report", "kegiatan": "activity", "penelitian": "research",
+          "perbaikan": "repair", "pengujian": "testing", "kalibrasi": "calibration", "pemeliharaan": "maintenance",
+          "perawatan": "maintenance", "pemasangan": "installation", "instalasi": "installation",
+          "penggantian": "replacement", "pemeriksaan": "inspection", "baterai": "battery", "suku": "spare",
+          "cadang": "parts", "komponen": "components", "kabel": "cable", "pengiriman": "delivery",
+          "pelatihan": "training", "sertifikasi": "certification", "pengadaan": "procurement", "barang": "goods",
+          "jasa": "services", "baru": "new", "bekas": "used", "teknisi": "technician", "konsultan": "consultant"}
 
 
 def _en_words(text):
@@ -77,8 +83,15 @@ def _en_words(text):
         one = Decimal(n.replace(",", ".")) == 1
         return f"{n} {pair[0] if one else pair[1]}"
     text = re.sub(r"(\d+(?:[.,]\d+)?)\s+([A-Za-z]+)\b", unit, text)
-    return re.sub(r"[A-Za-z]+", lambda m: _WORDS.get(m.group(0).lower(), m.group(0)) if m.group(0).islower()
-                  else m.group(0), text)
+    def word(m):
+        w = m.group(0)
+        if w.isupper() and len(w) > 1:  # singkatan / merek (EPIRB, GPS, RTK)
+            return w
+        en = _WORDS.get(w.lower())
+        if not en:
+            return w
+        return en[0].upper() + en[1:] if w[0].isupper() else en
+    return re.sub(r"[A-Za-z]+", word, text)
 
 
 _SUBJECTS = {"topografi": "Topographic", "batimetri": "Bathymetric", "hidrografi": "Hydrographic",
@@ -101,7 +114,8 @@ def en_item(name):
     name = re.sub(r"\s+", " ", (name or "").strip())
     m = re.match(r"(?i)^(sewa|jasa)\s+(.+)$", name)
     if not m:
-        return _en_words(name)
+        out = _en_words(name)
+        return out[0].upper() + out[1:] if out else out
     body = m.group(2)
     split = re.search(r"\s(\d+(?:[.,]\d+)?\s+[A-Za-z]+\b.*)$", body)
     head, tail = (body[:split.start()], split.group(1)) if split else (body, "")
@@ -109,6 +123,7 @@ def en_item(name):
     tail = f", {_en_words(tail)}" if tail else ""
     if m.group(1).lower() == "sewa":
         return f"Rental of {head}{tail}"
+    head = head[0].upper() + head[1:] if head else head
     return f"{head} services{tail}"
 
 
@@ -172,7 +187,7 @@ def _merge_row(row, start, end):
 class LpjDoc(DocBuilder):
     """Dokumen berkop surat klasik."""
 
-    def __init__(self, brand_code):
+    def __init__(self, brand_code, kop=True):
         super().__init__(BRANDS[brand_code])
         sec = self.doc.sections[0]
         sec.left_margin = sec.right_margin = Mm(20)
@@ -181,7 +196,8 @@ class LpjDoc(DocBuilder):
         self.content_w = 210 - 40
         self.doc.styles["Normal"].font.size = Pt(10)
         self.doc.styles["Normal"].font.color.rgb = None
-        self._kop()
+        if kop:
+            self._kop()
 
     # ---- kop surat
     def _kop(self):
@@ -396,9 +412,10 @@ def build_lpj_invoice(r) -> bytes:
             d.run(q, txt, size=10, color=BLACK)
     right.paragraphs[0]._p.getparent().remove(right.paragraphs[0]._p)
     d.spacer(10)
-    if r["research_title"]:
-        d.fields([("Subject", f"Equipment rental and services for the research project “{r['research_title']}”")],
-                 widths=(32, 4, None), after=2)
+    subject = r.get("subject", f"Equipment rental and services for the research project “{r['research_title']}”"
+                    if r["research_title"] else "")
+    if subject:
+        d.fields([("Subject", subject)], widths=(32, 4, None), after=2)
     if r["activity_date"]:
         d.fields([("Activity date", en_text(r["activity_date"]))], widths=(32, 4, None), after=8)
     rows = []
@@ -415,6 +432,9 @@ def build_lpj_invoice(r) -> bytes:
         summary += [("Subtotal (tax base / DPP)", num(r["dpp"]), False),
                     (f"VAT (PPN) {qty(r['tax_rate'])}%", num(r["ppn"]), False)]
     summary.append(("TOTAL AMOUNT DUE", num(r["total"]), True))
+    if r.get("withholding"):
+        summary += [(label, f"({num(value)})", False) for label, value in r["withholding"]]
+        summary.append(("NET AMOUNT RECEIVABLE", num(r["neto"]), True))
     R, C = WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.CENTER
     d.table(["No", "Description", "Quantity", "Duration", "Unit Price (IDR)", "Amount (IDR)"], rows,
             [10, None, 22, 22, 30, 30], align={0: C, 2: C, 3: C, 4: R, 5: R}, summary=summary)
@@ -514,7 +534,7 @@ def build_lpj_bast(r) -> bytes:
             [10, None, 22, 22, 34], align={0: C, 2: C, 3: C, 4: C})
     extra = []
     if r["research_title"]:
-        extra.append(f"for the research project “{r['research_title']}”")
+        extra.append(f"for {r.get('project', 'the research project')} “{r['research_title']}”")
     if r["activity_date"]:
         extra.append(f"carried out on {en_text(r['activity_date'])}")
     if extra:

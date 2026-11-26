@@ -75,6 +75,7 @@ _NAV_GROUPS = {
     "f_list": {"flag_list", "flag_edit", "flag_status", "flag_document"},
     "f_create": {"flag_create"},
     "f_import": {"flag_import", "flag_export"},
+    "f_tax": {"flag_tax"},
     # Lainnya
     "attendance": {"attendance"},
     "leave": {"leave_list", "leave_create", "leave_decide"},

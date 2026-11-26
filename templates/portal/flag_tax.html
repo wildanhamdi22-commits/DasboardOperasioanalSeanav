@@ -1,0 +1,51 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block title %}Rekap Pajak · Pinjam Bendera{% endblock %}
+{% block crumb %}Pinjam Bendera · Rekap Pajak{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div><h1>Rekap pajak pinjam bendera</h1>
+    <p>Transaksi dengan klien instansi pemerintah (pemungut): PPN dipungut bendahara, PPh 22 atas barang, PPh 23 atas jasa. Kejar bukti potong PPh karena bisa dikreditkan ke pajak perusahaan.</p></div>
+  <div class="page-actions">
+    <a class="btn btn-outline" href="{% url 'flag_list' %}?klien=PEMERINTAH">← Daftar</a>
+    <a class="btn btn-primary" href="{% url 'flag_tax' %}?format=xlsx{% if month %}&bulan={{ month }}{% endif %}">Ekspor Excel</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<style>.flag-kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.warn-text{color:#b45309}</style>
+<div class="kpi-row flag-kpis">
+  <div class="kpi"><span>Bruto</span><b>{{ totals.total|rupiah }}</b><small>DPP {{ totals.dpp|rupiah }}</small></div>
+  <div class="kpi"><span>PPN dipungut</span><b>{{ totals.ppn_collected|rupiah }}</b></div>
+  <div class="kpi"><span>PPh 22 + PPh 23</span><b>{{ totals.pph|rupiah }}</b><small>PPh 22 {{ totals.pph22|rupiah }} · PPh 23 {{ totals.pph23|rupiah }}</small></div>
+  <div class="kpi accent"><span>Neto diterima</span><b>{{ totals.neto|rupiah }}</b></div>
+  <div class="kpi"><span>Bukti potong belum diterima</span><b>{{ totals.bupot_missing }}</b><small>transaksi</small></div>
+</div>
+<section class="panel">
+  <form class="filter-row" method="get">
+    <select name="bulan" onchange="this.form.submit()"><option value="">Semua bulan</option>{% for value, label in months %}<option value="{{ value }}" {% if value == month %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </form>
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Nomor</th><th>Instansi / klien</th><th>Dasar / SPP</th><th class="num">Bruto</th><th class="num">DPP</th><th class="num">PPN dipungut</th><th class="num">PPh 22</th><th class="num">PPh 23</th><th class="num">Neto</th><th>Bukti potong</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><b class="mono">{{ r.doc_no }}</b><small>{{ r.company }} · {{ r.date|date:"d M Y" }} · {{ r.status_label }}</small></td>
+        <td><b>{{ r.institution|default:"-" }}</b><small>{{ r.client }} · {{ r.category }}</small></td>
+        <td>{{ r.basis|default:"-" }}<small>{{ r.spp }}</small></td>
+        <td class="num">{{ r.total|rupiah }}</td><td class="num">{{ r.dpp|rupiah }}</td>
+        <td class="num">{{ r.ppn_collected|rupiah }}</td><td class="num">{{ r.pph22|rupiah }}</td>
+        <td class="num">{{ r.pph23|rupiah }}</td><td class="num"><b>{{ r.neto|rupiah }}</b></td>
+        <td>{% if r.bupot %}✓ Diterima{% else %}<span class="warn-text">Belum</span>{% endif %}
+          <form method="post" action="{% url 'flag_status' r.id 'bupot' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost btn-sm">{% if r.bupot %}Batalkan{% else %}Tandai diterima{% endif %}</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><th colspan="3">Total</th><th class="num">{{ totals.total|rupiah }}</th><th class="num">{{ totals.dpp|rupiah }}</th><th class="num">{{ totals.ppn_collected|rupiah }}</th><th class="num">{{ totals.pph22|rupiah }}</th><th class="num">{{ totals.pph23|rupiah }}</th><th class="num">{{ totals.neto|rupiah }}</th><th></th></tr></tfoot>
+  </table></div>
+  {% else %}
+    <div class="empty"><b>Belum ada transaksi dengan klien instansi pemerintah.</b><p>Saat menambah pinjam bendera, pilih jenis klien "Instansi pemerintah (pemungut pajak)".</p><a class="btn btn-primary" href="{% url 'flag_create' %}">+ Tambah</a></div>
+  {% endif %}
+</section>
+{% endblock %}
